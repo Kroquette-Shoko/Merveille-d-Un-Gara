@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Campagnes Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout : une colonne ; une carte par campagne avec son code et le tableau des fiches */
+:root{
+  --bg:#e9ecee; --sheet:#fbfcfc; --panel:#eef1f2; --ink:#16202a; --muted:#5b6872;
+  --line:#c5ced4; --accent:#0f6b72; --accent-ink:#ffffff; --brass:#a5761d; --hurt:#b3372f; --ok:#2f7d4f;
+  --f-display:"Alegreya SC", Georgia, serif; --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1216; --sheet:#141c22; --panel:#1b252c; --ink:#e6ecef; --muted:#93a2ab;
+  --line:#2d3a43; --accent:#3fb0b8; --accent-ink:#06191b; --brass:#d6a54a; --hurt:#e2665c; --ok:#5cbf86; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1216; --sheet:#141c22; --panel:#1b252c; --ink:#e6ecef; --muted:#93a2ab;
+  --line:#2d3a43; --accent:#3fb0b8; --accent-ink:#06191b; --brass:#d6a54a; --hurt:#e2665c; --ok:#5cbf86; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2{font-family:var(--f-display);margin:0;font-weight:700;text-wrap:balance}
+h1{font-size:clamp(1.6rem,4vw,2.2rem)} h2{font-size:1.25rem}
+.sub{color:var(--muted);margin:2px 0 0}
+.topbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+a{color:var(--accent)}
+button{font:inherit;font-weight:500;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:7px 12px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input{font:inherit;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--line);padding:6px 2px;width:100%;min-width:0}
+label.f{display:flex;flex-direction:column;gap:2px;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0;flex:1}
+label.f input{font-size:1.05rem;text-transform:none;letter-spacing:0}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.hint{font-size:.88rem;color:var(--muted);margin:0}
+.status{font-size:.9rem} .status.bad{color:var(--hurt);font-weight:700} .status.good{color:var(--ok)}
+.code{font-family:ui-monospace,Consolas,monospace;font-size:1.25rem;letter-spacing:.12em;background:var(--panel);padding:4px 10px;border-radius:6px;user-select:all}
+.camp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:620px}
+th{font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:6px;border-bottom:1px solid var(--line)}
+td{padding:8px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;border:1px solid var(--line)}
+.pill.hurt{border-color:var(--hurt);color:var(--hurt)}
+.empty{color:var(--muted);font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div><h1>Campagnes</h1><p class="sub">Merveille d'Un'Gara · espace du MJ</p></div>
+    <div class="row"><a href="fiche-personnage.html">Ma fiche de personnage</a><span class="status" id="status"></span></div>
+  </div>
+
+  <section class="sheet" id="offline" hidden><p class="hint">Impossible de charger la connexion au serveur. Vérifie ta connexion internet puis recharge la page.</p></section>
+
+  <section class="sheet" id="login-box" hidden>
+    <h2>Connexion</h2>
+    <form id="login" class="row" autocomplete="on">
+      <label class="f">E-mail<input id="email" type="email" autocomplete="username" required></label>
+      <label class="f">Mot de passe<input id="pass" type="password" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">Se connecter</button>
+    </form>
+    <p class="hint">Même compte que Rimd'Orël.</p>
+  </section>
+
+  <section class="sheet" id="create-box" hidden>
+    <div class="camp-head"><h2>Nouvelle campagne</h2><button class="ghost" id="logout" type="button">Déconnexion</button></div>
+    <form id="create" class="row">
+      <label class="f">Nom de la campagne<input id="camp-name" maxlength="80" required placeholder="ex. Les naufragés de Zaraë"></label>
+      <button class="primary" type="submit">Créer</button>
+    </form>
+    <p class="hint">Après la création, donne le code d'invitation à tes joueurs : ils l'entrent sur leur fiche.</p>
+  </section>
+
+  <div id="camps" style="display:flex;flex-direction:column;gap:18px"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script>
+const $ = id=>document.getElementById(id);
+let me = null;
+function status(t,bad){ const s=$("status"); s.textContent=t||""; s.className="status"+(bad?" bad":t?" good":""); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function renderAccount(){
+  $("offline").hidden = !!jdrSb;
+  $("login-box").hidden = !jdrSb || !!me;
+  $("create-box").hidden = !jdrSb || !me;
+  if(!me) $("camps").innerHTML = "";
+}
+
+// Résumé d'une fiche pour le tableau du MJ
+function summary(d){
+  d = d || {};
+  const st = d.stats || {};
+  const wounds = Array.isArray(d.wounds) ? d.wounds.filter(Boolean).length : 0;
+  return {
+    who: [d.peuple, d.classe, d.passe].filter(Boolean).join(" · ") || "—",
+    stats: `Corps ${st.corps??0} · Esprit ${st.esprit??0} · Charme ${st.charme??0} · PA ${st.pa??0}`,
+    wounds, player: d.player || ""
+  };
+}
+
+async function loadCampaigns(){
+  status("Chargement…");
+  const { data: camps, error } = await jdrSb.from("campaigns").select("id,name,invite_code,gm_id,created_at").order("created_at",{ascending:false});
+  if(error){ status(jdrErrorText(error), true); return; }
+  const mine = camps.filter(c=>c.gm_id===me.id);
+  const others = camps.filter(c=>c.gm_id!==me.id);
+  let chars = [];
+  if(mine.length){
+    const r = await jdrSb.from("characters").select("id,name,data,campaign_id,updated_at").in("campaign_id", mine.map(c=>c.id));
+    if(r.error){ status(jdrErrorText(r.error), true); return; }
+    chars = r.data;
+  }
+  const box = $("camps");
+  if(!camps.length){ box.innerHTML = `<section class="sheet"><p class="empty">Tu n'as encore aucune campagne.</p></section>`; status(""); return; }
+  box.innerHTML = mine.map(c=>{
+    const list = chars.filter(ch=>ch.campaign_id===c.id);
+    const rows = list.map(ch=>{
+      const s = summary(ch.data);
+      return `<tr><td><b>${esc(ch.name||"Sans nom")}</b><br><span class="hint">${esc(s.player)}</span></td><td>${esc(s.who)}</td><td>${esc(s.stats)}</td>
+        <td><span class="pill ${s.wounds?"hurt":""}">${s.wounds} case${s.wounds>1?"s":""}</span></td>
+        <td><a href="fiche-personnage.html?id=${encodeURIComponent(ch.id)}">Voir la fiche</a></td></tr>`;
+    }).join("");
+    return `<section class="sheet">
+      <div class="camp-head"><h2>${esc(c.name)}</h2>
+        <div class="row" style="align-items:center"><span class="hint">Code d'invitation</span><span class="code">${esc(c.invite_code)}</span>
+        <button type="button" data-copy="${esc(c.invite_code)}">Copier</button></div></div>
+      ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Personnage</th><th>Peuple · classe · passé</th><th>Caractéristiques</th><th>Blessures</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+                    : `<p class="empty">Aucun joueur n'a encore rejoint cette campagne.</p>`}
+    </section>`;
+  }).join("") + (others.length ? `<section class="sheet"><h2>Campagnes où je joue</h2>${others.map(c=>`<p style="margin:0">${esc(c.name)}</p>`).join("")}</section>` : "");
+  box.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
+    const v=b.dataset.copy;
+    (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(()=>status("Code copié"),()=>status("Sélectionne le code et copie-le avec Ctrl+C"));
+  }));
+  status("");
+}
+
+$("login").addEventListener("submit", async e=>{
+  e.preventDefault(); status("Connexion…");
+  const { data, error } = await jdrSb.auth.signInWithPassword({ email:$("email").value.trim(), password:$("pass").value });
+  if(error){ status(jdrErrorText(error), true); return; }
+  me = data.user; $("pass").value=""; renderAccount(); await loadCampaigns();
+});
+$("logout").addEventListener("click", async ()=>{ await jdrSb.auth.signOut(); me=null; renderAccount(); status(""); });
+$("create").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const name=$("camp-name").value.trim(); if(!name) return;
+  const { error } = await jdrSb.from("campaigns").insert({ name });
+  if(error){ status(jdrErrorText(error), true); return; }
+  $("camp-name").value=""; await loadCampaigns(); status("Campagne créée");
+});
+
+(async ()=>{
+  renderAccount(); if(!jdrSb) return;
+  try{ me = await jdrCurrentUser(); renderAccount(); if(me) await loadCampaigns(); }
+  catch(err){ status(jdrErrorText(err), true); }
+})();
+</script>
+</body>
+</html>

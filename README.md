@@ -22,7 +22,10 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 
 | Chemin | Rôle |
 |---|---|
-| `fiche-personnage.html` | Fiche de personnage interactive (prototype, sauvegarde dans le navigateur) |
+| `index.html` | Page d'accueil |
+| `fiche-personnage.html` | Fiche de personnage : sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne avec un code |
+| `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches des joueurs (lecture seule) |
+| `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |
 | `sql/` | Scripts SQL numérotés `jdr-001`, `jdr-002`… |
 | `CLAUDE.md` | Règles de travail pour l'IA sur ce projet |
 
