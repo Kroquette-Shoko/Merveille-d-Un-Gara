@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Éditeur de cartes Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Layout : 3 colonnes — liste des cartes | formulaire | aperçu collant. Une colonne sur téléphone. */
+.ed{display:grid;grid-template-columns:240px minmax(0,1fr) 260px;gap:16px;align-items:start}
+@media (max-width:1050px){.ed{grid-template-columns:minmax(0,1fr) 250px}.ed .list{grid-column:1/-1}}
+@media (max-width:700px){.ed{grid-template-columns:1fr}.ed .preview{order:-1}}
+.list{max-height:calc(100vh - 140px);overflow:auto}
+.list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.list li button{width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:8px}
+.list li button.on{background:var(--panel);font-weight:700}
+.list li .ty{color:var(--muted);font-size:.8rem;font-weight:400}
+@media (max-width:1050px){.list{max-height:220px}}
+.preview{position:sticky;top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.preview .jcard{--w:240px}
+fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
+legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
+.ab{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--panel)}
+.ab-head{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.eff{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(0,3fr) auto;gap:8px;align-items:end;background:var(--sheet);border-radius:8px;padding:8px}
+.eff .fields{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.eff .fields>*{flex:1 1 120px}
+@media (max-width:560px){.eff{grid-template-columns:1fr}}
+.gen{font-size:.88rem;color:var(--muted);font-style:italic}
+.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line)}
+.ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><h1>Éditeur de cartes</h1><p class="sub">Les capacités suivent le même principe que Rimd'Orël : un déclencheur, puis des effets.</p></div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+  <p class="ro-banner" id="ro" hidden>Lecture seule : seul le compte éditeur peut créer ou modifier des cartes.</p>
+
+  <div class="ed">
+    <aside class="sheet list">
+      <div class="row"><input id="search" type="search" placeholder="Rechercher une carte…" aria-label="Rechercher une carte"><button class="primary" id="new" type="button">Nouvelle carte</button></div>
+      <ul id="cards"></ul>
+    </aside>
+
+    <main class="sheet" id="form">
+      <fieldset>
+        <legend>Identité</legend>
+        <div class="grid3">
+          <label class="f">Nom<input id="f-name" maxlength="80"></label>
+          <label class="f">Identifiant<input id="f-id" maxlength="64" placeholder="rempli depuis le nom"></label>
+          <label class="f">Type<select id="f-type"></select></label>
+        </div>
+        <div class="grid3">
+          <label class="f">Origine (ligne au-dessus du type)<input id="f-origin" placeholder="ex. Passé de brute"></label>
+          <label class="f">Image (adresse web)<input id="f-image" placeholder="https://…"></label>
+          <label class="f">Mention en bas<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
+        </div>
+        <div class="grid4">
+          <label class="f">Valeur<input id="f-value" type="number" min="0" max="20"></label>
+          <label class="f" id="w-mana">Coût en mana<input id="f-mana" type="number" min="0" max="30"></label>
+          <label class="f">Coût en PA<input id="f-pa" type="number" min="0" max="10"></label>
+          <label class="f">Exemplaires max<input id="f-max" type="number" min="1" placeholder="illimité"></label>
+        </div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="f-persistent"> Persistante</label>
+          <label class="chk"><input type="checkbox" id="f-horsdeck"> Hors deck (bénédiction, grimoire, pacte)</label>
+        </div>
+        <div><span class="hint">Sous-types</span><div class="chips" id="f-subtypes"></div></div>
+        <div id="w-comp"><span class="hint">Composantes du sort</span>
+          <div class="row"><label class="chk"><input type="checkbox" id="f-c-sonore"> Sonore</label><label class="chk"><input type="checkbox" id="f-c-gestuelle"> Gestuelle</label><label class="chk"><input type="checkbox" id="f-c-materielle"> Matérielle</label></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Qui peut l'avoir dans son deck</legend>
+        <p class="hint">Rien de coché = tout le monde. Un sort sans classe ni spécialisation cochée reste réservé aux personnages qui savent lancer des sorts.</p>
+        <div><span class="hint">Classes</span><div class="chips" id="a-classes"></div></div>
+        <div><span class="hint">Spécialisations</span><div class="chips" id="a-specs"></div></div>
+        <div><span class="hint">Passés</span><div class="chips" id="a-passes"></div></div>
+        <div><span class="hint">Peuples</span><div class="chips" id="a-peuples"></div></div>
+        <div><span class="hint">Prérequis de caractéristique</span><div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
+          <button type="button" id="req-add" style="align-self:start">Ajouter un prérequis</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Capacités</legend>
+        <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>. Le déclencheur « Tant que cette carte est dans votre deck » + « Modifier une caractéristique » ciblant « vous » change les caractéristiques de la fiche.</p>
+        <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
+        <button type="button" id="ab-add" style="align-self:start">Ajouter une capacité</button>
+        <label class="f">Texte libre (ajouté après les capacités)<textarea id="f-text" rows="2"></textarea></label>
+      </fieldset>
+
+      <div class="actions">
+        <button class="primary" id="save" type="button">Enregistrer</button>
+        <button id="dup" type="button">Dupliquer</button>
+        <button class="danger" id="del" type="button">Supprimer</button>
+      </div>
+    </main>
+
+    <aside class="preview">
+      <div id="preview"></div>
+      <p class="hint" id="preview-note">Aperçu en direct</p>
+    </aside>
+  </div>
+</div>
+
+<datalist id="dl-resources"><option value="Mana"><option value="Énergie"><option value="Surcharge"><option value="Ki"><option value="Points d'action"></datalist>
+<datalist id="dl-afflictions"><option value="Empoisonné"><option value="Étourdi"><option value="Ralenti"><option value="Entravé"><option value="Saignement"><option value="Hémorragie"><option value="Brisé"><option value="Déconcentré"><option value="Paralysé"><option value="Immobilisé"><option value="Effrayé"><option value="Endormi"><option value="Invisible"><option value="Enragé"></datalist>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script src="js/jdr-card-render.js"></script>
+<script>
+let cards = [];          // toutes les cartes
+let cur = jdrBlankCard(); // carte en cours d'édition
+let savedId = null;      // id de la carte enregistrée en cours (null = nouvelle)
+let dirty = false;
+
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
+function changed(){ dirty = true; renderPreview(); }
+
+/* ---------- Liste ---------- */
+function renderList(){
+  const q = jdrNorm($id('search').value);
+  const ul = $id('cards'); ul.replaceChildren();
+  cards.filter(c => !q || jdrNorm(c.name).includes(q) || c.id.includes(q)).forEach(c => {
+    ul.append(el('li', {}, el('button', { type:'button', class: c.id === savedId ? 'on' : '', onclick: () => openCard(c.id) },
+      el('span', { text: c.name }), el('span', { class:'ty', text: c.type }))));
+  });
+  if(!ul.children.length) ul.append(el('li', { class:'empty', text: cards.length ? 'Aucun résultat' : 'Aucune carte pour l’instant' }));
+}
+$id('search').addEventListener('input', renderList);
+
+function openCard(id){
+  const c = cards.find(x => x.id === id); if(!c) return;
+  cur = jdrNormalizeCard(structuredClone(c)); savedId = id; dirty = false;
+  renderForm(); renderList(); status('');
+}
+function newCard(){ cur = jdrBlankCard(); savedId = null; dirty = false; renderForm(); renderList(); $id('f-name').focus(); }
+$id('new').addEventListener('click', newCard);
+
+/* ---------- Formulaire ---------- */
+function chipGroup(boxId, options, selected, onToggle){
+  const box = $id(boxId); box.replaceChildren();
+  options.forEach(o => {
+    const on = selected.includes(o);
+    const input = el('input', { type:'checkbox' }); input.checked = on;
+    const lab = el('label', { class: 'chip' + (on ? ' on' : '') }, input, document.createTextNode(o));
+    input.addEventListener('change', () => { onToggle(o, input.checked); lab.classList.toggle('on', input.checked); changed(); });
+    box.append(lab);
+  });
+}
+function toggleIn(list, v, on){ const i = list.indexOf(v); if(on && i < 0) list.push(v); if(!on && i >= 0) list.splice(i, 1); }
+
+function renderForm(){
+  $id('f-name').value = cur.name; $id('f-id').value = cur.id; $id('f-id').disabled = !!savedId;
+  $id('f-type').value = cur.type; $id('f-origin').value = cur.origin; $id('f-image').value = cur.image_url; $id('f-footer').value = cur.footer;
+  $id('f-value').value = cur.value ?? ''; $id('f-mana').value = cur.mana ?? ''; $id('f-pa').value = cur.pa ?? ''; $id('f-max').value = cur.maxCopies ?? '';
+  $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck; $id('f-text').value = cur.text;
+  ['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).checked = !!cur.components[k]);
+  chipGroup('f-subtypes', JDR_SUBTYPES, cur.subtypes, (v, on) => toggleIn(cur.subtypes, v, on));
+  chipGroup('a-classes', Object.keys(JDR_CLASSES), cur.access.classes, (v, on) => toggleIn(cur.access.classes, v, on));
+  chipGroup('a-specs', Object.values(JDR_CLASSES).flat(), cur.access.specs, (v, on) => toggleIn(cur.access.specs, v, on));
+  chipGroup('a-passes', JDR_PASSES, cur.access.passes, (v, on) => toggleIn(cur.access.passes, v, on));
+  chipGroup('a-peuples', JDR_PEUPLES, cur.access.peuples, (v, on) => toggleIn(cur.access.peuples, v, on));
+  renderReqs(); renderAbilities(); typeVisibility(); renderPreview(); applyRights();
+}
+function typeVisibility(){ const spell = cur.type === 'Sort'; $id('w-mana').hidden = !spell; $id('w-comp').hidden = !spell; }
+
+$id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
+const num = v => v === '' ? null : Number(v);
+[['f-name','name'],['f-origin','origin'],['f-image','image_url'],['f-footer','footer'],['f-text','text']].forEach(([id, k]) =>
+  $id(id).addEventListener('input', e => { cur[k] = e.target.value; if(k === 'name' && !savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); }));
+$id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
+$id('f-type').addEventListener('change', e => { cur.type = e.target.value; typeVisibility(); changed(); });
+[['f-value','value'],['f-mana','mana'],['f-pa','pa'],['f-max','maxCopies']].forEach(([id, k]) => $id(id).addEventListener('input', e => { cur[k] = num(e.target.value); changed(); }));
+$id('f-persistent').addEventListener('change', e => { cur.persistent = e.target.checked; changed(); });
+$id('f-horsdeck').addEventListener('change', e => { cur.horsDeck = e.target.checked; changed(); });
+['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).addEventListener('change', e => { cur.components[k] = e.target.checked; changed(); }));
+
+/* Prérequis */
+function renderReqs(){
+  const box = $id('reqs'); box.replaceChildren();
+  cur.requirements.forEach((r, i) => {
+    const s = el('select', { 'aria-label': 'Caractéristique' }); JDR_STATS.forEach(st => s.append(el('option', { value: st.key, text: st.label }))); s.value = r.stat;
+    s.addEventListener('change', () => { r.stat = s.value; changed(); });
+    const m = el('input', { type:'number', value: r.min, 'aria-label': 'Minimum', style:'max-width:90px' }); m.addEventListener('input', () => { r.min = Number(m.value) || 0; changed(); });
+    box.append(el('div', { class:'row', style:'align-items:center' }, s, document.createTextNode('minimum'), m,
+      el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { cur.requirements.splice(i, 1); renderReqs(); changed(); } })));
+  });
+}
+$id('req-add').addEventListener('click', () => { cur.requirements.push({ stat:'corps', min:1 }); renderReqs(); changed(); });
+
+/* Capacités : déclencheur + coût + effets */
+function selectOf(obj, value, onChange, label){
+  const s = el('select', { 'aria-label': label || '' });
+  Object.entries(obj).forEach(([k, v]) => s.append(el('option', { value: k, text: v || 'Immédiat' })));
+  s.value = value; s.addEventListener('change', () => onChange(s.value)); return s;
+}
+const FIELD_UI = {
+  amount:     e => { const i = el('input', { value: e.amount ?? '', placeholder: '1 ou 2+corps' }); i.addEventListener('input', () => { e.amount = i.value; changed(); }); return el('label', { class:'f' }, document.createTextNode('Quantité'), i); },
+  damageType: e => el('label', { class:'f' }, document.createTextNode('Type de dégât'), selectOf(Object.fromEntries(JDR_DAMAGE_TYPES.map(t => [t, t])), e.damageType, v => { e.damageType = v; changed(); })),
+  target:     e => el('label', { class:'f' }, document.createTextNode('Cible'), selectOf(JDR_TARGETS, e.target, v => { e.target = v; changed(); })),
+  stat:       e => el('label', { class:'f' }, document.createTextNode('Caractéristique'), selectOf(JDR_STAT_LABEL, e.stat, v => { e.stat = v; changed(); })),
+  duration:   e => el('label', { class:'f' }, document.createTextNode('Durée'), selectOf(JDR_DURATIONS, e.duration, v => { e.duration = v; changed(); })),
+  from:       e => el('label', { class:'f' }, document.createTextNode('Depuis'), selectOf(JDR_FROM, e.from, v => { e.from = v; changed(); })),
+  resource:   e => { const i = el('input', { value: e.resource ?? '', list: 'dl-resources' }); i.addEventListener('input', () => { e.resource = i.value; changed(); }); return el('label', { class:'f' }, document.createTextNode('Ressource'), i); },
+  affliction: e => { const i = el('input', { value: e.affliction ?? '', list: 'dl-afflictions' }); i.addEventListener('input', () => { e.affliction = i.value; changed(); }); return el('label', { class:'f' }, document.createTextNode('Affliction'), i); },
+  opposeRes:  e => { const c = el('input', { type:'checkbox' }); c.checked = !!e.opposeRes; c.addEventListener('change', () => { e.opposeRes = c.checked; changed(); }); return el('label', { class:'chk' }, c, document.createTextNode("S'oppose à la résistance")); },
+  magic:      e => { const c = el('input', { type:'checkbox' }); c.checked = !!e.magic; c.addEventListener('change', () => { e.magic = c.checked; changed(); }); return el('label', { class:'chk' }, c, document.createTextNode('Armure magique')); },
+  text:       e => { const t = el('textarea', { rows: 2 }); t.value = e.text ?? ''; t.addEventListener('input', () => { e.text = t.value; changed(); }); return el('label', { class:'f', style:'flex-basis:100%' }, document.createTextNode('Texte'), t); }
+};
+function renderAbilities(){
+  const box = $id('abilities'); box.replaceChildren();
+  cur.abilities.forEach((ab, ai) => {
+    if(!ab.triggers || !ab.triggers.length) ab.triggers = [{ trigger: 'onPlay' }];
+    if(!ab.effects) ab.effects = [];
+    const trig = selectOf(JDR_TRIGGERS, ab.triggers[0].trigger, v => { ab.triggers[0].trigger = v; changed(); }, 'Déclencheur');
+    const cost = el('input', { value: ab.cost || '', placeholder: 'ex. Défaussez 1' }); cost.addEventListener('input', () => { ab.cost = cost.value; changed(); });
+    const effs = el('div', { style: 'display:flex;flex-direction:column;gap:6px' });
+    ab.effects.forEach((e, ei) => {
+      const type = selectOf(Object.fromEntries(Object.entries(JDR_EFFECTS).map(([k, v]) => [k, v.label])), e.type, v => {
+        ab.effects[ei] = Object.assign(jdrBlankEffect(v), { type: v }); renderAbilities(); changed();
+      }, "Type d'effet");
+      const fields = el('div', { class:'fields' }, ...(JDR_EFFECTS[e.type] ? JDR_EFFECTS[e.type].fields : []).map(f => FIELD_UI[f](e)));
+      effs.append(el('div', { class:'eff' }, el('label', { class:'f' }, document.createTextNode('Effet'), type), fields,
+        el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { ab.effects.splice(ei, 1); renderAbilities(); changed(); } })));
+    });
+    const gen = el('p', { class:'gen', text: jdrAbilityText(ab) || '(ajoute un effet)' });
+    box.append(el('div', { class:'ab' },
+      el('div', { class:'ab-head' },
+        el('label', { class:'f', style:'flex:1 1 220px' }, document.createTextNode('Déclencheur'), trig),
+        el('label', { class:'f', style:'flex:1 1 160px' }, document.createTextNode('Coût (facultatif)'), cost),
+        el('button', { type:'button', class:'ghost', text:'Supprimer la capacité', onclick: () => { cur.abilities.splice(ai, 1); renderAbilities(); changed(); } })),
+      effs,
+      el('button', { type:'button', style:'align-self:start', text:'Ajouter un effet', onclick: () => { ab.effects.push(jdrBlankEffect('damage')); renderAbilities(); changed(); } }),
+      gen));
+  });
+}
+$id('ab-add').addEventListener('click', () => { cur.abilities.push({ triggers:[{ trigger:'onPlay' }], cost:'', effects:[jdrBlankEffect('damage')] }); renderAbilities(); changed(); });
+
+function renderPreview(){
+  $id('preview').innerHTML = jdrCardHTML(cur);
+  document.querySelectorAll('#abilities .gen').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(ajoute un effet)'; });
+}
+
+/* ---------- Droits ---------- */
+function applyRights(){
+  $id('ro').hidden = JDR_IS_EDITOR;
+  ['save','dup','del','new','ab-add','req-add'].forEach(id => $id(id).disabled = !JDR_IS_EDITOR);
+  $id('del').disabled = !JDR_IS_EDITOR || !savedId;
+}
+
+/* ---------- Enregistrement ---------- */
+async function save(){
+  if(!JDR_IS_EDITOR) return;
+  cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
+  if(!cur.name){ status('Donne un nom à la carte.', true); return; }
+  if(!/^[a-z0-9_-]{3,64}$/.test(cur.id)){ status("L'identifiant doit faire 3 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
+  if(!savedId && cards.some(c => c.id === cur.id)){ status('Une carte porte déjà cet identifiant : change-le.', true); return; }
+  const data = structuredClone(cur); delete data.updated_at;
+  status('Enregistrement…');
+  const q = savedId ? jdrSb.from('cards').update({ name: cur.name, data }).eq('id', savedId)
+                    : jdrSb.from('cards').insert({ id: cur.id, name: cur.name, data });
+  const { error } = await q;
+  if(error){ status(jdrErrorText(error), true); return; }
+  savedId = cur.id; dirty = false;
+  await reload(); renderForm(); status('Carte enregistrée');
+}
+$id('save').addEventListener('click', save);
+$id('dup').addEventListener('click', () => {
+  cur = structuredClone(cur); cur.name = cur.name + ' (copie)'; cur.id = jdrSlug(cur.name); savedId = null; dirty = true; renderForm(); renderList(); status('Copie créée : pense à enregistrer');
+});
+let delArmed = false;
+$id('del').addEventListener('click', async () => {
+  if(!savedId) return;
+  if(!delArmed){ delArmed = true; $id('del').textContent = 'Confirmer la suppression'; setTimeout(() => { delArmed = false; $id('del').textContent = 'Supprimer'; }, 3000); return; }
+  delArmed = false; $id('del').textContent = 'Supprimer';
+  const { error } = await jdrSb.from('cards').delete().eq('id', savedId);
+  if(error){ status(jdrErrorText(error), true); return; }
+  await reload(); newCard(); status('Carte supprimée');
+});
+window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
+
+async function reload(){
+  try{ cards = (await jdrLoadCards()).list; } catch(err){ status(jdrErrorText(err), true); cards = []; }
+  renderList();
+}
+
+(async () => {
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  const me = await jdrPage('editeur', { requireLogin: true }); if(!me) return;
+  await reload();
+  const wanted = new URLSearchParams(location.search).get('id');
+  if(wanted && cards.some(c => c.id === wanted)) openCard(wanted); else newCard();
+})();
+</script>
+</body>
+</html>

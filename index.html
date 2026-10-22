@@ -2,26 +2,35 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Merveille d'Un'Gara</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700&family=Alegreya+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
 <style>
-:root{--bg:#e9ecee;--sheet:#fbfcfc;--ink:#16202a;--muted:#5b6872;--line:#c5ced4;--accent:#0f6b72}
-@media (prefers-color-scheme: dark){:root{--bg:#0c1216;--sheet:#141c22;--ink:#e6ecef;--muted:#93a2ab;--line:#2d3a43;--accent:#3fb0b8;color-scheme:dark}}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Alegreya Sans",system-ui,sans-serif;padding:40px 16px}
-.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-h1{font-family:"Alegreya SC",Georgia,serif;margin:0;font-size:2.2rem}
-p{color:var(--muted);margin:0}
-a.card{display:block;background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;color:var(--ink);text-decoration:none}
-a.card b{color:var(--accent);font-size:1.15rem}
+/* Layout : liste de raccourcis en grille, une colonne sur téléphone */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+a.tile{display:flex;flex-direction:column;gap:4px;background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;color:var(--ink);text-decoration:none}
+a.tile b{color:var(--accent);font-size:1.12rem}
+a.tile:hover{border-color:var(--accent)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Merveille d'Un'Gara</h1>
-  <p>Jeu de rôle avec deckbuilding, dans l'univers d'Un'Gara.</p>
-  <a class="card" href="fiche-personnage.html"><b>Fiche de personnage</b><p>Créer et enregistrer ton personnage, rejoindre une campagne.</p></a>
-  <a class="card" href="campagnes.html"><b>Campagnes (MJ)</b><p>Créer une campagne, partager le code, voir les fiches des joueurs.</p></a>
+  <div><h1>Merveille d'Un'Gara</h1><p class="sub">Jeu de rôle avec deckbuilding, dans l'univers d'Un'Gara.</p></div>
+  <div class="tiles" id="tiles">
+    <a class="tile" href="fiche-personnage.html"><b>Fiche de personnage</b><span class="hint">Créer ton personnage, l'enregistrer en ligne, rejoindre une campagne.</span></a>
+    <a class="tile" href="deck.html"><b>Deck</b><span class="hint">Construire le deck de ton personnage selon sa classe, son passé et son niveau.</span></a>
+    <a class="tile" href="bibliotheque.html"><b>Bibliothèque</b><span class="hint">Toutes les cartes, avec filtres.</span></a>
+    <a class="tile" href="campagnes.html"><b>Campagnes</b><span class="hint">Pour le MJ : créer une campagne, partager le code, voir les fiches et les decks.</span></a>
+    <a class="tile" href="editeur-cartes.html" id="t-editor" hidden><b>Éditeur de cartes</b><span class="hint">Créer et modifier les cartes du jeu.</span></a>
+  </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script>
+(async () => { if(!jdrSb) return; await jdrPage('accueil'); $id('t-editor').hidden = !JDR_IS_EDITOR; })();
+</script>
 </body>
 </html>

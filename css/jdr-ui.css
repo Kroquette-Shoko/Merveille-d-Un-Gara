@@ -1,0 +1,93 @@
+/* Merveille d'Un'Gara — styles communs (connexion, éditeur, bibliothèque, deck) */
+:root{
+  --bg:#e9ecee; --sheet:#fbfcfc; --panel:#eef1f2; --ink:#16202a; --muted:#5b6872;
+  --line:#c5ced4; --accent:#0f6b72; --accent-ink:#ffffff; --brass:#a5761d; --hurt:#b3372f; --ok:#2f7d4f;
+  --mana:#2f63c9; --card-face:#f7f5ef; --card-ink:#1d1a16; --card-frame:#2a2f35;
+  --f-display:"Alegreya SC", Georgia, "Times New Roman", serif;
+  --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1216; --sheet:#141c22; --panel:#1b252c; --ink:#e6ecef; --muted:#93a2ab;
+  --line:#2d3a43; --accent:#3fb0b8; --accent-ink:#06191b; --brass:#d6a54a; --hurt:#e2665c; --ok:#5cbf86;
+  --mana:#5b8ff0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1216; --sheet:#141c22; --panel:#1b252c; --ink:#e6ecef; --muted:#93a2ab;
+  --line:#2d3a43; --accent:#3fb0b8; --accent-ink:#06191b; --brass:#d6a54a; --hurt:#e2665c; --ok:#5cbf86;
+  --mana:#5b8ff0; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:700;text-wrap:balance}
+h1{font-size:clamp(1.6rem,4vw,2.2rem)} h2{font-size:1.25rem} h3{font-size:1.05rem}
+a{color:var(--accent)}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.sub,.hint{color:var(--muted);margin:0}
+.hint{font-size:.88rem}
+
+/* Barre de navigation commune */
+.jdr-nav{max-width:1200px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;
+  padding-block:10px;border-bottom:1px solid var(--line)}
+.jdr-nav .brand{font-family:var(--f-display);font-weight:800;font-size:1.1rem;color:var(--ink);text-decoration:none}
+.jdr-nav nav{display:flex;flex-wrap:wrap;gap:4px}
+.jdr-nav nav a{padding:5px 10px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:500}
+.jdr-nav nav a.on{background:var(--panel);color:var(--ink)}
+.jdr-nav .who{display:flex;gap:8px;align-items:center;font-size:.92rem;color:var(--muted)}
+
+/* Contrôles */
+button{font:inherit;font-weight:500;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:7px 12px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--hurt);border-color:var(--hurt)}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:4px 8px}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+textarea{resize:vertical}
+input[type=checkbox]{width:auto}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
+label.f input,label.f select,label.f textarea{font-size:1rem;text-transform:none;letter-spacing:0;color:var(--ink)}
+label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor:pointer}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.grid3,.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.box{background:var(--panel);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.status{font-size:.9rem}.status.bad{color:var(--hurt);font-weight:700}.status.good{color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:.88rem;background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer;user-select:none}
+.chip input{margin:0}
+.chip.on{border-color:var(--accent);background:var(--panel)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;border:1px solid var(--line)}
+.pill.bad{border-color:var(--hurt);color:var(--hurt)} .pill.good{border-color:var(--ok);color:var(--ok)}
+.empty{color:var(--muted);font-style:italic}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);padding:8px 14px;border-radius:999px;font-size:.9rem;z-index:50}
+
+/* ----- Carte du JDR (rendu commun) ----- */
+.jcard{--w:220px;width:var(--w);aspect-ratio:5/7;position:relative;border-radius:calc(var(--w)*.06);background:var(--card-frame);padding:calc(var(--w)*.035);
+  display:flex;flex-direction:column;color:var(--card-ink);font-family:var(--f-body);box-shadow:0 2px 6px rgba(0,0,0,.25);container-type:inline-size;flex:0 0 auto}
+.jcard .art{flex:0 0 46%;border-radius:calc(var(--w)*.035) calc(var(--w)*.035) 0 0;background:linear-gradient(160deg,#55606b,#2d353d);background-size:cover;background-position:center;position:relative}
+.jcard .art.ph::after{content:"Illustration";position:absolute;inset:0;display:grid;place-items:center;color:#c5ccd3;font-size:6cqw;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.jcard .val{position:absolute;top:0;left:calc(var(--w)*.06);width:13cqw;height:15cqw;background:#3a4047;color:#fff;font-family:var(--f-display);font-weight:800;font-size:9cqw;
+  display:grid;place-items:center;clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%);border:0}
+.jcard .mana{position:absolute;left:calc(var(--w)*.0);top:40%;width:14cqw;height:14cqw;border-radius:50%;background:radial-gradient(circle at 35% 35%,#8fb5ff,var(--mana) 60%,#1b3c86);color:#fff;
+  font-family:var(--f-display);font-weight:800;font-size:8cqw;display:grid;place-items:center;border:2px solid #dfe8ff;transform:translateX(-25%)}
+.jcard .pers{position:absolute;top:0;right:calc(var(--w)*.06);width:11cqw;height:13cqw;background:#3a4047;color:#fff;display:grid;place-items:center;font-size:6.5cqw;
+  clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%)}
+.jcard .pa{position:absolute;bottom:4cqw;right:4cqw;background:rgba(20,26,32,.82);color:#fff;border-radius:999px;font-size:5cqw;padding:.5cqw 2.5cqw;font-weight:700}
+.jcard .face{flex:1;background:var(--card-face);border-radius:0 0 calc(var(--w)*.035) calc(var(--w)*.035);display:flex;flex-direction:column;align-items:stretch;padding:0 5cqw 3cqw;position:relative;min-height:0}
+.jcard .banner{margin:-6cqw auto 1cqw;background:#5d646c;color:#f2f2f2;text-align:center;padding:1.2cqw 8cqw;line-height:1.05;
+  clip-path:polygon(6% 0,94% 0,100% 50%,94% 100%,6% 100%,0 50%);min-width:72%}
+.jcard .banner .o{font-family:var(--f-display);font-size:5.6cqw;display:block}
+.jcard .banner .t{font-size:4cqw;display:block;opacity:.9}
+.jcard .name{font-family:var(--f-display);font-weight:700;font-size:6.6cqw;text-align:center;text-decoration:underline;text-underline-offset:1cqw;margin:1cqw 0}
+.jcard .txt{font-size:4.3cqw;line-height:1.25;overflow:hidden;flex:1;min-height:0;text-align:justify;hyphens:auto}
+.jcard .txt p{margin:0 0 1.5cqw}
+.jcard .comp{font-size:3.8cqw;color:#5d564c;margin-bottom:1cqw;text-align:center}
+.jcard .foot{font-size:3.8cqw;color:#9a7420;font-weight:700;text-align:center;margin-top:auto;padding-top:1cqw}
+.jcard.risk .face{background:#efeae0}
+.jcard.small{--w:150px}
+.jcard.locked{filter:grayscale(.85);opacity:.6}

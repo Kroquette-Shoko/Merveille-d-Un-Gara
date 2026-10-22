@@ -23,9 +23,23 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | Chemin | Rôle |
 |---|---|
 | `index.html` | Page d'accueil |
-| `fiche-personnage.html` | Fiche de personnage : sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne avec un code |
-| `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches des joueurs (lecture seule) |
+| `connexion.html` | Connexion (compte commun avec Rimd'Orël) |
+| `fiche-personnage.html` | Fiche de personnage : sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne ; lien vers le deck ; affiche les effets du deck sur les caractéristiques |
+| `deck.html` | Construction du deck d'un personnage (cartes autorisées selon classe, spécialisation, passé, peuple, prérequis ; taille selon le niveau) |
+| `bibliotheque.html` | Toutes les cartes avec filtres |
+| `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur) |
+| `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches et decks des joueurs (lecture seule) |
 | `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |
+| `js/jdr-rules.js` | Règles : modèle de carte, déclencheurs, effets, formules avec les caractéristiques, effets des cartes sur les caractéristiques, règles de deck |
+| `js/jdr-card-render.js` | Dessin d'une carte |
+| `js/jdr-filters.js` | Filtres de cartes (bibliothèque et deck) |
+| `js/jdr-ui.js`, `css/jdr-ui.css` | Barre de navigation et styles communs |
+
+## Cartes ↔ caractéristiques
+
+- **Cartes → caractéristiques** : une capacité « Tant que cette carte est dans votre deck » avec l'effet « Modifier une caractéristique » ciblant « vous » change la caractéristique sur la fiche et dans le deck.
+- **Caractéristiques → cartes** : les quantités des effets acceptent des formules (`2+corps`, `esprit*2`, `niveau`) calculées avec la fiche ; une carte peut exiger une caractéristique minimale.
+- Les effets pendant une partie (postures, auras, rages…) seront appliqués par le futur moteur de jeu.
 | `sql/` | Scripts SQL numérotés `jdr-001`, `jdr-002`… |
 | `CLAUDE.md` | Règles de travail pour l'IA sur ce projet |
 

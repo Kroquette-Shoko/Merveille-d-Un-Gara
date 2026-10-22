@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deck Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Layout : bandeau personnage + caractéristiques ; dessous, cartes disponibles (gauche) et deck (droite, collant) */
+.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px}
+@media (max-width:860px){.top{grid-template-columns:1fr}}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.st{background:var(--panel);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.st .k{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.st .v{font-family:var(--f-display);font-weight:800;font-size:1.6rem;font-variant-numeric:tabular-nums;line-height:1}
+.st .m{font-size:.8rem;font-variant-numeric:tabular-nums}
+.st .m.up{color:var(--ok)} .st .m.down{color:var(--hurt)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:980px){.main{grid-template-columns:1fr}}
+.pool{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;justify-items:center}
+.pool .jcard{--w:150px}
+.pool button.cardbtn{border:0;padding:0;background:none;border-radius:10px;position:relative;cursor:pointer}
+.pool button.cardbtn:disabled{cursor:not-allowed}
+.pool .qty{position:absolute;top:-6px;right:-6px;background:var(--accent);color:var(--accent-ink);border-radius:999px;min-width:26px;height:26px;display:grid;place-items:center;font-weight:700;font-size:.9rem;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.deckcol{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:980px){.deckcol{position:static;max-height:none}}
+.dl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.dl li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;background:var(--panel)}
+.dl li.bad{outline:1px solid var(--hurt)}
+.dl .n{font-variant-numeric:tabular-nums;font-weight:700;min-width:1.6em;text-align:right}
+.dl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl .btns{display:flex;gap:2px}
+.dl .btns button{padding:2px 9px}
+.gh{font-family:var(--f-display);font-weight:700;margin:8px 0 4px;font-size:.98rem}
+.meter{height:8px;background:var(--panel);border-radius:999px;overflow:hidden}
+.meter>div{height:100%;background:var(--accent)}
+.msgs{margin:0;padding-left:1.1rem;font-size:.88rem;display:flex;flex-direction:column;gap:2px}
+.msgs li.err{color:var(--hurt)} .msgs li.warn{color:var(--brass)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:end">
+    <div><h1>Deck</h1><p class="sub" id="who">Construit à partir de la fiche du personnage</p></div>
+    <div class="row">
+      <label class="f" style="min-width:230px">Personnage<select id="char"></select></label>
+      <a id="to-sheet" href="fiche-personnage.html">Ouvrir la fiche</a>
+    </div>
+  </div>
+  <p class="status" id="status" role="status"></p>
+  <p class="status bad" id="ro" hidden>Lecture seule : ce deck appartient à un joueur de ta campagne.</p>
+
+  <div class="top">
+    <section class="sheet">
+      <h2>Règles du deck</h2>
+      <div id="limits"></div>
+      <div class="meter" aria-hidden="true"><div id="meter" style="width:0"></div></div>
+      <ul class="msgs" id="msgs"></ul>
+    </section>
+    <section class="sheet">
+      <h2>Caractéristiques avec ce deck</h2>
+      <div class="stats" id="stats"></div>
+      <p class="hint">Valeur de la fiche + modifications des cartes « Tant que cette carte est dans votre deck ».</p>
+    </section>
+  </div>
+
+  <div class="main">
+    <section class="sheet">
+      <details id="fdet"><summary style="cursor:pointer;font-weight:700">Filtres</summary><div id="filters" style="margin-top:10px"></div></details>
+      <div class="row" style="justify-content:space-between"><span class="hint" id="pool-count"></span><label class="chk"><input type="checkbox" id="show-locked"> Afficher aussi les cartes non jouables</label></div>
+      <div class="pool" id="pool"></div>
+    </section>
+    <aside class="sheet deckcol">
+      <div class="row" style="justify-content:space-between;align-items:center"><h2>Cartes du deck</h2><button class="ghost" id="clear" type="button">Vider</button></div>
+      <div id="deck"></div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script src="js/jdr-card-render.js"></script>
+<script src="js/jdr-filters.js"></script>
+<script>
+let me = null, cards = [], byId = {}, chars = [];
+let ch = null;        // personnage ouvert { id, owner_id, name, data, deck }
+let deck = [];        // [{card, qty}]
+let readOnly = false, saveTimer = null;
+const F = jdrFilters($id('filters'), renderPool, {});
+
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function sheet(){ return Object.assign({}, ch ? ch.data : {}, { name: ch && ch.name }); }
+function qtyOf(id){ const e = deck.find(x => x.card === id); return e ? e.qty : 0; }
+
+function setQty(id, q){
+  if(readOnly) return;
+  const card = byId[id]; if(!card) return;
+  q = Math.max(0, q);
+  if(card.horsDeck) q = Math.min(q, 1);
+  if(card.maxCopies) q = Math.min(q, card.maxCopies);
+  const e = deck.find(x => x.card === id);
+  if(e){ if(q) e.qty = q; else deck = deck.filter(x => x !== e); }
+  else if(q) deck.push({ card: id, qty: q });
+  renderAll(); scheduleSave();
+}
+
+/* ---------- Caractéristiques (cartes → stats) ---------- */
+function renderStats(){
+  const eff = jdrEffectiveStats(sheet(), deck, byId);
+  $id('stats').innerHTML = JDR_STATS.map(s => {
+    const m = eff.mods[s.key];
+    const src = eff.sources[s.key].map(x => `${x.card} ${x.value > 0 ? '+' : ''}${x.value}`).join(', ');
+    return `<div class="st" title="${jdrEsc(src)}"><span class="k">${s.label}</span><span class="v">${eff.total[s.key]}</span>
+      <span class="m ${m > 0 ? 'up' : m < 0 ? 'down' : ''}">${m ? `fiche ${eff.base[s.key] ?? 0} ${m > 0 ? '+' : ''}${m}` : 'fiche'}</span></div>`;
+  }).join('');
+  return eff.total;
+}
+
+/* ---------- Règles et validation ---------- */
+function renderRules(){
+  const v = jdrValidateDeck(deck, byId, sheet());
+  $id('limits').innerHTML = `<p style="margin:0"><b style="font-size:1.4rem;font-variant-numeric:tabular-nums">${v.count}</b> carte${v.count > 1 ? 's' : ''} · minimum ${v.limits.min} · maximum ${v.limits.max} (niveau ${v.limits.level})${v.horsDeck ? ` · ${v.horsDeck} hors deck` : ''}
+    &nbsp;<span class="pill ${v.valid ? 'good' : 'bad'}">${v.valid ? 'Deck valide' : 'Deck incomplet ou invalide'}</span></p>`;
+  $id('meter').style.width = Math.min(100, v.count / v.limits.max * 100) + '%';
+  $id('msgs').innerHTML = v.errors.map(e => `<li class="err">${jdrEsc(e)}</li>`).join('') + v.warnings.map(e => `<li class="warn">${jdrEsc(e)}</li>`).join('');
+  return v;
+}
+
+/* ---------- Cartes disponibles ---------- */
+function renderPool(){
+  if(!ch){ $id('pool').innerHTML = ''; return; }
+  const sh = sheet(); const eff = jdrEffectiveStats(sh, deck, byId).total;
+  const showLocked = $id('show-locked').checked;
+  const list = F.apply(cards, {}).filter(c => c.type !== 'Risque').map(c => ({ c, ok: jdrCardAllowed(c, sh, eff).ok })).filter(x => x.ok || showLocked);
+  $id('pool-count').textContent = `${list.length} carte${list.length > 1 ? 's' : ''} · touche une carte pour l'ajouter`;
+  if(!cards.length){ $id('pool').innerHTML = `<p class="empty">Aucune carte n'existe encore.${JDR_IS_EDITOR ? ' <a href="editeur-cartes.html">Créer des cartes</a>' : ''}</p>`; return; }
+  if(!list.length){ $id('pool').innerHTML = '<p class="empty">Aucune carte jouable ne correspond.</p>'; return; }
+  $id('pool').innerHTML = list.map(({ c, ok }) => {
+    const q = qtyOf(c.id);
+    return `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" ${!ok || readOnly ? 'disabled' : ''} aria-label="Ajouter ${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet: sh, locked: !ok })}${q ? `<span class="qty">${q}</span>` : ''}</button>`;
+  }).join('');
+}
+$id('pool').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b && !b.disabled) setQty(b.dataset.id, qtyOf(b.dataset.id) + 1); });
+$id('show-locked').addEventListener('change', renderPool);
+
+/* ---------- Liste du deck ---------- */
+function renderDeck(v){
+  const errorsByName = new Set(v.errors.map(e => e.split(' : ')[0]));
+  const groups = {};
+  deck.forEach(e => {
+    const c = byId[e.card];
+    const g = c ? (c.horsDeck ? 'Hors deck' : c.type) : 'Introuvables';
+    (groups[g] = groups[g] || []).push({ e, c });
+  });
+  const order = [...JDR_CARD_TYPES, 'Hors deck', 'Introuvables'];
+  const html = order.filter(g => groups[g]).map(g => {
+    const items = groups[g].sort((a, b) => (a.c ? a.c.name : a.e.card).localeCompare(b.c ? b.c.name : b.e.card, 'fr'));
+    const total = items.reduce((s, x) => s + x.e.qty, 0);
+    return `<p class="gh">${g} (${total})</p><ul class="dl">${items.map(({ e, c }) => `
+      <li class="${c && errorsByName.has(c.name) ? 'bad' : ''}"><span class="n">${e.qty}</span><span class="nm">${jdrEsc(c ? c.name : e.card)}</span>
+      <span class="btns">${readOnly ? '' : `<button type="button" data-minus="${jdrEsc(e.card)}" aria-label="Retirer un exemplaire">−</button><button type="button" data-plus="${jdrEsc(e.card)}" aria-label="Ajouter un exemplaire">+</button>`}</span></li>`).join('')}</ul>`;
+  }).join('');
+  $id('deck').innerHTML = html || '<p class="empty">Le deck est vide. Touche les cartes à gauche pour les ajouter.</p>';
+}
+$id('deck').addEventListener('click', e => {
+  const m = e.target.closest('[data-minus]'), p = e.target.closest('[data-plus]');
+  if(m) setQty(m.dataset.minus, qtyOf(m.dataset.minus) - 1);
+  if(p) setQty(p.dataset.plus, qtyOf(p.dataset.plus) + 1);
+});
+let clearArmed = false;
+$id('clear').addEventListener('click', e => {
+  if(readOnly || !deck.length) return;
+  if(!clearArmed){ clearArmed = true; e.target.textContent = 'Confirmer'; setTimeout(() => { clearArmed = false; e.target.textContent = 'Vider'; }, 3000); return; }
+  clearArmed = false; e.target.textContent = 'Vider'; deck = []; renderAll(); scheduleSave();
+});
+
+function renderAll(){ renderStats(); const v = renderRules(); renderDeck(v); renderPool(); }
+
+/* ---------- Enregistrement ---------- */
+function scheduleSave(){ clearTimeout(saveTimer); status('Modifications en attente…'); saveTimer = setTimeout(saveDeck, 900); }
+async function saveDeck(){
+  if(readOnly || !ch) return;
+  const { error } = await jdrSb.from('characters').update({ deck }).eq('id', ch.id);
+  if(error){ status(jdrErrorText(error), true); return; }
+  ch.deck = structuredClone(deck);
+  status('Deck enregistré à ' + new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }));
+}
+
+/* ---------- Chargement ---------- */
+async function openChar(id){
+  if(saveTimer){ clearTimeout(saveTimer); await saveDeck(); }
+  const { data, error } = await jdrSb.from('characters').select('id,owner_id,name,data,deck').eq('id', id).maybeSingle();
+  if(error){ status(jdrErrorText(error), true); return; }
+  if(!data){ status('Personnage introuvable ou accès refusé.', true); return; }
+  ch = data; deck = Array.isArray(data.deck) ? structuredClone(data.deck) : [];
+  readOnly = data.owner_id !== me.id;
+  $id('ro').hidden = !readOnly; $id('clear').hidden = readOnly;
+  const s = data.data || {};
+  $id('who').textContent = [data.name || 'Sans nom', s.peuple, s.classe, s.specialisation, s.passe, s.level ? 'niveau ' + s.level : ''].filter(Boolean).join(' · ');
+  $id('to-sheet').href = 'fiche-personnage.html?id=' + encodeURIComponent(data.id);
+  if(![...$id('char').options].some(o => o.value === data.id)) $id('char').append(new Option((data.name || 'Sans nom') + ' (joueur)', data.id));
+  $id('char').value = data.id;
+  history.replaceState(null, '', '?character=' + encodeURIComponent(data.id));
+  status(''); renderAll();
+}
+$id('char').addEventListener('change', e => openChar(e.target.value));
+window.addEventListener('beforeunload', e => { if(saveTimer && !readOnly){ saveDeck(); } });
+
+(async () => {
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  me = await jdrPage('deck', { requireLogin: true }); if(!me) return;
+  if(matchMedia('(min-width:981px)').matches) $id('fdet').open = true;
+  try{
+    const [c, r] = await Promise.all([ jdrLoadCards(),
+      jdrSb.from('characters').select('id,name').eq('owner_id', me.id).order('updated_at', { ascending: false }) ]);
+    cards = c.list; byId = c.byId; chars = r.data || [];
+  }catch(err){ status(jdrErrorText(err), true); return; }
+  chars.forEach(x => $id('char').append(new Option(x.name || 'Sans nom', x.id)));
+  const wanted = new URLSearchParams(location.search).get('character');
+  if(wanted) await openChar(wanted);
+  else if(chars.length) await openChar(chars[0].id);
+  else { $id('char').append(new Option('Aucun personnage en ligne', '')); status("Crée d'abord ton personnage en ligne depuis la fiche (« Mettre la fiche actuelle en ligne »).", true); }
+})();
+</script>
+</body>
+</html>

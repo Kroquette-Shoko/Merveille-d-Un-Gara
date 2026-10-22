@@ -140,6 +140,15 @@ summary{cursor:pointer;font-weight:700}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);padding:8px 14px;border-radius:999px;font-size:.9rem}
 @media (prefers-reduced-motion:no-preference){.cell,.slot{transition:background-color .12s}}
+/* Barre de navigation commune (mêmes règles que css/jdr-ui.css) */
+.jdr-nav{max-width:1100px;margin:-20px auto 18px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;padding-block:10px;border-bottom:1px solid var(--line)}
+.jdr-nav .brand{font-family:var(--f-display);font-weight:800;font-size:1.1rem;color:var(--ink);text-decoration:none}
+.jdr-nav nav{display:flex;flex-wrap:wrap;gap:4px}
+.jdr-nav nav a{padding:5px 10px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:500}
+.jdr-nav nav a.on{background:var(--panel);color:var(--ink)}
+.jdr-nav .who{display:flex;gap:8px;align-items:center;font-size:.92rem;color:var(--muted)}
+.stat .mod{font-size:.8rem;font-variant-numeric:tabular-nums;font-weight:700}
+.stat .mod.up{color:var(--ok)} .stat .mod.down{color:var(--hurt)}
 </style>
 </head>
 <body>
@@ -181,6 +190,10 @@ summary{cursor:pointer;font-weight:700}
         </div>
       </div>
       <p class="hint" id="on-campaign" style="margin:0"></p>
+      <div class="row" id="on-deckrow" hidden style="align-items:center">
+        <a class="primary" id="on-deck" href="deck.html" style="text-decoration:none;padding:7px 12px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:500">Construire le deck</a>
+        <span class="hint" id="on-decksum"></span>
+      </div>
     </div>
     <p class="warn" id="on-readonly" hidden style="margin:0">Lecture seule : cette fiche appartient à un joueur de ta campagne.</p>
   </section>
@@ -195,10 +208,12 @@ summary{cursor:pointer;font-weight:700}
       <label class="f">Genre<input id="genre" data-k="genre"></label>
       <label class="f">Peuple<input id="peuple" data-k="peuple" list="dl-peuples"></label>
       <label class="f">Classe<input id="classe" data-k="classe" list="dl-classes"></label>
+      <label class="f">Spécialisation<input id="specialisation" data-k="specialisation" list="dl-specs"></label>
       <label class="f">Passé<input id="passe" data-k="passe" list="dl-passes"></label>
       <label class="f">Taille et poids<input id="taillepoids" data-k="taillepoids"></label>
     </div>
     <datalist id="dl-peuples"></datalist><datalist id="dl-classes"></datalist><datalist id="dl-passes"></datalist>
+    <datalist id="dl-specs"><option value="Gardien"><option value="Druide"><option value="Prêtre"><option value="Berserker"><option value="Guerrier"><option value="Moine"><option value="Barde"><option value="Chasseur"><option value="Voleur"><option value="Arcaniste"><option value="Mage"><option value="Sorcier"></datalist>
 
     <div class="hero">
       <div class="stat-col left" id="stats-left"></div>
@@ -330,6 +345,8 @@ summary{cursor:pointer;font-weight:700}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
 <script>
 // ---------- Données du manuel V1 ----------
 // ordre : opp, ant, corps, esprit, charme, pv, res, armure
@@ -395,9 +412,21 @@ function renderStats(){
   const L=$("stats-left"),R=$("stats-right"); L.replaceChildren(); R.replaceChildren();
   STATS.forEach(s=>{
     const inp = el("input",{type:"number",id:"st-"+s.k,"aria-label":s.n,value:S.stats[s.k]});
-    inp.addEventListener("input",()=>{ S.stats[s.k]=Number(inp.value)||0; save(); if(s.k==="corps") renderInventory(); });
-    const box = el("div",{class:"stat"}, el("div",{class:"medal"},inp), el("div",{}, el("div",{class:"name",text:s.n}), el("div",{class:"what",text:s.w})));
+    inp.addEventListener("input",()=>{ S.stats[s.k]=Number(inp.value)||0; save(); if(s.k==="corps") renderInventory(); renderDeckMods(); });
+    const box = el("div",{class:"stat"}, el("div",{class:"medal"},inp), el("div",{}, el("div",{class:"name",text:s.n}), el("div",{class:"what",text:s.w}), el("div",{class:"mod",id:"mod-"+s.k})));
     (s.side==="left"?L:R).append(box);
+  });
+  renderDeckMods();
+}
+// Modifications apportées par le deck (cartes « Tant que cette carte est dans votre deck »)
+let deckInfo = null; // { mods, sources, count, valid } quand un personnage en ligne est ouvert
+function renderDeckMods(){
+  STATS.forEach(s=>{
+    const m = document.getElementById("mod-"+s.k); if(!m) return;
+    const v = deckInfo ? deckInfo.mods[s.k] : 0;
+    m.className = "mod" + (v>0?" up":v<0?" down":"");
+    m.textContent = v ? `Deck ${v>0?"+":""}${v} → ${(Number(S.stats[s.k])||0)+v}` : "";
+    m.title = deckInfo && deckInfo.sources[s.k].length ? deckInfo.sources[s.k].map(x=>`${x.card} ${x.value>0?"+":""}${x.value}`).join(", ") : "";
   });
 }
 
@@ -550,7 +579,7 @@ let confirmNew=false;
 $("btn-new").addEventListener("click",e=>{
   if(!confirmNew){ confirmNew=true; e.target.textContent="Confirmer : tout effacer"; setTimeout(()=>{confirmNew=false;e.target.textContent="Nouvelle fiche";},3000); return; }
   confirmNew=false; e.target.textContent="Nouvelle fiche";
-  if(currentId){ currentId=null; readOnly=false; renderCharList(); $("on-campaign").textContent=""; onlineStatus("Fiche locale (navigateur)"); } // ne jamais vider un perso en ligne
+  if(currentId){ currentId=null; readOnly=false; deckInfo=null; $id("on-deckrow").hidden=true; renderCharList(); $("on-campaign").textContent=""; onlineStatus("Fiche locale (navigateur)"); } // ne jamais vider un perso en ligne
   S=BLANK(); save(); renderAll(); toast("Fiche vierge créée");
 });
 
@@ -599,12 +628,13 @@ async function loadMyChars(){
 }
 
 async function openCharacter(id){
-  const { data, error } = await jdrSb.from("characters").select("id,owner_id,campaign_id,name,data").eq("id", id).maybeSingle();
+  const { data, error } = await jdrSb.from("characters").select("id,owner_id,campaign_id,name,data,deck").eq("id", id).maybeSingle();
   if(error){ onlineStatus(jdrErrorText(error), true); return; }
   if(!data){ onlineStatus("Fiche introuvable ou accès refusé.", true); return; }
   currentId = data.id;
   readOnly = data.owner_id !== me.id;
   S = normalize(data.data);
+  await loadDeckInfo(data.deck);
   renderAll(); renderCharList();
   await showCampaign(data.campaign_id);
   onlineStatus(readOnly ? "Fiche d'un joueur (lecture seule)" : "Fiche en ligne chargée");
@@ -616,8 +646,23 @@ async function showCampaign(campaignId){
   $("on-campaign").textContent = data ? "Campagne : "+data.name : "";
 }
 
+// Lit le deck du personnage et calcule ses effets sur les caractéristiques
+let cardsCache = null;
+async function loadDeckInfo(deck){
+  deck = Array.isArray(deck) ? deck : [];
+  $id("on-deckrow").hidden = !currentId;
+  $id("on-deck").href = "deck.html?character=" + encodeURIComponent(currentId || "");
+  if(!deck.length){ deckInfo = null; $id("on-decksum").textContent = "Deck vide"; return; }
+  try{ if(!cardsCache) cardsCache = await jdrLoadCards(); }
+  catch(err){ deckInfo = null; $id("on-decksum").textContent = jdrErrorText(err); return; }
+  const { mods, sources } = jdrDeckStatModifiers(deck, cardsCache.byId, S);
+  const v = jdrValidateDeck(deck, cardsCache.byId, S);
+  deckInfo = { mods, sources, count: v.count, valid: v.valid };
+  $id("on-decksum").textContent = `Deck : ${v.count} carte${v.count>1?"s":""} / ${v.limits.max} max · ${v.valid ? "valide" : "incomplet ou invalide"}`;
+}
+
 function closeCharacter(){
-  currentId=null; readOnly=false;
+  currentId=null; readOnly=false; deckInfo=null; $id("on-deckrow").hidden=true;
   try{ const raw=localStorage.getItem(KEY); S = raw ? normalize(JSON.parse(raw)) : structuredClone(SAMPLE); }catch(e){ S=structuredClone(SAMPLE); }
   renderAll(); renderCharList(); $("on-campaign").textContent=""; onlineStatus("Fiche locale (navigateur)");
 }
@@ -625,7 +670,7 @@ function closeCharacter(){
 async function createOnline(data){
   const { data:row, error } = await jdrSb.from("characters").insert({ name: data.name||"", data }).select("id,name,campaign_id,updated_at").single();
   if(error){ onlineStatus(jdrErrorText(error), true); return; }
-  myChars.unshift(row); currentId=row.id; readOnly=false; S=normalize(data);
+  myChars.unshift(row); currentId=row.id; readOnly=false; S=normalize(data); await loadDeckInfo([]);
   renderAll(); renderCharList(); await showCampaign(null);
   onlineStatus("Personnage créé en ligne");
 }
@@ -662,7 +707,7 @@ $("on-join").addEventListener("click", async ()=>{
   renderAccount();
   if(!jdrSb) return;
   try{
-    me = await jdrCurrentUser(); renderAccount();
+    me = await jdrPage("fiche"); renderAccount();
     if(!me) return;
     await loadMyChars();
     const wanted = new URLSearchParams(location.search).get("id");

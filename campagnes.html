@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Campagnes Un'Gara</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
 <style>
 /* Layout : une colonne ; une carte par campagne avec son code et le tableau des fiches */
 :root{
@@ -54,7 +55,7 @@ td{padding:8px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabu
 <div class="wrap">
   <div class="topbar">
     <div><h1>Campagnes</h1><p class="sub">Merveille d'Un'Gara · espace du MJ</p></div>
-    <div class="row"><a href="fiche-personnage.html">Ma fiche de personnage</a><span class="status" id="status"></span></div>
+    <span class="status" id="status"></span>
   </div>
 
   <section class="sheet" id="offline" hidden><p class="hint">Impossible de charger la connexion au serveur. Vérifie ta connexion internet puis recharge la page.</p></section>
@@ -83,6 +84,8 @@ td{padding:8px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabu
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
 <script>
 const $ = id=>document.getElementById(id);
 let me = null;
@@ -128,7 +131,7 @@ async function loadCampaigns(){
       const s = summary(ch.data);
       return `<tr><td><b>${esc(ch.name||"Sans nom")}</b><br><span class="hint">${esc(s.player)}</span></td><td>${esc(s.who)}</td><td>${esc(s.stats)}</td>
         <td><span class="pill ${s.wounds?"hurt":""}">${s.wounds} case${s.wounds>1?"s":""}</span></td>
-        <td><a href="fiche-personnage.html?id=${encodeURIComponent(ch.id)}">Voir la fiche</a></td></tr>`;
+        <td><a href="fiche-personnage.html?id=${encodeURIComponent(ch.id)}">Fiche</a> · <a href="deck.html?character=${encodeURIComponent(ch.id)}">Deck</a></td></tr>`;
     }).join("");
     return `<section class="sheet">
       <div class="camp-head"><h2>${esc(c.name)}</h2>
@@ -151,7 +154,7 @@ $("login").addEventListener("submit", async e=>{
   if(error){ status(jdrErrorText(error), true); return; }
   me = data.user; $("pass").value=""; renderAccount(); await loadCampaigns();
 });
-$("logout").addEventListener("click", async ()=>{ await jdrSb.auth.signOut(); me=null; renderAccount(); status(""); });
+$("logout").addEventListener("click", async ()=>{ await jdrSb.auth.signOut(); location.href="connexion.html"; });
 $("create").addEventListener("submit", async e=>{
   e.preventDefault();
   const name=$("camp-name").value.trim(); if(!name) return;
@@ -162,7 +165,7 @@ $("create").addEventListener("submit", async e=>{
 
 (async ()=>{
   renderAccount(); if(!jdrSb) return;
-  try{ me = await jdrCurrentUser(); renderAccount(); if(me) await loadCampaigns(); }
+  try{ me = await jdrPage("campagnes"); renderAccount(); if(me) await loadCampaigns(); }
   catch(err){ status(jdrErrorText(err), true); }
 })();
 </script>
