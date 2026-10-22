@@ -180,7 +180,15 @@ function jdrEffectText(e){
   const res = e.opposeRes ? "S'oppose à la résistance de la cible : en cas de réussite, " : '';
   const plural = (v, s, p) => (String(v) === '1' ? s : p);
   switch(e.type){
-    case 'damage':   return `${res}inflige ${n} dégât${plural(n,'','s')} ${e.damageType || ''} à ${t}.`.replace(/\s+/g,' ');
+    case 'damage': {
+      // accord : « 1 dégât feu », « 3 dégâts contondants » ; « à une créature » / « aux créatures »
+      // noms (« de feu ») ou adjectifs accordés (« contondants », « sacrés »)
+      const NOUNS = ['feu','froid','foudre','acide','poison'];
+      const dt = !e.damageType ? '' : NOUNS.includes(e.damageType) ? 'de ' + e.damageType
+        : (String(n) === '1' || /[sx]$/.test(e.damageType) ? e.damageType : e.damageType + 's');
+      const to = t.startsWith('les ') ? 'aux ' + t.slice(4) : t.startsWith('le ') ? 'au ' + t.slice(3) : 'à ' + t;
+      return `${res}inflige ${n} dégât${plural(n,'','s')} ${dt} ${to}.`.replace(/\s+/g,' ');
+    }
     case 'wound':    return `${cap(t)} subit ${n} case${plural(n,'','s')} de blessure.`;
     case 'heal':     return `Soignez ${n} case${plural(n,'','s')} de blessure (${t}).`;
     case 'armor':    return `${cap(t)} gagne ${n} point${plural(n,'','s')} d'armure${e.magic ? ' magique' : ''}${d}.`;
