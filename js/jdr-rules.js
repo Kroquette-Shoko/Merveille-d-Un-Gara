@@ -186,7 +186,7 @@ function jdrEffectText(e){
       const NOUNS = ['feu','froid','foudre','acide','poison'];
       const dt = !e.damageType ? '' : NOUNS.includes(e.damageType) ? 'de ' + e.damageType
         : (String(n) === '1' || /[sx]$/.test(e.damageType) ? e.damageType : e.damageType + 's');
-      const to = t.startsWith('les ') ? 'aux ' + t.slice(4) : t.startsWith('le ') ? 'au ' + t.slice(3) : 'à ' + t;
+      const to = t.startsWith('les ') ? 'aux ' + t.slice(4) : t.startsWith('le ') ? 'au ' + t.slice(3) : 'à ' + t.replace(' et les ', ' et aux ');
       return `${res}inflige ${n} dégât${plural(n,'','s')} ${dt} ${to}.`.replace(/\s+/g,' ');
     }
     case 'wound':    return `${cap(t)} subit ${n} case${plural(n,'','s')} de blessure.`;
