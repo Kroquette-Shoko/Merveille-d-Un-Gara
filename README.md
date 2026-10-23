@@ -33,7 +33,7 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | `mots-cles.html` | Liste des mots-clés (mécaniques, super-types, afflictions, propriétés) avec leur définition. Tout le monde lit ; le compte éditeur ajoute / modifie / supprime. Les mots-clés s'ajoutent aux cartes dans l'éditeur de cartes |
 | `equipement.html` | Équipement : armes, armures, boucliers, objets magiques (emplacement, rareté, bonus, pouvoirs) et objets divers (catégorie, consommable, effet), avec aperçu de la fiche d'objet. Tout le monde consulte ; le compte éditeur modifie |
 | `js/jdr-items.js` | Modèle et affichage de l'équipement (table `jdr.items`) |
-| `origines.html` | Origines du personnage, avec image : peuples (famille, taille, bonus de caractéristiques et d'armure, capacités), classes (couleur, accès à la magie, caractéristiques, mécaniques, évolution sur 15 niveaux), spécialisations (classe, magie, passif de base, améliorations), passés (caractéristiques, carte de passé, événements possibles) |
+| `origines.html` | Origines du personnage, avec image : peuples (famille, taille, bonus de caractéristiques et d'armure, capacités), classes (couleur, accès à la magie, caractéristiques, capacités, spécialisations cochées, évolution sur 15 niveaux), spécialisations (carte de voie, magie, passif de base, améliorations), passés (caractéristiques, carte de passé, événements possibles) |
 | `js/jdr-origins.js` | Modèle et affichage des origines (table `jdr.origins`) |
 | `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches et decks des joueurs (lecture seule) |
 | `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |

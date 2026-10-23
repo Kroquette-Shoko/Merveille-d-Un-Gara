@@ -108,11 +108,11 @@
 
         <!-- Spécialisation -->
         <section class="part" data-kind="specialisation">
-          <div class="grid2">
-            <label class="f">Classe<select id="s-classe"></select></label>
-            <label class="chk" style="align-self:end"><input type="checkbox" id="s-magic"> Peut lancer des sorts</label>
-          </div>
           <p class="hint" style="margin:0" id="s-hint"></p>
+          <label class="chk"><input type="checkbox" id="s-magic"> Peut lancer des sorts</label>
+          <h2>Voie</h2>
+          <label class="f">Carte de voie de la spécialisation<select id="s-voie"></select></label>
+          <p class="hint" style="margin:0">Cartes de type <b>Passif</b>, sous-type <b>Voie</b>. Celles réservées à cette spécialisation (« Réservée à » dans l'éditeur de cartes) sont proposées en premier.</p>
         </section>
 
         <!-- Caractéristiques : peuple et classe -->
@@ -128,11 +128,11 @@
           <button type="button" id="o-add" style="align-self:start">Ajouter une capacité</button>
         </section>
 
-        <!-- Classe : mécaniques principales + évolution -->
+        <!-- Classe : spécialisations + évolution -->
         <section class="part" data-kind="classe">
-          <h2>Mécaniques principales de la classe</h2>
-          <div id="c-mech" style="display:flex;flex-direction:column;gap:10px"></div>
-          <button type="button" id="c-mech-add" style="align-self:start">Ajouter une mécanique</button>
+          <h2>Spécialisations</h2>
+          <div class="chips" id="c-specs"></div>
+          <p class="hint" style="margin:0">Coche les spécialisations de cette classe. Elles se créent dans l'onglet « Spécialisations ».</p>
         </section>
         <section class="part" data-kind="classe">
           <h2>Évolution du personnage <span class="hint" style="font-family:var(--f-body);font-weight:400">— taille du deck et gains à chaque niveau</span></h2>
@@ -178,6 +178,7 @@
 <script src="js/jdr-supabase.js"></script>
 <script src="js/jdr-rules.js"></script>
 <script src="js/jdr-ui.js"></script>
+<script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-origins.js"></script>
 <script>
 let all = [], kind = 'peuple', cur = jdrBlankOrigin('peuple'), savedId = null, dirty = false;
@@ -198,7 +199,7 @@ function renderList(){
   const q = jdrNorm($id('q').value);
   const map = byId();
   // Regroupement : peuples par famille, spécialisations par classe
-  const group = o => o.kind === 'peuple' ? (o.family || '') : o.kind === 'specialisation' ? ((map[o.classe] || {}).name || 'Sans classe') : '';
+  const group = o => o.kind === 'peuple' ? (o.family || '') : o.kind === 'specialisation' ? ((jdrSpecClass(o, map) || {}).name || 'Sans classe') : '';
   const list = all.filter(o => o.kind === kind && (!q || jdrNorm(o.name + ' ' + group(o)).includes(q)))
     .sort((a, b) => (group(a) || a.name).localeCompare(group(b) || b.name, 'fr') || a.name.localeCompare(b.name, 'fr'));
   let html = '', fam = null;
@@ -244,34 +245,42 @@ $id('c-hex').addEventListener('input', e => {
   if(/^#[0-9a-f]{6}$/.test(v)){ cur.color = v; $id('c-color').value = v; $id('c-hex-err').textContent = ''; changed(); }
   else $id('c-hex-err').textContent = 'Code attendu : # suivi de 6 caractères (0-9, a-f), ex. #d4af37';
 });
-$id('s-classe').addEventListener('change', e => { cur.classe = e.target.value; renderSpecHint(); changed(); });
+$id('s-voie').addEventListener('change', e => { cur.voie = e.target.value; changed(); });
 $id('s-magic').addEventListener('change', e => { cur.magic = e.target.checked; changed(); });
-function fillClassSelect(){
-  const classes = all.filter(o => o.kind === 'classe').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  $id('s-classe').replaceChildren(new Option(classes.length ? '— choisir —' : 'Aucune classe créée', ''), ...classes.map(c => new Option(c.name, c.id)));
-}
+// Spécialisation : sa classe (celle qui la coche) et sa carte de voie
 function renderSpecHint(){
-  const c = byId()[cur.classe];
-  $id('s-hint').textContent = !c ? 'Crée d’abord la classe dans l’onglet « Classes ».'
-    : c.magic === 'aucune' ? `La classe ${c.name} n'a pas accès à la magie : laisse la case décochée.`
-    : c.magic === 'toutes' ? `Toutes les spécialisations de ${c.name} lancent des sorts.` : `Seulement certaines spécialisations de ${c.name} lancent des sorts.`;
+  const c = jdrSpecClass(cur, byId());
+  $id('s-hint').textContent = !c ? 'Classe : aucune pour l’instant. Coche cette spécialisation dans la fiche de sa classe (onglet « Classes »).'
+    : `Classe : ${c.name}. ` + (c.magic === 'aucune' ? `Cette classe n'a pas accès à la magie : laisse la case décochée.`
+      : c.magic === 'toutes' ? `Toutes les spécialisations de ${c.name} lancent des sorts.` : `Seulement certaines spécialisations de ${c.name} lancent des sorts.`);
 }
-const byId = () => Object.fromEntries(all.map(o => [o.id, o]));
+function fillVoieSelect(){
+  const voies = Object.values(cardsById).filter(c => c.type === 'Passif' && c.subtype === 'Voie').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const mine = voies.filter(c => (c.restrict || []).some(r => jdrNorm(r) === jdrNorm(cur.name)));
+  const others = voies.filter(c => !mine.includes(c));
+  const sel = $id('s-voie');
+  sel.replaceChildren(new Option(voies.length ? '— aucune —' : 'Aucune carte Voie (Passif → Voie) pour l’instant', ''));
+  if(mine.length) sel.append(el('optgroup', { label: 'Réservées à ' + (cur.name || 'cette spécialisation') }, ...mine.map(c => new Option(c.name, c.id))));
+  if(others.length) sel.append(el('optgroup', { label: mine.length ? 'Autres voies' : 'Voies' }, ...others.map(c => new Option(c.name, c.id))));
+  sel.value = cardsById[cur.voie] ? cur.voie : '';
+}
+const byId = () => { const m = Object.fromEntries(all.map(o => [o.id, o])); if(cur && cur.id) m[cur.id] = cur; return m; };
 
-// Mécaniques de classe : nom + texte
-function renderMechanics(){
-  const box = $id('c-mech'); box.replaceChildren();
-  if(!cur.mechanics.length) box.append(el('span', { class:'hint', text:'Aucune mécanique.' }));
-  cur.mechanics.forEach((m, i) => {
-    const n = el('input', { value: m.name, maxlength: 80, placeholder: 'ex. Les auras', 'aria-label': 'Nom de la mécanique' });
-    n.addEventListener('input', () => { m.name = n.value; changed(); });
-    const t = el('textarea', { rows: 3, maxlength: 2000, placeholder: 'Comment fonctionne cette mécanique.', 'aria-label': 'Description de la mécanique' }); t.value = m.text;
-    t.addEventListener('input', () => { m.text = t.value; changed(); });
-    box.append(el('div', { class:'mech' }, n, el('button', { type:'button', class:'ghost', 'aria-label':'Supprimer cette mécanique', text:'✕', onclick: () => { cur.mechanics.splice(i, 1); renderMechanics(); changed(); } }), t));
+// Classe : spécialisations cochées
+function renderClassSpecs(){
+  const box = $id('c-specs'); box.replaceChildren();
+  const specs = all.filter(o => o.kind === 'specialisation').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  if(!specs.length){ box.append(el('span', { class:'hint', text:'Aucune spécialisation créée pour l’instant.' })); return; }
+  specs.forEach(sp => {
+    const on = cur.specs.includes(sp.id);
+    const other = all.find(c => c.kind === 'classe' && c.id !== cur.id && (c.specs || []).includes(sp.id));
+    const i = el('input', { type:'checkbox' }); i.checked = on;
+    const lab = el('label', { class:'chip' + (on ? ' on' : ''), title: other ? `Déjà cochée dans la classe ${other.name}` : '' }, i, document.createTextNode(sp.name + (other ? ` (aussi ${other.name})` : '')));
+    i.addEventListener('change', () => { if(i.checked){ if(!cur.specs.includes(sp.id)) cur.specs.push(sp.id); } else cur.specs = cur.specs.filter(x => x !== sp.id); lab.classList.toggle('on', i.checked); changed(); });
+    box.append(lab);
   });
   rights();
 }
-$id('c-mech-add').addEventListener('click', () => { cur.mechanics.push({ name: '', text: '' }); renderMechanics(); changed(); });
 
 // Évolution : 15 niveaux, taille du deck + gains
 function renderProgression(){
@@ -366,8 +375,8 @@ function renderForm(){
   renderAbilities();
   $id('o-abil-h').textContent = ({ peuple: 'Capacités du peuple', classe: 'Capacités de classe', specialisation: 'Passif de base', passe: 'Capacités du passé' })[cur.kind];
   $id('o-add').textContent = cur.kind === 'specialisation' ? 'Ajouter un passif' : 'Ajouter une capacité';
-  if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; $id('c-hex').value = cur.color; $id('c-hex-err').textContent = ''; renderMechanics(); renderProgression(); }
-  if(cur.kind === 'specialisation'){ fillClassSelect(); $id('s-classe').value = cur.classe; $id('s-magic').checked = cur.magic; renderSpecHint(); renderImprovements(); }
+  if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; $id('c-hex').value = cur.color; $id('c-hex-err').textContent = ''; renderClassSpecs(); renderProgression(); }
+  if(cur.kind === 'specialisation'){ $id('s-magic').checked = cur.magic; renderSpecHint(); fillVoieSelect(); renderImprovements(); }
   preview(); renderList(); rights();
 }
 function preview(){ $id('preview').innerHTML = JDR_ORIGIN_KINDS[kind].ready ? jdrOriginHTML(cur, { byId: byId(), cards: cardsById }) : ''; }
