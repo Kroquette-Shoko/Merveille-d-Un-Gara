@@ -293,13 +293,15 @@ const JDR_EFFECTS = {
   move:        { label: 'Se déplacer',                fields: ['amount','target'] },
   posture:     { label: 'Adopter cette posture',      fields: [] },
   recover:     { label: 'Récupérer une carte',        fields: ['from'] },
+  convert:     { label: 'Convertir (bannir → mana)',  fields: ['convertMode','convertAmount'] },
   custom:      { label: 'Texte libre',                fields: ['text'] }
 };
 const JDR_FROM = { discard: 'de votre défausse', deck: 'de votre deck', banned: 'parmi vos cartes bannies', otherDiscard: "de la défausse d'un autre joueur" };
 
 function jdrBlankEffect(type){
   return { type: type || 'damage', amount: '1', damageType: 'contondant', target: 'enemy', opposeRes: false,
-           magic: false, stat: 'corps', duration: 'instant', resource: 'Mana', affliction: '', from: 'discard', text: '' };
+           magic: false, stat: 'corps', duration: 'instant', resource: 'Mana', affliction: '', from: 'discard', text: '',
+           convertMode: 'double' };   // Convertir : 'double' = 2 × le coût en mana de la carte, 'fixed' = quantité indiquée
 }
 
 // Phrase lisible d'un effet (sert au texte de la carte)
@@ -342,6 +344,10 @@ function jdrEffectText(e){
     case 'move':     return `${cap(t)} ${vb('se déplace','vous déplacez','se déplacent')} de ${n} case${plural(n,'','s')}.`;
     case 'posture':  return 'Vous adoptez cette posture.';
     case 'recover':  return `Placez dans votre main une carte ${JDR_FROM[e.from] || ''}.`;
+    // Convertir : on bannit la carte pour gagner du mana (X fixe, ou le double de son coût en mana)
+    case 'convert':  return e.convertMode === 'fixed'
+      ? `Convertir : bannissez cette carte pour gagner ${n} mana.`
+      : 'Convertir : bannissez cette carte pour gagner le double de son coût en mana.';
     case 'custom':   return e.text || '';
   }
   return '';

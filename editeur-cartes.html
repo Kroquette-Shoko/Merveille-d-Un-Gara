@@ -427,6 +427,7 @@ function selectOf(obj, value, onChange, label){
   Object.entries(obj).forEach(([k, v]) => s.append(el('option', { value: k, text: v || 'Immédiat' })));
   s.value = value; s.addEventListener('change', () => onChange(s.value)); return s;
 }
+const CONV_X = new WeakMap();   // effet Convertir → champ X (pour l'afficher / le cacher)
 const FIELD_UI = {
   amount:     e => { const i = el('input', { value: e.amount ?? '', placeholder: '1 ou 2+corps' }); i.addEventListener('input', () => { e.amount = i.value; changed(); }); return el('label', { class:'f' }, document.createTextNode('Quantité'), i); },
   damageType: e => el('label', { class:'f' }, document.createTextNode('Type de dégât'), selectOf(Object.fromEntries(JDR_DAMAGE_TYPES.map(t => [t, t])), e.damageType, v => { e.damageType = v; changed(); })),
@@ -438,6 +439,14 @@ const FIELD_UI = {
   affliction: e => { const i = el('input', { value: e.affliction ?? '', list: 'dl-afflictions' }); i.addEventListener('input', () => { e.affliction = i.value; changed(); }); return el('label', { class:'f' }, document.createTextNode('Affliction'), i); },
   opposeRes:  e => { const c = el('input', { type:'checkbox' }); c.checked = !!e.opposeRes; c.addEventListener('change', () => { e.opposeRes = c.checked; changed(); }); return el('label', { class:'chk' }, c, document.createTextNode("S'oppose à la résistance")); },
   magic:      e => { const c = el('input', { type:'checkbox' }); c.checked = !!e.magic; c.addEventListener('change', () => { e.magic = c.checked; changed(); }); return el('label', { class:'chk' }, c, document.createTextNode('Armure magique')); },
+  // Convertir : mode (double du coût en mana / valeur fixe) + valeur X (affichée seulement en mode fixe)
+  convertMode: e => el('label', { class:'f' }, document.createTextNode('Mana gagné'),
+    selectOf({ double: 'Le double du coût en mana de la carte', fixed: 'Une valeur fixe (X)' }, e.convertMode || 'double', v => {
+      e.convertMode = v; const box = CONV_X.get(e); if(box) box.hidden = v !== 'fixed'; changed(); })),
+  convertAmount: e => { const i = el('input', { value: e.amount ?? '', placeholder: 'ex. 3' });
+    i.addEventListener('input', () => { e.amount = i.value; changed(); });
+    const lab = el('label', { class:'f' }, document.createTextNode('X (mana gagné)'), i); lab.hidden = (e.convertMode || 'double') !== 'fixed';
+    CONV_X.set(e, lab); return lab; },
   text:       e => { const t = el('textarea', { rows: 2 }); t.value = e.text ?? ''; t.addEventListener('input', () => { e.text = t.value; changed(); }); return el('label', { class:'f', style:'flex-basis:100%' }, document.createTextNode('Texte'), t); }
 };
 
