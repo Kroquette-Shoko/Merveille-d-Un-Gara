@@ -79,12 +79,12 @@ function jdrCardHTML(card, opts = {}){
       ${hasMana ? `<div class="mana" aria-label="Coût en mana : ${esc(c.mana)}">${esc(c.mana)}</div>` : ''}
       ${comps.length ? `<div class="comps" aria-label="Composantes : ${comps.map(k => JDR_COMP_LABEL[k]).join(', ')}">${comps.map(k =>
         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${JDR_COMP_ICONS[k]}</svg>`).join('')}</div>` : ''}
-      ${c.persistent ? `<div class="pers" title="Carte persistante" aria-label="Carte persistante">⟳</div>` : ''}
+      ${c.persistent || c.rank ? `<div class="cbot">${c.persistent ? `<div class="pers" title="Carte persistante" aria-label="Carte persistante">⟳</div>` : ''}${c.rank ? `<div class="rk" title="Rang ${esc(c.rank)}" aria-label="Rang ${esc(c.rank)}">R${esc(c.rank)}</div>` : ''}</div>` : ''}
     </div>
     <div class="main">
       <div class="head">
         <div class="name">${esc(c.name || 'Sans nom')}</div>
-        <div class="type"><b>${esc(c.type)}</b>${c.subtype ? ' — ' + esc(c.subtype) : ''}${c.rank ? ` · Rang ${esc(c.rank)}` : ''}${sup ? ` · ${esc(sup)}` : ''}</div>
+        <div class="type"><b>${esc(c.type)}</b>${c.subtype ? ' — ' + esc(c.subtype) : ''}${sup ? ` · ${esc(sup)}` : ''}</div>
       </div>
       ${art}
       <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>

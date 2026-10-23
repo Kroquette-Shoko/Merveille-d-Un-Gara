@@ -83,7 +83,10 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
   box-shadow:0 0 0 .6cqw #1D232A,0 .6cqw 0 .6cqw rgba(0,0,0,.25);font-family:var(--f-display);font-weight:800;font-size:5.7cqw;display:flex;align-items:center;justify-content:center}
 .jcard .comps{display:flex;flex-direction:column;gap:2.3cqw;margin-top:1.1cqw}
 .jcard .comps svg{width:5.7cqw;height:5.7cqw}
-.jcard .pers{font-size:5.5cqw;line-height:1;margin-top:auto}
+/* Bas de la bande latérale : persistance puis rang (« R2 ») */
+.jcard .cbot{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:2.4cqw}
+.jcard .pers{font-size:5.5cqw;line-height:1}
+.jcard .rk{font-family:var(--f-display);font-weight:800;font-size:4.6cqw;line-height:1;letter-spacing:.02em}
 .jcard .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .jcard .head{background:var(--cc);color:var(--ci);padding:2.6cqw 3.4cqw 2.9cqw 1.1cqw;line-height:1.1}
 .jcard .name{font-family:var(--f-display);font-weight:700;font-size:6.3cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
