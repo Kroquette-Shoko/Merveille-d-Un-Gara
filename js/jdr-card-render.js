@@ -35,13 +35,21 @@ function jdrCardTextLines(card, sheet){
 
 // Illustration cadrée (même calcul que Rimd'Orël) : l'image remplit le cadre (« cover »),
 // puis déplacement en % du cadre, rotation, zoom et miroirs autour du centre.
+// Appelée quand l'illustration est chargée : donne à l'image son vrai rapport largeur/hauteur
+// pour qu'elle soit placée exactement comme dans le studio de l'éditeur (voir .artin img.sized).
+function jdrArtSized(img){
+  if(!img.naturalWidth || !img.naturalHeight) return;
+  img.style.setProperty('--r', img.naturalWidth / img.naturalHeight);
+  img.classList.add('sized');
+}
+
 function jdrArtHTML(c, esc){
   if(!c.image_url) return `<div class="art ph"></div>`;
   const a = c.art || {};
   const n = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : d;
   const sc = Math.max(1, n(a.scale, 100)) / 100;
   const tr = `translate(${n(a.ox,0)}%,${n(a.oy,0)}%) rotate(${n(a.rot,0)}deg) scale(${(a.fx ? -1 : 1) * sc},${(a.fy ? -1 : 1) * sc})`;
-  return `<div class="art"><div class="artin" style="transform:${tr}"><img src="${esc(c.image_url)}" alt="" draggable="false" loading="lazy"></div></div>`;
+  return `<div class="art"><div class="artin" style="transform:${tr}"><img src="${esc(c.image_url)}" alt="" draggable="false" loading="lazy" onload="jdrArtSized(this)"></div></div>`;
 }
 
 const JDR_COMP_ICONS = {
