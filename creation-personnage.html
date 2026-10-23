@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Création de personnage Un'Gara</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* =====================================================================
+   Assistant de création de personnage (façon Baldur's Gate).
+   - Gauche  : les choix de l'étape (liste, formulaire…)
+   - Centre  : le tableau des caractéristiques, mis à jour à chaque choix,
+               puis Retour / nom de l'étape « n/8 » / Suivant,
+               puis une icône par étape
+   - Droite  : les informations et l'illustration de la sélection
+   Couleurs : celles de la fiche de personnage « parchemin ».
+   Sur téléphone : une seule colonne (choix, tableau + navigation, informations).
+   ===================================================================== */
+:root{
+  --bg:#3B2A1C; --bg-ink:#F3E8CF; --bg-muted:#D8C6A3;
+  --panel:#F3E8CF; --cell:#E8D9B6; --chip:#DCC89F; --line:#B79E73;
+  --ink:#2B2016; --muted:#7A6548; --accent:#8A5A2B; --accent2:#C9A227; --on-accent:#FFFFFF;
+  --sheet:#F3E8CF; --hurt:#B8322A; --ok:#3E7D52; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:light}}
+:root[data-theme="dark"]{color-scheme:light}
+body{background:var(--bg);color:var(--ink)}
+.wrap{max-width:1500px}
+h1{color:var(--bg-ink)} .sub{color:var(--bg-muted)}
+.jdr-nav{border-bottom-color:rgba(243,232,207,.25)} .jdr-nav .brand{color:var(--bg-ink)} .jdr-nav nav a{color:var(--bg-muted)}
+.jdr-nav nav a.on{background:var(--panel);color:var(--ink)} .jdr-nav .who,.jdr-nav .who button{color:var(--bg-muted)}
+
+.cc{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr) minmax(300px,420px);gap:18px;align-items:start}
+@media (max-width:1150px){.cc{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cc .mid{grid-column:1/-1;order:-1}}
+@media (max-width:760px){.cc{grid-template-columns:1fr}.cc .mid{order:0}}
+.box{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:14px 16px;min-width:0}
+.box h2{font-size:1.35rem;margin-bottom:8px}
+.left,.right{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:1150px){.left,.right{position:static;max-height:none}}
+
+/* Choix (gauche) */
+.choices{display:flex;flex-direction:column;gap:4px}
+.choice{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:2px solid transparent;background:var(--cell);border-radius:10px;padding:8px 10px;color:var(--ink);font:inherit;cursor:pointer}
+.choice:hover{border-color:var(--line)}
+.choice.on{border-color:var(--accent);background:#F9F1DD;box-shadow:0 0 0 2px rgba(201,162,39,.35)}
+.choice .th{width:42px;height:42px;flex:0 0 42px;border-radius:8px;background:#55606b center/cover no-repeat;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:800}
+.choice b{display:block;font-size:1.02rem}
+.choice small{color:var(--muted);font-size:.8rem}
+.choice .tick{margin-left:auto;font-weight:800;color:var(--accent)}
+.grp{font-family:var(--f-display);font-weight:700;color:var(--muted);margin:8px 2px 2px}
+.empty{color:var(--muted);font-style:italic;margin:6px 0}
+
+/* Tableau des caractéristiques (centre) */
+.stats{width:100%;border-collapse:separate;border-spacing:0 4px;font-variant-numeric:tabular-nums}
+.stats th{font-weight:500;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 8px;text-align:center}
+.stats th:first-child{text-align:left}
+.stats td{background:var(--cell);padding:7px 8px;text-align:center}
+.stats td:first-child{text-align:left;border-radius:8px 0 0 8px;font-family:var(--f-display);font-weight:700;font-size:1.05rem}
+.stats td:last-child{border-radius:0 8px 8px 0;background:var(--accent);color:var(--on-accent);font-family:var(--f-display);font-weight:800;font-size:1.3rem;width:4.5rem}
+.stats td.z{color:#B8A684}
+.stats td.flash{animation:fl .6s ease}
+@keyframes fl{from{box-shadow:inset 0 0 0 3px var(--accent2);transform:scale(1.08)}to{box-shadow:inset 0 0 0 0 var(--accent2);transform:none}}
+@media (max-width:560px){.stats th{padding:0 3px;font-size:.62rem;letter-spacing:.02em}.stats td{padding:6px 3px}.stats td:first-child{font-size:.9rem}.stats td:last-child{width:2.8rem;font-size:1.1rem}}
+@media (prefers-reduced-motion:reduce){.stats td.flash{animation:none}}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-top:10px}
+.facts div{background:var(--cell);border-radius:8px;padding:6px 10px}
+.facts span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.facts b{font-size:1rem}
+.facts .bad{color:var(--hurt)}
+
+/* Navigation (sous le tableau) */
+.navbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:14px}
+.navbar .cur{text-align:center}
+.navbar .cur b{display:block;font-family:var(--f-display);font-size:1.5rem;line-height:1.1;color:var(--bg-ink)}
+.navbar .cur span{color:var(--bg-muted);font-size:.9rem}
+.navbar button{padding:10px 16px;font-size:1rem;font-weight:700;border-radius:10px;border:2px solid var(--accent);background:var(--panel);color:var(--ink)}
+.navbar button.primary{background:var(--accent);color:var(--on-accent)}
+.navbar button:disabled{opacity:.45;cursor:not-allowed}
+.need{margin:8px 0 0;text-align:center;color:#F0A097;font-weight:700;font-size:.95rem;min-height:1.2em}
+.steps{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:12px}
+.stp{display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:transparent;padding:4px 0;color:var(--bg-muted);font:inherit;cursor:pointer;min-width:0}
+.stp:disabled{cursor:not-allowed;opacity:.45}
+.stp .ic{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--cell);border:2px solid var(--line)}
+.stp svg{width:24px;height:24px}
+.stp small{font-size:.72rem;line-height:1.1;text-align:center}
+.stp.done .ic{background:#E7D3A4;border-color:var(--accent2);color:var(--accent)}
+.stp.on .ic{background:var(--accent);border-color:var(--accent2);color:var(--on-accent);box-shadow:0 0 0 3px rgba(201,162,39,.4)}
+.stp.on small{color:var(--bg-ink);font-weight:700}
+.stp small{overflow-wrap:normal}
+@media (max-width:560px){.steps{grid-template-columns:repeat(4,minmax(0,1fr))}.navbar{grid-template-columns:1fr 1fr}.navbar .cur{grid-column:1/-1;order:-1}}
+
+/* Informations (droite) */
+.right .jitem{max-width:none}
+.hintbox{color:var(--muted);text-align:center;padding:30px 10px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tabs button{padding:4px 10px;border-radius:999px;font-size:.85rem;background:var(--cell);border-color:transparent}
+.tabs button.on{background:var(--accent);color:var(--on-accent)}
+.picked{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.picked div{display:flex;justify-content:space-between;gap:8px;background:var(--cell);border-radius:8px;padding:4px 8px;font-size:.92rem}
+label.f{color:var(--muted)}
+input,select,textarea{background:#FBF5E6}
+.portrait{aspect-ratio:1/1;width:100%;max-width:340px;margin:0 auto;border-radius:50%;padding:10px;background:conic-gradient(from 0deg,var(--accent),var(--accent2),var(--accent),var(--accent2),var(--accent))}
+.portrait button{width:100%;height:100%;border-radius:50%;border:0;overflow:hidden;padding:0;background:#22313A;color:var(--bg-muted);display:grid;place-items:center;cursor:pointer}
+.portrait img{width:100%;height:100%;object-fit:cover;display:block}
+.sum{display:flex;flex-direction:column;gap:6px}
+.sum .l{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:8px;background:var(--cell);border-radius:8px;padding:6px 10px}
+.sum .l span{color:var(--muted)}
+.sum .l.miss b{color:var(--hurt)}
+.big{font-family:var(--f-display);font-weight:800;font-size:2rem;text-align:center;margin:8px 0 2px}
+.done-actions{display:flex;flex-direction:column;gap:8px}
+.done-actions a{display:block;text-align:center;padding:12px;border-radius:10px;font-weight:700;text-decoration:none;border:2px solid var(--accent);color:var(--ink);background:var(--panel)}
+.done-actions a.primary{background:var(--accent);color:var(--on-accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><h1>Création de personnage</h1><p class="sub">Choisis étape par étape : le tableau du milieu se met à jour à chaque choix.</p></div>
+    <span class="status" id="status" role="status" style="color:var(--bg-ink)"></span>
+  </div>
+
+  <div class="cc">
+    <aside class="box left" id="left" aria-label="Choix de l'étape"></aside>
+
+    <main class="mid">
+      <div class="box">
+        <h2>Caractéristiques</h2>
+        <table class="stats" id="stats"></table>
+        <div class="facts" id="facts"></div>
+      </div>
+      <div class="navbar">
+        <button type="button" id="prev">← Retour</button>
+        <div class="cur" aria-live="polite"><b id="step-name"></b><span id="step-num"></span></div>
+        <button type="button" class="primary" id="next">Étape suivante →</button>
+      </div>
+      <p class="need" id="need"></p>
+      <nav class="steps" id="steps" aria-label="Étapes"></nav>
+    </main>
+
+    <aside class="box right" id="right" aria-label="Informations sur la sélection"></aside>
+  </div>
+</div>
+<input type="file" id="portrait-file" accept="image/*" hidden>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script src="js/jdr-items.js"></script>
+<script src="js/jdr-origins.js"></script>
+<script>
+/* ---------- Données ---------- */
+let origins = [], items = [], me = null, createdId = null;
+const C = {           // choix en cours
+  peuple: '', classe: '', specialisation: '', passe: '',
+  equipment: [],      // identifiants d'objets (jdr.items)
+  name: '', player: '', genre: '', taillepoids: '', history: '', portrait: ''
+};
+let step = 0, reached = 0, focus = { 4: null }, eqKind = 'arme';
+const oById = id => origins.find(o => o.id === id);
+const iById = id => items.find(i => i.id === id);
+function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(a==='html') e.innerHTML=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.style.color = bad ? '#F0A097' : 'var(--bg-ink)'; }
+
+/* ---------- Étapes ---------- */
+const I = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const STEPS = [
+  { key:'peuple',  short:'Peuple', name:'Le peuple',        icon: I('<circle cx="12" cy="7" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>') },
+  { key:'classe',  short:'Classe', name:'La classe',        icon: I('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>') },
+  { key:'spe',     short:'Spécialité', name:'La spécialisation',icon: I('<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>') },
+  { key:'passe',   short:'Passé', name:'Le passé',         icon: I('<path d="M7 3h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2z"/><path d="M9 8h6M9 12h6"/>') },
+  { key:'equip',   short:'Équipement', name:"L'équipement de base", icon: I('<path d="M6 9a6 6 0 0 1 12 0v11H6z"/><path d="M9 9V5h6v4M9 14h6"/>') },
+  { key:'infos',   short:'Infos', name:'Informations complémentaires', icon: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>') },
+  { key:'resume',  short:'Résumé', name:'Résumé du personnage', icon: I('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>') },
+  { key:'deck',    short:'Deck', name:'Création du deck', icon: I('<rect x="3" y="6" width="12" height="15" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/>') }
+];
+// Ce qui manque pour passer à l'étape suivante ('' = rien)
+function missing(i){
+  if(i === 0 && !C.peuple) return 'Choisis un peuple.';
+  if(i === 1 && !C.classe) return 'Choisis une classe.';
+  if(i === 2 && !C.specialisation) return specsOf(C.classe).length ? 'Choisis une spécialisation.' : 'Cette classe n’a pas encore de spécialisation (à créer dans la page Origines).';
+  if(i === 3 && !C.passe) return 'Choisis un passé.';
+  if(i === 5 && !C.name.trim()) return 'Donne un nom à ton personnage.';
+  return '';
+}
+function go(i){ if(i < 0 || i > STEPS.length - 1) return; if(i > reached) return; step = i; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+$id('prev').addEventListener('click', () => go(step - 1));
+$id('next').addEventListener('click', async () => {
+  const m = missing(step); if(m){ $id('need').textContent = m; return; }
+  if(step === 6){ await createCharacter(); return; }           // Résumé → création
+  reached = Math.max(reached, step + 1); go(step + 1);
+});
+
+/* ---------- Calculs ---------- */
+function specsOf(classeId){ return origins.filter(o => o.kind === 'specialisation' && o.classe === classeId); }
+function totals(){
+  const parts = ['peuple','classe','passe'].map(k => oById(C[k]));
+  const rows = [...JDR_STATS.map(s => ({ key: s.key, label: s.label })), { key: 'armor', label: 'Armure' }];
+  return rows.map(r => {
+    const v = parts.map(p => p ? (r.key === 'armor' ? (p.armor || 0) : (p.stats ? p.stats[r.key] || 0 : 0)) : null);
+    return { ...r, v, total: v.reduce((a, x) => a + (x || 0), 0) };
+  });
+}
+function equipCases(){ return C.equipment.reduce((a, id) => a + ((iById(id) || {}).size || 0), 0); }
+function capacity(){ const p = oById(C.peuple); const t = totals(); const corps = t.find(r => r.key === 'corps').total; return ({ P: 20, M: 25, G: 30 })[(p && p.size) || 'M'] + corps; }
+
+let lastTotals = {};
+function renderStats(){
+  const t = totals();
+  const head = `<thead><tr><th>Caractéristique</th><th>Peuple</th><th>Classe</th><th>Passé</th><th>Total</th></tr></thead>`;
+  const sign = v => v === null ? '—' : (v > 0 ? '+' : '') + v;
+  $id('stats').innerHTML = head + '<tbody>' + t.map(r => `<tr>
+    <td>${jdrEsc(r.label)}</td>${r.v.map(x => `<td class="${x ? '' : 'z'}">${sign(x)}</td>`).join('')}
+    <td class="${lastTotals[r.key] !== undefined && lastTotals[r.key] !== r.total ? 'flash' : ''}">${r.total}</td></tr>`).join('') + '</tbody>';
+  lastTotals = Object.fromEntries(t.map(r => [r.key, r.total]));
+  const p = oById(C.peuple), c = oById(C.classe), s = oById(C.specialisation);
+  const cap = capacity(), used = equipCases();
+  const facts = [
+    ['Taille', p ? JDR_CHAR_SIZES[p.size] : '—'],
+    ['Charge', p ? `${used} / ${cap} cases` : '—', used > cap],
+    ['Deck (niveau 1)', c ? `${c.progression[0].deck} cartes max` : '—'],
+    ['Magie', s ? (s.magic ? 'Lance des sorts' : 'Pas de sorts') : c ? (c.magic === 'aucune' ? 'Pas de sorts' : 'Selon la spécialisation') : '—']
+  ];
+  $id('facts').innerHTML = facts.map(([k, v, bad]) => `<div><span>${k}</span><b class="${bad ? 'bad' : ''}">${jdrEsc(v)}</b></div>`).join('');
+}
+
+/* ---------- Gauche : choix ---------- */
+function thumb(o){ return o.image_url ? `style="background-image:url('${String(o.image_url).replace(/'/g, '%27')}')"` : ''; }
+function originChoices(kind, key, list, emptyText, groupBy){
+  const L = $id('left'); L.replaceChildren(el('h2', { text: STEPS[step].name }));
+  if(!list.length){ L.append(el('p', { class:'empty', text: emptyText })); return; }
+  const box = el('div', { class:'choices', role:'listbox', 'aria-label': STEPS[step].name });
+  let g = null;
+  list.forEach(o => {
+    const gg = groupBy ? groupBy(o) : '';
+    if(gg !== g){ g = gg; if(gg) box.append(el('div', { class:'grp', text: gg })); }
+    const on = C[key] === o.id;
+    box.append(el('button', { type:'button', role:'option', 'aria-selected': on ? 'true' : 'false', class: 'choice' + (on ? ' on' : ''),
+      html: `<span class="th" ${thumb(o)}>${o.image_url ? '' : jdrEsc((o.name || '?')[0])}</span><span><b>${jdrEsc(o.name)}</b><small>${jdrEsc(jdrOriginSummary(o, Object.fromEntries(origins.map(x => [x.id, x]))))}</small></span>${on ? '<span class="tick">✓</span>' : ''}`,
+      onclick: () => {
+        C[key] = o.id;
+        if(key === 'classe' && oById(C.specialisation) && oById(C.specialisation).classe !== o.id) C.specialisation = '';
+        $id('need').textContent = ''; render();
+      } }));
+  });
+  L.append(box);
+}
+const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
+function renderLeft(){
+  const k = STEPS[step].key;
+  if(k === 'peuple') return originChoices('peuple', 'peuple', origins.filter(o => o.kind === 'peuple').sort((a, b) => (a.family || a.name).localeCompare(b.family || b.name, 'fr') || byName(a, b)), 'Aucun peuple pour l’instant : ils se créent dans la page Origines.', o => o.family || '');
+  if(k === 'classe') return originChoices('classe', 'classe', origins.filter(o => o.kind === 'classe').sort(byName), 'Aucune classe pour l’instant : elles se créent dans la page Origines.');
+  if(k === 'spe') return originChoices('specialisation', 'specialisation', specsOf(C.classe).sort(byName), 'Aucune spécialisation pour cette classe : elles se créent dans la page Origines.');
+  if(k === 'passe') return originChoices('passe', 'passe', origins.filter(o => o.kind === 'passe').sort(byName), 'Aucun passé pour l’instant : ils se créent dans la page Origines.');
+  if(k === 'equip') return renderEquipLeft();
+  if(k === 'infos') return renderInfosLeft();
+  if(k === 'resume') return renderResumeLeft();
+  if(k === 'deck') return renderDeckLeft();
+}
+
+// Étape 5 : équipement de base (ajouter / retirer)
+function renderEquipLeft(){
+  const L = $id('left'); L.replaceChildren(el('h2', { text: STEPS[step].name }));
+  L.append(el('div', { class:'tabs' }, ...Object.entries(JDR_ITEM_KINDS).map(([k, d]) =>
+    el('button', { type:'button', class: k === eqKind ? 'on' : '', text: d.plural, onclick: () => { eqKind = k; renderLeft(); } }))));
+  const list = items.filter(i => i.kind === eqKind).sort(byName);
+  if(!list.length) L.append(el('p', { class:'empty', text:'Rien dans cette catégorie : l’équipement se crée dans la page Équipement.' }));
+  const box = el('div', { class:'choices' });
+  list.forEach(it => {
+    const on = C.equipment.includes(it.id);
+    box.append(el('button', { type:'button', class: 'choice' + (on ? ' on' : '') + (focus[4] === it.id ? '' : ''), 'aria-pressed': on ? 'true' : 'false',
+      html: `<span class="th" ${thumb(it)}>${it.image_url ? '' : jdrEsc((it.name || '?')[0])}</span><span><b>${jdrEsc(it.name)}</b><small>${jdrEsc(jdrItemSummary(it))} · ${it.size} case${it.size > 1 ? 's' : ''}</small></span><span class="tick">${on ? '✓' : '+'}</span>`,
+      onclick: () => { focus[4] = it.id; if(on) C.equipment = C.equipment.filter(x => x !== it.id); else C.equipment.push(it.id); render(); } }));
+  });
+  L.append(box);
+  const picked = C.equipment.map(iById).filter(Boolean);
+  L.append(el('p', { class:'grp', text: `Équipement choisi (${picked.length})` }));
+  L.append(picked.length ? el('div', { class:'picked' }, ...picked.map(it => el('div', {}, el('span', { text: it.name }),
+    el('button', { type:'button', class:'ghost', 'aria-label':'Retirer ' + it.name, text:'✕', onclick: () => { C.equipment = C.equipment.filter(x => x !== it.id); render(); } }))))
+    : el('p', { class:'empty', text:'Rien pour l’instant. L’équipement de base est facultatif.' }));
+}
+// Étape 6 : informations complémentaires
+function renderInfosLeft(){
+  const L = $id('left'); L.replaceChildren(el('h2', { text: STEPS[step].name }));
+  const f = (label, key, attrs = {}, tag = 'input') => {
+    const i = el(tag, Object.assign({ 'aria-label': label }, attrs)); i.value = C[key] || '';
+    i.addEventListener('input', () => { C[key] = i.value; if(key === 'name'){ $id('need').textContent = ''; renderRight(); } });
+    return el('label', { class:'f', style:'margin-bottom:10px' }, document.createTextNode(label), i);
+  };
+  L.append(f('Nom du personnage *', 'name', { maxlength: 80, placeholder: 'ex. Calypso' }), f('Joueur·euse', 'player', { maxlength: 80 }),
+    f('Genre', 'genre', { maxlength: 40 }), f('Taille et poids', 'taillepoids', { maxlength: 80 }),
+    f('Histoire, personnalité, objectifs', 'history', { rows: 8, maxlength: 5000 }, 'textarea'));
+  // Événements du passé comme inspiration
+  const ps = oById(C.passe);
+  const ev = ps ? ps.events.filter(Boolean) : [];
+  if(ev.length){
+    L.append(el('p', { class:'grp', text:'Idées tirées de ton passé' }));
+    L.append(el('div', { class:'picked' }, ...ev.map(t => el('div', {}, el('span', { text: t }),
+      el('button', { type:'button', class:'ghost', title:'Ajouter à l’histoire', text:'+', onclick: () => { C.history = (C.history ? C.history.trim() + '\n' : '') + t; renderLeft(); } })))));
+  }
+}
+// Étape 7 : résumé (liste des choix, modifiables en cliquant)
+function renderResumeLeft(){
+  const L = $id('left'); L.replaceChildren(el('h2', { text: STEPS[step].name }));
+  const s = el('div', { class:'sum' });
+  const line = (label, value, stepIdx) => s.append(el('button', { type:'button', class: 'l' + (value ? '' : ' miss'), style:'border:0;text-align:left;font:inherit;cursor:pointer', title:'Modifier', onclick: () => go(stepIdx) },
+    el('span', { text: label }), el('b', { text: value || 'À choisir' })));
+  line('Peuple', (oById(C.peuple) || {}).name, 0); line('Classe', (oById(C.classe) || {}).name, 1);
+  line('Spécialisation', (oById(C.specialisation) || {}).name, 2); line('Passé', (oById(C.passe) || {}).name, 3);
+  line('Équipement', C.equipment.length ? C.equipment.map(id => (iById(id) || {}).name).filter(Boolean).join(', ') : 'Aucun', 4);
+  line('Nom', C.name, 5);
+  L.append(s, el('p', { class:'hint', style:'margin-top:10px', text:'Clique sur une ligne pour la modifier. « Créer le personnage » l’enregistre en ligne, puis passe au deck.' }));
+}
+// Étape 8 : deck
+function renderDeckLeft(){
+  const L = $id('left'); L.replaceChildren(el('h2', { text: STEPS[step].name }));
+  const c = oById(C.classe);
+  L.append(el('p', { text: `${C.name || 'Ton personnage'} est créé. Il reste à construire son deck : ${c ? c.progression[0].deck : 25} cartes au maximum au niveau 1, 25 au minimum.` }),
+    el('p', { class:'hint', text:'Les cartes proposées dépendent de la classe, de la spécialisation, du passé et du peuple.' }));
+}
+
+/* ---------- Droite : informations ---------- */
+function renderRight(){
+  const R = $id('right'); const k = STEPS[step].key;
+  const map = Object.fromEntries(origins.map(x => [x.id, x]));
+  const show = html => { R.innerHTML = html; };
+  if(['peuple','classe','spe','passe'].includes(k)){
+    const key = k === 'spe' ? 'specialisation' : k;
+    const o = oById(C[key]);
+    return show(o ? jdrOriginHTML(o, { byId: map }) : `<p class="hintbox">Choisis ${k === 'spe' ? 'une spécialisation' : k === 'classe' ? 'une classe' : k === 'peuple' ? 'un peuple' : 'un passé'} dans la liste pour voir sa description.</p>`);
+  }
+  if(k === 'equip'){ const it = iById(focus[4]) || iById(C.equipment[C.equipment.length - 1]); return show(it ? jdrItemHTML(it) : '<p class="hintbox">Touche un objet pour l’ajouter et voir sa fiche.</p>'); }
+  if(k === 'infos' || k === 'resume' || k === 'deck'){
+    R.replaceChildren();
+    const btn = el('button', { type:'button', 'aria-label':'Choisir le portrait', onclick: () => k === 'infos' && $id('portrait-file').click() },
+      C.portrait ? el('img', { src: C.portrait, alt:'Portrait du personnage' }) : el('span', { text: k === 'infos' ? 'Touche pour ajouter un portrait' : 'Pas de portrait' }));
+    R.append(el('div', { class:'portrait' }, btn));
+    if(k === 'infos' && C.portrait) R.append(el('div', { style:'text-align:center' }, el('button', { type:'button', class:'ghost', text:'Retirer le portrait', onclick: () => { C.portrait = ''; renderRight(); } })));
+    R.append(el('div', { class:'big', text: C.name || 'Sans nom' }));
+    const sub = [map[C.peuple], map[C.classe], map[C.specialisation], map[C.passe]].filter(Boolean).map(o => o.name).join(' · ');
+    R.append(el('p', { style:'text-align:center;color:var(--muted);margin:0 0 10px', text: sub }));
+    if(k === 'resume' && C.history) R.append(el('p', { style:'white-space:pre-line;font-size:.95rem', text: C.history }));
+    if(k === 'deck' && createdId){
+      R.append(el('div', { class:'done-actions' },
+        el('a', { class:'primary', href:'deck.html?character=' + encodeURIComponent(createdId), text:'Construire le deck →' }),
+        el('a', { href:'fiche-personnage.html?id=' + encodeURIComponent(createdId), text:'Ouvrir la fiche du personnage' })));
+    }
+  }
+}
+// Portrait : réduit pour rester léger (comme la fiche)
+$id('portrait-file').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader(); r.onload = () => { const im = new Image(); im.onload = () => {
+    const c = document.createElement('canvas'), m = 640, sc = Math.min(1, m / Math.max(im.width, im.height));
+    c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    C.portrait = c.toDataURL('image/jpeg', .85); renderRight(); }; im.src = r.result; }; r.readAsDataURL(f); e.target.value = '';
+});
+
+/* ---------- Barre de navigation et icônes ---------- */
+function renderNav(){
+  $id('step-name').textContent = STEPS[step].name;
+  $id('step-num').textContent = `Étape ${step + 1}/${STEPS.length}`;
+  $id('prev').disabled = step === 0 || step === 7;
+  const nx = $id('next');
+  nx.hidden = step === 7;
+  nx.textContent = step === 6 ? 'Créer le personnage ✓' : 'Étape suivante →';
+  $id('steps').replaceChildren(...STEPS.map((s, i) => el('button', { type:'button', class: 'stp' + (i === step ? ' on' : i < reached || (i <= reached && i !== step) ? ' done' : ''),
+    disabled: i > reached || (createdId && i < 7) || (!createdId && i === 7), 'aria-current': i === step ? 'step' : false, title: s.name,
+    html: `<span class="ic">${s.icon}</span><small>${i + 1}. ${jdrEsc(s.short)}</small>`, onclick: () => go(i) })));
+}
+function render(){ renderLeft(); renderRight(); renderStats(); renderNav(); }
+
+/* ---------- Création (enregistrement en ligne) ---------- */
+async function createCharacter(){
+  for(let i = 0; i < 6; i++){ const m = missing(i); if(m){ $id('need').textContent = `Étape ${i + 1} : ${m}`; return; } }
+  const t = Object.fromEntries(totals().map(r => [r.key, r.total]));
+  const p = oById(C.peuple), c = oById(C.classe), s = oById(C.specialisation), ps = oById(C.passe);
+  const eq = C.equipment.map(iById).filter(Boolean);
+  const kw = list => (list || []).map(k => jdrKeywordLabel(k)).join(' / ');
+  // Format de la fiche de personnage (fiche-personnage.html)
+  const weapons = eq.filter(i => i.kind === 'arme').map(i => ({ name: i.name, a1: i.attacks.main.text, a2: [i.attacks.second.cost, i.attacks.second.text].filter(Boolean).join(' : '),
+    a3: [i.attacks.third.cost, i.attacks.third.text].filter(Boolean).join(' : '), type: i.damageType, prop: [i.range ? 'Portée : ' + i.range.toLowerCase() : '', kw(i.properties)].filter(Boolean).join(' / ') }));
+  const armors = eq.filter(i => i.kind === 'armure' || i.kind === 'bouclier').map(i => ({ kind: i.kind === 'bouclier' ? 'Bouclier' : 'Armure', name: i.name,
+    att: i.kind === 'bouclier' ? [i.attack.cost, i.attack.text].filter(Boolean).join(' : ') : '', pa: String(i.armor || ''), pam: String(i.armorMagic || ''), res: String(i.resistance || ''), prop: kw(i.properties) }));
+  if(t.armor) armors.push({ kind: 'Armure', name: 'Bonus d’origine (peuple, classe, passé)', att: '', pa: String(t.armor), pam: '', res: '', prop: '' });
+  const others = eq.filter(i => i.kind === 'magique' || i.kind === 'objet').map(i => ({ name: i.name, cases: i.size, where: 'sac', itemId: i.id }));
+  const carried = eq.filter(i => ['arme','armure','bouclier'].includes(i.kind)).map(i => ({ name: i.name, cases: i.size, where: 'sac', itemId: i.id }));
+  const data = {
+    player: C.player, name: C.name.trim(), level: 1, genre: C.genre, taillepoids: C.taillepoids,
+    peuple: p.name, classe: c.name, specialisation: s.name, passe: ps.name, portrait: C.portrait,
+    origins: { peuple: p.id, classe: c.id, specialisation: s.id, passe: ps.id },
+    stats: Object.fromEntries(JDR_STATS.map(x => [x.key, t[x.key]])),
+    wounds: Array(30).fill(false), armor: armors.reduce((a, x) => a + (Number(x.pa) || 0), 0), armag: armors.reduce((a, x) => a + (Number(x.pam) || 0), 0),
+    resources: s.magic ? [{ name: 'Mana', max: 10, val: 0 }] : [],
+    weapons, armors, items: [...carried, ...others], coins: 0, taille: p.size || 'M', notes: C.history
+  };
+  data.armor = Math.min(18, data.armor); data.armag = Math.min(18, data.armag);
+  status('Création…');
+  const { data: row, error } = await jdrSb.from('characters').insert({ name: data.name, data }).select('id').single();
+  if(error){ status(jdrErrorText(error), true); return; }
+  createdId = row.id; status('Personnage créé et enregistré en ligne');
+  reached = 7; step = 7; render();
+}
+
+(async () => {
+  render();
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  me = await jdrPage('creation', { requireLogin: true }); if(!me) return;
+  try{
+    const [o, it] = await Promise.all([jdrLoadOrigins(), jdrLoadItems(), jdrLoadKeywords().catch(() => null)]);
+    origins = o.list; items = it.list;
+    C.player = await jdrUsername(me);
+  }catch(err){ status(jdrErrorText(err), true); }
+  render();
+})();
+</script>
+</body>
+</html>

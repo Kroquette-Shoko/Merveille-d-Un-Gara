@@ -5,6 +5,7 @@
 const JDR_PAGES = [
   { id: 'accueil',      href: 'index.html',            label: 'Accueil' },
   { id: 'fiche',        href: 'fiche-personnage.html', label: 'Fiche' },
+  { id: 'creation',     href: 'creation-personnage.html', label: 'Nouveau perso' },
   { id: 'deck',         href: 'deck.html',             label: 'Deck' },
   { id: 'bibliotheque', href: 'bibliotheque.html',     label: 'Bibliothèque' },
   { id: 'editeur',      href: 'editeur-cartes.html',   label: 'Éditeur de cartes', editorOnly: true },
