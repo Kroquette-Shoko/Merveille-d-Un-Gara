@@ -62,18 +62,18 @@ const JDR_CARD_COLORS = {
 // Coloris d'une carte : Risque → violet ; une seule classe → sa couleur ; sinon (aucune ou plusieurs) → neutre
 function jdrCardColorKey(card){
   if(card.type === 'Risque') return 'Risque';
-  let classes = (card.access && card.access.classes) || [];
-  if(!classes.length && card.access && card.access.specs && card.access.specs.length){
-    classes = [...new Set(card.access.specs.map(sp => Object.keys(JDR_CLASSES).find(c => JDR_CLASSES[c].includes(sp))).filter(Boolean))];
-  }
+  const classes = card.classes || [];
   return classes.length === 1 && JDR_CARD_COLORS[classes[0]] ? classes[0] : 'Neutre';
 }
-// Super type affiché devant le type : l'origine saisie, sinon la classe, sinon rien
-function jdrCardSuperType(card){
-  if(card.origin) return card.origin;
-  const k = jdrCardColorKey(card);
-  return k === 'Neutre' || k === 'Risque' ? '' : k;
-}
+
+// Super-types proposés dans l'éditeur (on peut aussi en saisir d'autres).
+// Un super-type qui est une spécialisation, un passé ou un peuple RESTREINT la carte
+// aux personnages qui l'ont (ex. super-type « Brute » = carte du passé de brute).
+const JDR_SUPERTYPE_GROUPS = {
+  'Spécialisations': Object.values(JDR_CLASSES).flat(),
+  'Passés': JDR_PASSES,
+  'Peuples': JDR_PEUPLES
+};
 
 /* ---------- Outils texte ---------- */
 
@@ -84,45 +84,65 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
 /* ---------- 2. Modèle d'une carte ---------- */
 /*
   {
-    id: "frappe_brutale",            // identifiant unique (minuscules, chiffres, _ -)
-    name: "Frappe brutale",
-    type: "Manœuvre",                // Manœuvre | Sort | Capacité | Risque
-    subtypes: ["Posture"],
-    origin: "Passé de brute",        // ligne affichée au-dessus du type (facultatif)
-    value: 2,                        // valeur en haut à gauche (tests, résistance)
-    mana: null,                      // coût en mana (sorts)
-    pa: 1,                           // coût en points d'action
-    persistent: false,               // reste en jeu au lieu d'aller à la défausse
-    horsDeck: false,                 // bénédiction / grimoire / pacte : hors limite du deck
-    components: { sonore:false, gestuelle:false, materielle:false },
-    access: { classes:[], specs:[], passes:[], peuples:[] },   // vide = tout le monde
-    requirements: [ { stat:"corps", min:2 } ],                 // prérequis de caractéristique
-    maxCopies: null,                 // null = illimité (règle du manuel)
-    abilities: [ { triggers:[{ trigger:"onPlay" }], cost:"", special:false, effects:[ {...} ] } ],
-    specialName: "Surcharge",        // titre de la zone spéciale (capacités marquées special:true)
-    text: "",                        // texte libre ajouté après le texte généré
-    footer: "",                      // mention en bas (ex. "Bannissez cette carte lors de votre prochain repos.")
-    image_url: ""
+    id: "trait_de_flamme",           // identifiant unique (minuscules, chiffres, _ -)
+    -- Identité (colonne et bandeau de couleur) --
+    name: "Trait de flamme",
+    type: "Sort",                    // 1 parmi JDR_CARD_TYPES
+    subtype: "Feu",                  // 1 parmi JDR_SUBTYPES (ou vide)
+    supertypes: ["Mage"],            // plusieurs ; voir JDR_SUPERTYPE_GROUPS
+    classes: ["Érudit"],             // qui peut jouer la carte (vide = toutes) ; donne la couleur
+    value: 3,                        // valeur (tests, résistance)
+    mana: 2,                         // coût en mana de la carte (vide = aucun)
+    components: { sonore:true, gestuelle:false, materielle:false },
+    -- Illustration (même principe que Rimd'Orël : cadrage libre) --
+    image_url: "https://…",
+    art: { ox:0, oy:0, scale:100, rot:0, fx:false, fy:false },  // déplacement en % du cadre, zoom %, rotation °, miroirs
+    -- Capacités --
+    abilities: [ { pa:1, cost:"Défaussez 1", triggers:[{ trigger:"activated" }], effects:[ {...} ] } ],
+    special: { enabled:false, name:"", mana:null, cost:"", triggers:[{ trigger:"freeAction" }], effects:[] },
+    -- Options de deck --
+    persistent:false, horsDeck:false, requirements:[{ stat:"corps", min:2 }], maxCopies:null,
+    footer: "",                      // mention en bas de carte
+    text: ""                         // ancien texte libre (conservé à l'affichage)
   }
 */
+function jdrBlankArt(){ return { ox: 0, oy: 0, scale: 100, rot: 0, fx: false, fy: false }; }
+function jdrBlankAbility(){ return { pa: null, cost: '', triggers: [{ trigger: 'activated' }], effects: [] }; }
+function jdrBlankSpecial(){ return { enabled: false, name: '', mana: null, cost: '', triggers: [{ trigger: 'freeAction' }], effects: [] }; }
 function jdrBlankCard(){
   return {
-    id: '', name: '', type: 'Manœuvre', subtypes: [], origin: '',
-    value: 1, mana: null, pa: null, persistent: false, horsDeck: false,
-    components: { sonore: false, gestuelle: false, materielle: false },
-    access: { classes: [], specs: [], passes: [], peuples: [] },
-    requirements: [], maxCopies: null,
-    abilities: [], specialName: '', text: '', footer: '', image_url: ''
+    id: '', name: '', type: 'Manœuvre', subtype: '', supertypes: [], classes: [],
+    value: 1, mana: null, components: { sonore: false, gestuelle: false, materielle: false },
+    image_url: '', art: jdrBlankArt(),
+    abilities: [], special: jdrBlankSpecial(),
+    persistent: false, horsDeck: false, requirements: [], maxCopies: null, footer: '', text: ''
   };
 }
-// Complète une carte incomplète (anciennes cartes, saisie partielle)
+// Complète une carte incomplète et convertit l'ancien format (sous-types multiples, access, origin, pa de carte)
 function jdrNormalizeCard(c){
-  const b = jdrBlankCard();
-  const o = Object.assign(b, c || {});
-  o.components = Object.assign(b.components, (c && c.components) || {});
-  o.access = Object.assign({ classes: [], specs: [], passes: [], peuples: [] }, (c && c.access) || {});
-  ['subtypes','requirements','abilities'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
-  ['classes','specs','passes','peuples'].forEach(k => { if(!Array.isArray(o.access[k])) o.access[k] = []; });
+  c = c || {};
+  const o = Object.assign(jdrBlankCard(), c);
+  o.components = Object.assign(jdrBlankCard().components, c.components || {});
+  o.art = Object.assign(jdrBlankArt(), c.art || {});
+  const old = c.access || {};
+  if(!Array.isArray(c.classes)) o.classes = Array.isArray(old.classes) ? old.classes.slice() : [];
+  if(typeof c.subtype !== 'string') o.subtype = Array.isArray(c.subtypes) && c.subtypes.length ? c.subtypes[0] : '';
+  if(!Array.isArray(c.supertypes)){
+    o.supertypes = [...(old.specs || []), ...(old.passes || []), ...(old.peuples || [])];
+    if(!o.supertypes.length && c.origin) o.supertypes = [c.origin];
+  }
+  ['requirements','abilities'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
+  o.abilities = o.abilities.map(ab => Object.assign(jdrBlankAbility(), ab, { effects: Array.isArray(ab.effects) ? ab.effects : [] }));
+  o.special = Object.assign(jdrBlankSpecial(), (c.special && typeof c.special === 'object') ? c.special : {});
+  // ancien format : capacité cochée « spéciale » → zone spéciale ; pa de la carte → 1re capacité
+  const oldSpec = o.abilities.findIndex(ab => ab.special === true);
+  if(oldSpec >= 0 && !(c.special && c.special.enabled)){
+    const ab = o.abilities.splice(oldSpec, 1)[0];
+    o.special = Object.assign(jdrBlankSpecial(), { enabled: true, name: c.specialName || '', cost: ab.cost || '', triggers: ab.triggers, effects: ab.effects });
+  }
+  if(c.pa !== undefined && c.pa !== null && c.pa !== '' && o.abilities[0] && (o.abilities[0].pa === null || o.abilities[0].pa === undefined)) o.abilities[0].pa = c.pa;
+  o.abilities.forEach(ab => { delete ab.special; });
+  ['subtypes','access','origin','pa','specialName'].forEach(k => delete o[k]);
   return o;
 }
 
@@ -245,15 +265,22 @@ function jdrEffectText(e){
 }
 
 // Texte complet d'une capacité : "Action libre (Défaussez 1) : effet. effet."
+// Coûts d'une capacité : « 1 PA », « 2 mana », autre coût
+function jdrAbilityCosts(ab){
+  const has = v => v !== null && v !== undefined && v !== '';
+  return [has(ab.pa) ? `${ab.pa} PA` : '', has(ab.mana) ? `${ab.mana} mana` : '', ab.cost || ''].filter(Boolean).join(', ');
+}
+// « Action (1 PA, Défaussez 1) : effet. effet. »
 function jdrAbilityText(ab){
   const trig = (ab.triggers || []).map(t => JDR_TRIGGERS[t.trigger]).filter(Boolean).join(' ou ');
-  const cost = ab.cost ? ` (${ab.cost})` : '';
+  const costs = jdrAbilityCosts(ab);
   const body = (ab.effects || []).map(jdrEffectText).filter(Boolean).join(' ');
-  if(!trig) return body;
-  return `${trig}${cost} : ${body}`;
+  if(trig) return `${trig}${costs ? ` (${costs})` : ''} : ${body}`;
+  return costs ? `Coût : ${costs}. ${body}` : body;
 }
 function jdrCardText(card){
-  const parts = (card.abilities || []).map(jdrAbilityText).filter(Boolean); // toutes, spéciales comprises (recherche)
+  const parts = (card.abilities || []).map(jdrAbilityText).filter(Boolean);
+  if(card.special && card.special.enabled){ const t = jdrAbilityText(card.special); if(t) parts.push(t); }
   if(card.text) parts.push(card.text);
   return parts;
 }
@@ -333,12 +360,15 @@ function jdrCardAllowed(card, sheet, effectiveStats){
     const wanted = list.map(jdrNorm);
     return jdrSplitList(value).map(jdrNorm).some(v => wanted.includes(v));
   };
-  if(c.access.classes.length && !has(c.access.classes, sheet.classe)) reasons.push('Classe : ' + c.access.classes.join(', '));
-  if(c.access.specs.length && !has(c.access.specs, sheet.specialisation)) reasons.push('Spécialisation : ' + c.access.specs.join(', '));
-  if(c.access.passes.length && !has(c.access.passes, sheet.passe)) reasons.push('Passé : ' + c.access.passes.join(', '));
-  if(c.access.peuples.length && !has(c.access.peuples, sheet.peuple)) reasons.push('Peuple : ' + c.access.peuples.join(', '));
-  // Un sort sans restriction de classe explicite demande de savoir lancer des sorts
-  if(c.type === 'Sort' && !c.access.classes.length && !c.access.specs.length && !jdrCanCastSpells(sheet))
+  if(c.classes.length && !has(c.classes, sheet.classe)) reasons.push('Classe : ' + c.classes.join(', '));
+  // super-types qui sont des spécialisations / passés / peuples : le personnage doit en avoir un
+  const inGroup = g => c.supertypes.filter(x => JDR_SUPERTYPE_GROUPS[g].map(jdrNorm).includes(jdrNorm(x)));
+  [['Spécialisations','specialisation','Spécialisation'],['Passés','passe','Passé'],['Peuples','peuple','Peuple']].forEach(([g, field, label]) => {
+    const need = inGroup(g);
+    if(need.length && !has(need, sheet[field])) reasons.push(`${label} : ${need.join(', ')}`);
+  });
+  // Un sort sans classe ni spécialisation imposée demande de savoir lancer des sorts
+  if(c.type === 'Sort' && !c.classes.length && !inGroup('Spécialisations').length && !jdrCanCastSpells(sheet))
     reasons.push('Sort : réservé aux Érudits, Prêtres, Druides et Bardes');
   const stats = effectiveStats || (sheet && sheet.stats) || {};
   c.requirements.forEach(r => {

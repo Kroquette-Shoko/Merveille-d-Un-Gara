@@ -7,35 +7,52 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/jdr-ui.css">
 <style>
-/* Layout : 3 colonnes — liste des cartes | formulaire | aperçu collant. Une colonne sur téléphone. */
-.ed{display:grid;grid-template-columns:240px minmax(0,1fr) 260px;gap:16px;align-items:start}
-@media (max-width:1050px){.ed{grid-template-columns:minmax(0,1fr) 250px}.ed .list{grid-column:1/-1}}
-@media (max-width:700px){.ed{grid-template-columns:1fr}.ed .preview{order:-1}}
+/* Layout : 3 colonnes — liste des cartes | formulaire (4 sections) | aperçu collant. Une colonne sur téléphone. */
+.ed{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:1100px){.ed{grid-template-columns:minmax(0,1fr) 280px}.ed .list{grid-column:1/-1}}
+@media (max-width:720px){.ed{grid-template-columns:1fr}.ed .preview{order:-1;position:static}}
 .list{max-height:calc(100vh - 140px);overflow:auto}
 .list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .list li button{width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:8px}
 .list li button.on{background:var(--panel);font-weight:700}
 .list li .ty{color:var(--muted);font-size:.8rem;font-weight:400}
-@media (max-width:1050px){.list{max-height:220px}}
+@media (max-width:1100px){.list{max-height:220px}}
 .preview{position:sticky;top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.preview .jcard{--w:260px}
-fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
-legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
+.preview .jcard{--w:290px}
+section.part{border:2px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+section.part>h2{display:flex;align-items:center;gap:10px}
+section.part>h2 .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--panel);font-size:.95rem}
+section.ident{border-color:var(--cc,#6B7280)}
+section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
+.sub-h{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 4px}
 .ab{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--panel)}
-.ab-head{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.ab-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ab-top h3{font-size:1rem}
 .eff{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(0,3fr) auto;gap:8px;align-items:end;background:var(--sheet);border-radius:8px;padding:8px}
 .eff .fields{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
 .eff .fields>*{flex:1 1 120px}
 @media (max-width:560px){.eff{grid-template-columns:1fr}}
-.gen{font-size:.88rem;color:var(--muted);font-style:italic}
-.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line)}
-.ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px}
+.gen{font-size:.88rem;color:var(--muted);font-style:italic;margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line);z-index:2}
+.ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px;margin:0}
+.addst{display:flex;gap:6px;max-width:320px}
+/* Studio d'illustration (cadrage libre, repris de Rimd'Orël) */
+.as-canvas{position:relative;height:300px;background:#0f1419;border-radius:10px;overflow:hidden;touch-action:none;cursor:grab;user-select:none}
+.as-canvas:active{cursor:grabbing}
+.as-img{position:absolute;max-width:none;pointer-events:none;opacity:.45}
+.as-frame{position:absolute;outline:2px solid #e3b341;box-shadow:0 0 0 2000px rgba(0,0,0,.55);pointer-events:none;overflow:hidden}
+.as-frame img{position:absolute;max-width:none;pointer-events:none}
+.as-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.as-lab{min-width:92px;color:var(--muted);font-size:.9rem}
+.as-row button{padding:4px 9px}
+.as-num{width:86px}
+.as-row button.on{border-color:var(--accent);background:var(--panel);font-weight:700}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="row" style="justify-content:space-between;align-items:baseline">
-    <div><h1>Éditeur de cartes</h1><p class="sub">Les capacités suivent le même principe que Rimd'Orël : un déclencheur, puis des effets.</p></div>
+    <div><h1>Éditeur de cartes</h1><p class="sub">Identité, illustration, capacités : l'aperçu se met à jour en direct.</p></div>
     <span class="status" id="status" role="status"></span>
   </div>
   <p class="ro-banner" id="ro" hidden>Lecture seule : seul le compte éditeur peut créer ou modifier des cartes.</p>
@@ -47,53 +64,85 @@ legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
     </aside>
 
     <main class="sheet" id="form">
-      <fieldset>
-        <legend>Identité</legend>
-        <div class="grid3">
+
+      <!-- 1. IDENTITÉ : tout ce qui s'affiche dans la colonne et le bandeau de couleur -->
+      <section class="part ident" id="ident">
+        <h2><span class="num">1</span>Identité <span class="hint" style="font-family:var(--f-body);font-weight:400">— colonne et bandeau de couleur</span></h2>
+        <div class="grid2">
           <label class="f">Nom<input id="f-name" maxlength="80"></label>
           <label class="f">Identifiant<input id="f-id" maxlength="64" placeholder="rempli depuis le nom"></label>
-          <label class="f">Type<select id="f-type"></select></label>
         </div>
-        <div class="grid3">
-          <label class="f">Super type (avant le type)<input id="f-origin" placeholder="vide = la classe ; ex. Passé de brute"></label>
-          <label class="f">Image (adresse web)<input id="f-image" placeholder="https://…"></label>
-          <label class="f">Mention en bas<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
+        <div class="grid2">
+          <label class="f">Type de carte<select id="f-type"></select></label>
+          <label class="f">Sous-type<select id="f-subtype"></select></label>
         </div>
-        <div class="grid4">
+        <div>
+          <p class="sub-h">Super-types (plusieurs possibles)</p>
+          <div id="f-supertypes" style="display:flex;flex-direction:column;gap:8px"></div>
+          <div class="addst" style="margin-top:6px"><input id="st-new" placeholder="Autre super-type…" maxlength="40" aria-label="Autre super-type"><button type="button" id="st-add">Ajouter</button></div>
+          <p class="hint" style="margin-top:4px">Une spécialisation, un passé ou un peuple coché réserve la carte aux personnages qui l'ont.</p>
+        </div>
+        <div>
+          <p class="sub-h">Classes (qui peut jouer cette carte — vide = toutes)</p>
+          <div class="chips" id="f-classes"></div>
+          <p class="hint" style="margin-top:4px">Une seule classe = la couleur de cette classe. Aucune ou plusieurs = gris neutre.</p>
+        </div>
+        <div class="grid2">
           <label class="f">Valeur<input id="f-value" type="number" min="0" max="20"></label>
-          <label class="f" id="w-mana">Coût en mana<input id="f-mana" type="number" min="0" max="30"></label>
-          <label class="f">Coût en PA (ajouté à la 1<sup>re</sup> capacité)<input id="f-pa" type="number" min="0" max="10"></label>
-          <label class="f">Exemplaires max<input id="f-max" type="number" min="1" placeholder="illimité"></label>
+          <label class="f">Coût de mana (vide = aucun)<input id="f-mana" type="number" min="0" max="30"></label>
         </div>
-        <div class="row">
-          <label class="chk"><input type="checkbox" id="f-persistent"> Persistante</label>
-          <label class="chk"><input type="checkbox" id="f-horsdeck"> Hors deck (bénédiction, grimoire, pacte)</label>
-        </div>
-        <div><span class="hint">Sous-types</span><div class="chips" id="f-subtypes"></div></div>
-        <div id="w-comp"><span class="hint">Composantes du sort</span>
+        <div>
+          <p class="sub-h">Composantes (s'il y en a)</p>
           <div class="row"><label class="chk"><input type="checkbox" id="f-c-sonore"> Sonore</label><label class="chk"><input type="checkbox" id="f-c-gestuelle"> Gestuelle</label><label class="chk"><input type="checkbox" id="f-c-materielle"> Matérielle</label></div>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend>Qui peut l'avoir dans son deck</legend>
-        <p class="hint">Rien de coché = tout le monde. Un sort sans classe ni spécialisation cochée reste réservé aux personnages qui savent lancer des sorts.</p>
-        <div><span class="hint">Classes</span><div class="chips" id="a-classes"></div></div>
-        <div><span class="hint">Spécialisations</span><div class="chips" id="a-specs"></div></div>
-        <div><span class="hint">Passés</span><div class="chips" id="a-passes"></div></div>
-        <div><span class="hint">Peuples</span><div class="chips" id="a-peuples"></div></div>
-        <div><span class="hint">Prérequis de caractéristique</span><div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
-          <button type="button" id="req-add" style="align-self:start">Ajouter un prérequis</button></div>
-      </fieldset>
+      <!-- 2. ILLUSTRATION : même principe que Rimd'Orël -->
+      <section class="part">
+        <h2><span class="num">2</span>Illustration</h2>
+        <label class="f">Image (adresse web)<input id="f-image" type="url" placeholder="https://…"></label>
+        <div id="studio" hidden style="display:flex;flex-direction:column;gap:8px">
+          <div class="as-canvas" id="as-canvas"><img class="as-img" id="as-ghost" alt="" draggable="false"><div class="as-frame" id="as-frame"><img id="as-in" alt="" draggable="false"></div></div>
+          <p class="hint">Le cadre doré est la fenêtre de la carte : ce qui est dedans sera visible, le reste est coupé. <b>Glisse l'image</b> pour la déplacer, <b>molette</b> pour zoomer.</p>
+          <div class="as-row"><button type="button" data-act="cover">▣ Remplir le cadre</button><button type="button" data-act="contain">⛶ Voir l'image entière</button><button type="button" data-act="reset">↺ Tout remettre à zéro</button></div>
+          <div id="as-nums"></div>
+          <div class="as-row"><span class="as-lab">Rotation</span>
+            <button type="button" data-rot="-90">⟲ 90°</button><button type="button" data-rot="90">⟳ 90°</button><button type="button" data-rot="180">180°</button><button type="button" data-rot="0">0°</button></div>
+          <div class="as-row"><span class="as-lab">Miroir</span><button type="button" data-flip="fx">⇋ Horizontal</button><button type="button" data-flip="fy">⇵ Vertical</button></div>
+          <p class="hint">Déplacement en % du cadre (0 = centré). Zoom : 100 = l'image remplit le cadre.</p>
+        </div>
+      </section>
 
-      <fieldset>
-        <legend>Capacités</legend>
-        <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>. Le déclencheur « Tant que cette carte est dans votre deck » + « Modifier une caractéristique » ciblant « vous » change les caractéristiques de la fiche.</p>
+      <!-- 3. CAPACITÉS -->
+      <section class="part">
+        <h2><span class="num">3</span>Capacités</h2>
+        <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>.</p>
         <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
         <button type="button" id="ab-add" style="align-self:start">Ajouter une capacité</button>
-        <label class="f">Nom de la zone spéciale (si une capacité est cochée « spéciale »)<input id="f-special" maxlength="40" placeholder="ex. Surcharge"></label>
-        <label class="f">Texte libre (ajouté après les capacités)<textarea id="f-text" rows="2"></textarea></label>
-      </fieldset>
+      </section>
+
+      <!-- 4. CAPACITÉ SPÉCIALE (facultative) -->
+      <section class="part">
+        <h2><span class="num">4</span>Capacité spéciale <span class="hint" style="font-family:var(--f-body);font-weight:400">— facultative, encadré en bas de la carte</span></h2>
+        <label class="chk"><input type="checkbox" id="sp-on"> Cette carte a une capacité spéciale</label>
+        <div id="special"></div>
+      </section>
+
+      <details class="box">
+        <summary style="cursor:pointer;font-weight:700">Options de deck</summary>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+          <div class="row">
+            <label class="chk"><input type="checkbox" id="f-persistent"> Persistante (reste en jeu)</label>
+            <label class="chk"><input type="checkbox" id="f-horsdeck"> Hors deck (bénédiction, grimoire, pacte)</label>
+          </div>
+          <div class="grid2">
+            <label class="f">Exemplaires max dans un deck<input id="f-max" type="number" min="1" placeholder="illimité"></label>
+            <label class="f">Mention en bas de carte<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
+          </div>
+          <div><p class="sub-h">Prérequis de caractéristique</p><div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
+            <button type="button" id="req-add" style="margin-top:6px">Ajouter un prérequis</button></div>
+        </div>
+      </details>
 
       <div class="actions">
         <button class="primary" id="save" type="button">Enregistrer</button>
@@ -104,7 +153,7 @@ legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
 
     <aside class="preview">
       <div id="preview"></div>
-      <p class="hint" id="preview-note">Aperçu en direct · la couleur suit la classe cochée (neutre si aucune ou plusieurs)</p>
+      <p class="hint">Aperçu en direct</p>
     </aside>
   </div>
 </div>
@@ -118,16 +167,17 @@ legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
 <script>
-let cards = [];          // toutes les cartes
-let cur = jdrBlankCard(); // carte en cours d'édition
-let savedId = null;      // id de la carte enregistrée en cours (null = nouvelle)
+let cards = [];
+let cur = jdrBlankCard();
+let savedId = null;
 let dirty = false;
 
 function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
 function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
 function changed(){ dirty = true; renderPreview(); }
+const num = v => v === '' ? null : Number(v);
 
-/* ---------- Liste ---------- */
+/* ================= Liste ================= */
 function renderList(){
   const q = jdrNorm($id('search').value);
   const ul = $id('cards'); ul.replaceChildren();
@@ -138,18 +188,24 @@ function renderList(){
   if(!ul.children.length) ul.append(el('li', { class:'empty', text: cards.length ? 'Aucun résultat' : 'Aucune carte pour l’instant' }));
 }
 $id('search').addEventListener('input', renderList);
-
 function openCard(id){
   const c = cards.find(x => x.id === id); if(!c) return;
+  if(dirty && JDR_IS_EDITOR && !confirmLeave()) return;
   cur = jdrNormalizeCard(structuredClone(c)); savedId = id; dirty = false;
   renderForm(); renderList(); status('');
 }
-function newCard(){ cur = jdrBlankCard(); savedId = null; dirty = false; renderForm(); renderList(); $id('f-name').focus(); }
-$id('new').addEventListener('click', newCard);
+function newCard(){ cur = jdrBlankCard(); cur.abilities.push(jdrBlankAbility()); savedId = null; dirty = false; renderForm(); renderList(); $id('f-name').focus(); }
+let leaveArmed = false;
+function confirmLeave(){ // pas de confirm() dans certains navigateurs intégrés : on demande un 2e clic
+  if(leaveArmed){ leaveArmed = false; return true; }
+  leaveArmed = true; status('Modifications non enregistrées : clique à nouveau pour les abandonner.', true);
+  setTimeout(() => leaveArmed = false, 4000); return false;
+}
+$id('new').addEventListener('click', () => { if(dirty && JDR_IS_EDITOR && !confirmLeave()) return; newCard(); });
 
-/* ---------- Formulaire ---------- */
-function chipGroup(boxId, options, selected, onToggle){
-  const box = $id(boxId); box.replaceChildren();
+/* ================= 1. Identité ================= */
+function chipGroup(box, options, selected, onToggle){
+  box.replaceChildren();
   options.forEach(o => {
     const on = selected.includes(o);
     const input = el('input', { type:'checkbox' }); input.checked = on;
@@ -160,46 +216,102 @@ function chipGroup(boxId, options, selected, onToggle){
 }
 function toggleIn(list, v, on){ const i = list.indexOf(v); if(on && i < 0) list.push(v); if(!on && i >= 0) list.splice(i, 1); }
 
-function renderForm(){
-  $id('f-name').value = cur.name; $id('f-id').value = cur.id; $id('f-id').disabled = !!savedId;
-  $id('f-type').value = cur.type; $id('f-origin').value = cur.origin; $id('f-image').value = cur.image_url; $id('f-footer').value = cur.footer;
-  $id('f-value').value = cur.value ?? ''; $id('f-mana').value = cur.mana ?? ''; $id('f-pa').value = cur.pa ?? ''; $id('f-max').value = cur.maxCopies ?? '';
-  $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck; $id('f-text').value = cur.text; $id('f-special').value = cur.specialName || '';
-  ['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).checked = !!cur.components[k]);
-  chipGroup('f-subtypes', JDR_SUBTYPES, cur.subtypes, (v, on) => toggleIn(cur.subtypes, v, on));
-  chipGroup('a-classes', Object.keys(JDR_CLASSES), cur.access.classes, (v, on) => toggleIn(cur.access.classes, v, on));
-  chipGroup('a-specs', Object.values(JDR_CLASSES).flat(), cur.access.specs, (v, on) => toggleIn(cur.access.specs, v, on));
-  chipGroup('a-passes', JDR_PASSES, cur.access.passes, (v, on) => toggleIn(cur.access.passes, v, on));
-  chipGroup('a-peuples', JDR_PEUPLES, cur.access.peuples, (v, on) => toggleIn(cur.access.peuples, v, on));
-  renderReqs(); renderAbilities(); typeVisibility(); renderPreview(); applyRights();
-}
-function typeVisibility(){ const spell = cur.type === 'Sort'; $id('w-mana').hidden = !spell; $id('w-comp').hidden = !spell; }
-
-$id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
-const num = v => v === '' ? null : Number(v);
-[['f-name','name'],['f-origin','origin'],['f-image','image_url'],['f-footer','footer'],['f-text','text'],['f-special','specialName']].forEach(([id, k]) =>
-  $id(id).addEventListener('input', e => { cur[k] = e.target.value; if(k === 'name' && !savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); }));
-$id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
-$id('f-type').addEventListener('change', e => { cur.type = e.target.value; typeVisibility(); changed(); });
-[['f-value','value'],['f-mana','mana'],['f-pa','pa'],['f-max','maxCopies']].forEach(([id, k]) => $id(id).addEventListener('input', e => { cur[k] = num(e.target.value); changed(); }));
-$id('f-persistent').addEventListener('change', e => { cur.persistent = e.target.checked; changed(); });
-$id('f-horsdeck').addEventListener('change', e => { cur.horsDeck = e.target.checked; changed(); });
-['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).addEventListener('change', e => { cur.components[k] = e.target.checked; changed(); }));
-
-/* Prérequis */
-function renderReqs(){
-  const box = $id('reqs'); box.replaceChildren();
-  cur.requirements.forEach((r, i) => {
-    const s = el('select', { 'aria-label': 'Caractéristique' }); JDR_STATS.forEach(st => s.append(el('option', { value: st.key, text: st.label }))); s.value = r.stat;
-    s.addEventListener('change', () => { r.stat = s.value; changed(); });
-    const m = el('input', { type:'number', value: r.min, 'aria-label': 'Minimum', style:'max-width:90px' }); m.addEventListener('input', () => { r.min = Number(m.value) || 0; changed(); });
-    box.append(el('div', { class:'row', style:'align-items:center' }, s, document.createTextNode('minimum'), m,
-      el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { cur.requirements.splice(i, 1); renderReqs(); changed(); } })));
+function renderSupertypes(){
+  const box = $id('f-supertypes'); box.replaceChildren();
+  const known = Object.values(JDR_SUPERTYPE_GROUPS).flat();
+  const groups = Object.assign({}, JDR_SUPERTYPE_GROUPS);
+  const others = cur.supertypes.filter(s => !known.includes(s));
+  if(others.length) groups['Autres'] = others;
+  Object.entries(groups).forEach(([g, list]) => {
+    const chips = el('div', { class:'chips' });
+    chipGroup(chips, list, cur.supertypes, (v, on) => { toggleIn(cur.supertypes, v, on); if(g === 'Autres' && !on) renderSupertypes(); });
+    box.append(el('div', {}, el('p', { class:'hint', style:'margin:0 0 3px', text: g }), chips));
   });
 }
-$id('req-add').addEventListener('click', () => { cur.requirements.push({ stat:'corps', min:1 }); renderReqs(); changed(); });
+$id('st-add').addEventListener('click', () => {
+  const v = $id('st-new').value.trim(); if(!v) return;
+  if(!cur.supertypes.includes(v)) cur.supertypes.push(v);
+  $id('st-new').value = ''; renderSupertypes(); changed();
+});
+$id('st-new').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); $id('st-add').click(); } });
 
-/* Capacités : déclencheur + coût + effets */
+$id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
+$id('f-subtype').replaceChildren(el('option', { value: '', text: 'Aucun' }), ...JDR_SUBTYPES.map(t => el('option', { value: t, text: t })));
+$id('f-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); });
+$id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
+$id('f-type').addEventListener('change', e => { cur.type = e.target.value; changed(); });
+$id('f-subtype').addEventListener('change', e => { cur.subtype = e.target.value; changed(); });
+$id('f-value').addEventListener('input', e => { cur.value = num(e.target.value); changed(); });
+$id('f-mana').addEventListener('input', e => { cur.mana = num(e.target.value); changed(); });
+['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).addEventListener('change', e => { cur.components[k] = e.target.checked; changed(); }));
+
+/* ================= 2. Illustration (studio de cadrage libre) ================= */
+const IMG = { url:'', w:0, h:0 };
+function artGeom(){
+  const c = $id('as-canvas'); const cw = c.clientWidth || 480, ch = c.clientHeight || 300;
+  const pa = document.querySelector('#preview .art');                 // ratio réel du cadre de la carte
+  const asp = pa && pa.offsetWidth && pa.offsetHeight ? pa.offsetWidth / pa.offsetHeight : 1.75;
+  const fw = Math.min(cw * 0.7, ch * 0.8 * asp), fh = fw / asp;
+  return { c, cw, ch, fw, fh };
+}
+function artLayout(){
+  const url = cur.image_url.trim();
+  $id('studio').hidden = !url;
+  if(!url) return;
+  if(url !== IMG.url){
+    IMG.url = url; IMG.w = 0; IMG.h = 0;
+    const im = new Image();
+    im.onload = () => { if(IMG.url === url){ IMG.w = im.naturalWidth; IMG.h = im.naturalHeight; artLayout(); } };
+    im.onerror = () => { if(IMG.url === url) status("L'image ne se charge pas : vérifie l'adresse.", true); };
+    im.src = url;
+  }
+  const g = artGeom(); const a = cur.art;
+  const frame = $id('as-frame'), ghost = $id('as-ghost'), inner = $id('as-in');
+  const fl = (g.cw - g.fw) / 2, ft = (g.ch - g.fh) / 2;
+  frame.style.cssText = `width:${g.fw}px;height:${g.fh}px;left:${fl}px;top:${ft}px;`;
+  if(!IMG.w){ ghost.style.display = 'none'; inner.style.display = 'none'; return; }
+  const s0 = Math.max(g.fw / IMG.w, g.fh / IMG.h);                    // « cover »
+  const w = IMG.w * s0, h = IMG.h * s0;
+  const tr = `translate(${a.ox * g.fw / 100}px, ${a.oy * g.fh / 100}px) rotate(${a.rot}deg) scale(${(a.fx ? -1 : 1) * Math.max(1, a.scale) / 100}, ${(a.fy ? -1 : 1) * Math.max(1, a.scale) / 100})`;
+  for(const [im, ox, oy] of [[ghost, (g.cw - w) / 2, (g.ch - h) / 2], [inner, (g.fw - w) / 2, (g.fh - h) / 2]]){
+    im.src = url; im.style.display = 'block';
+    im.style.width = w + 'px'; im.style.height = h + 'px'; im.style.left = ox + 'px'; im.style.top = oy + 'px';
+    im.style.transformOrigin = '50% 50%'; im.style.transform = tr;
+  }
+  syncArtInputs();
+}
+const ART_FIELDS = [['ox','Horizontal','%'],['oy','Vertical','%'],['scale','Zoom','%'],['rot','Rotation','°']];
+$id('as-nums').replaceChildren(...ART_FIELDS.map(([k, lab, unit]) => {
+  const inp = el('input', { type:'number', step:'any', class:'as-num', 'data-k': k, 'aria-label': lab });
+  inp.addEventListener('input', () => { let v = parseFloat(inp.value); if(!isFinite(v)) return; if(k === 'scale') v = Math.max(1, v); cur.art[k] = v; artLayout(); changed(); });
+  const nudge = d => el('button', { type:'button', text: (d > 0 ? '+' : '−') + Math.abs(d), onclick: () => { let v = (cur.art[k] || 0) + d; if(k === 'scale') v = Math.max(1, v); cur.art[k] = Math.round(v * 100) / 100; artLayout(); changed(); } });
+  return el('div', { class:'as-row' }, el('span', { class:'as-lab', text: lab }), nudge(-10), nudge(-1), inp, el('span', { text: unit }), nudge(1), nudge(10));
+}));
+function syncArtInputs(){
+  document.querySelectorAll('#as-nums input[data-k]').forEach(i => { if(document.activeElement !== i) i.value = Math.round((cur.art[i.dataset.k] || 0) * 100) / 100; });
+  document.querySelectorAll('#studio [data-flip]').forEach(b => b.classList.toggle('on', !!cur.art[b.dataset.flip]));
+}
+$id('studio').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return; const a = cur.art;
+  if(b.dataset.act === 'cover'){ a.scale = 100; a.ox = 0; a.oy = 0; }
+  else if(b.dataset.act === 'contain'){ const g = artGeom(); if(!IMG.w) return; a.scale = Math.round(Math.min(g.fw / IMG.w, g.fh / IMG.h) / Math.max(g.fw / IMG.w, g.fh / IMG.h) * 10000) / 100; a.ox = 0; a.oy = 0; }
+  else if(b.dataset.act === 'reset'){ cur.art = jdrBlankArt(); }
+  else if(b.dataset.rot !== undefined){ const d = parseFloat(b.dataset.rot); a.rot = d === 0 ? 0 : d === 180 ? (a.rot + 180) % 360 : a.rot + d; }
+  else if(b.dataset.flip){ a[b.dataset.flip] = !a[b.dataset.flip]; }
+  else return;
+  artLayout(); changed();
+});
+(function(){ // glisser + molette dans la zone de travail
+  const cv = $id('as-canvas'); let drag = null;
+  cv.addEventListener('pointerdown', e => { if(!JDR_IS_EDITOR) return; const g = artGeom(); drag = { x:e.clientX, y:e.clientY, ox:cur.art.ox, oy:cur.art.oy, fw:g.fw, fh:g.fh }; cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+  cv.addEventListener('pointermove', e => { if(!drag) return; cur.art.ox = Math.round((drag.ox + (e.clientX - drag.x) / drag.fw * 100) * 100) / 100; cur.art.oy = Math.round((drag.oy + (e.clientY - drag.y) / drag.fh * 100) * 100) / 100; artLayout(); changed(); });
+  const end = () => { drag = null; }; cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  cv.addEventListener('wheel', e => { if(!JDR_IS_EDITOR) return; e.preventDefault(); cur.art.scale = Math.max(1, Math.round(cur.art.scale * Math.exp(-e.deltaY * 0.0015) * 100) / 100); artLayout(); changed(); }, { passive:false });
+  window.addEventListener('resize', artLayout);
+})();
+$id('f-image').addEventListener('input', e => { cur.image_url = e.target.value.trim(); artLayout(); changed(); });
+
+/* ================= 3 et 4. Capacités ================= */
 function selectOf(obj, value, onChange, label){
   const s = el('select', { 'aria-label': label || '' });
   Object.entries(obj).forEach(([k, v]) => s.append(el('option', { value: k, text: v || 'Immédiat' })));
@@ -218,57 +330,113 @@ const FIELD_UI = {
   magic:      e => { const c = el('input', { type:'checkbox' }); c.checked = !!e.magic; c.addEventListener('change', () => { e.magic = c.checked; changed(); }); return el('label', { class:'chk' }, c, document.createTextNode('Armure magique')); },
   text:       e => { const t = el('textarea', { rows: 2 }); t.value = e.text ?? ''; t.addEventListener('input', () => { e.text = t.value; changed(); }); return el('label', { class:'f', style:'flex-basis:100%' }, document.createTextNode('Texte'), t); }
 };
+
+// Bloc d'une capacité : coût principal (PA ou mana), autre coût, moment, effets
+function abilityBlock(ab, title, mainCost, onRemove, rerender){
+  if(!ab.triggers || !ab.triggers.length) ab.triggers = [{ trigger: 'activated' }];
+  const costIn = el('input', { type:'number', min:0, max: 30, value: ab[mainCost.key] ?? '', placeholder: 'aucun' });
+  costIn.addEventListener('input', () => { ab[mainCost.key] = num(costIn.value); changed(); });
+  const other = el('input', { value: ab.cost || '', placeholder: 'ex. Défaussez 1' });
+  other.addEventListener('input', () => { ab.cost = other.value; changed(); });
+  const trig = selectOf(Object.assign({ '': '— aucun —' }, JDR_TRIGGERS), ab.triggers[0].trigger || '', v => { ab.triggers[0].trigger = v; changed(); }, 'Moment');
+  const effs = el('div', { style:'display:flex;flex-direction:column;gap:6px' });
+  ab.effects.forEach((e, ei) => {
+    const type = selectOf(Object.fromEntries(Object.entries(JDR_EFFECTS).map(([k, v]) => [k, v.label])), e.type, v => {
+      ab.effects[ei] = Object.assign(jdrBlankEffect(v), { type: v }); rerender(); changed();
+    }, "Type d'effet");
+    const fields = el('div', { class:'fields' }, ...(JDR_EFFECTS[e.type] ? JDR_EFFECTS[e.type].fields : []).map(f => FIELD_UI[f](e)));
+    effs.append(el('div', { class:'eff' }, el('label', { class:'f' }, document.createTextNode('Effet'), type), fields,
+      el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { ab.effects.splice(ei, 1); rerender(); changed(); } })));
+  });
+  return el('div', { class:'ab' },
+    el('div', { class:'ab-top' }, el('h3', { text: title }), onRemove ? el('button', { type:'button', class:'ghost', text:'Supprimer', onclick: onRemove }) : document.createTextNode('')),
+    el('div', { class:'grid3' },
+      el('label', { class:'f' }, document.createTextNode(mainCost.label), costIn),
+      el('label', { class:'f' }, document.createTextNode('Autre coût'), other),
+      el('label', { class:'f' }, document.createTextNode('Moment'), trig)),
+    el('p', { class:'sub-h', text: 'Effet' }), effs,
+    el('button', { type:'button', style:'align-self:start', text:'Ajouter un effet', onclick: () => { ab.effects.push(jdrBlankEffect('damage')); rerender(); changed(); } }),
+    el('p', { class:'gen', 'data-gen': '1' }));
+}
 function renderAbilities(){
   const box = $id('abilities'); box.replaceChildren();
-  cur.abilities.forEach((ab, ai) => {
-    if(!ab.triggers || !ab.triggers.length) ab.triggers = [{ trigger: 'onPlay' }];
-    if(!ab.effects) ab.effects = [];
-    const trig = selectOf(JDR_TRIGGERS, ab.triggers[0].trigger, v => { ab.triggers[0].trigger = v; changed(); }, 'Déclencheur');
-    const cost = el('input', { value: ab.cost || '', placeholder: 'ex. Défaussez 1' }); cost.addEventListener('input', () => { ab.cost = cost.value; changed(); });
-    const spec = el('input', { type:'checkbox' }); spec.checked = !!ab.special; spec.addEventListener('change', () => { ab.special = spec.checked; changed(); });
-    const effs = el('div', { style: 'display:flex;flex-direction:column;gap:6px' });
-    ab.effects.forEach((e, ei) => {
-      const type = selectOf(Object.fromEntries(Object.entries(JDR_EFFECTS).map(([k, v]) => [k, v.label])), e.type, v => {
-        ab.effects[ei] = Object.assign(jdrBlankEffect(v), { type: v }); renderAbilities(); changed();
-      }, "Type d'effet");
-      const fields = el('div', { class:'fields' }, ...(JDR_EFFECTS[e.type] ? JDR_EFFECTS[e.type].fields : []).map(f => FIELD_UI[f](e)));
-      effs.append(el('div', { class:'eff' }, el('label', { class:'f' }, document.createTextNode('Effet'), type), fields,
-        el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { ab.effects.splice(ei, 1); renderAbilities(); changed(); } })));
-    });
-    const gen = el('p', { class:'gen', text: jdrAbilityText(ab) || '(ajoute un effet)' });
-    box.append(el('div', { class:'ab' },
-      el('div', { class:'ab-head' },
-        el('label', { class:'f', style:'flex:1 1 220px' }, document.createTextNode('Déclencheur'), trig),
-        el('label', { class:'f', style:'flex:1 1 160px' }, document.createTextNode('Coût (facultatif)'), cost),
-        el('label', { class:'chk', title:'Affichée dans l\u2019encadré « Spécial » en bas de la carte' }, spec, document.createTextNode('Capacité spéciale')),
-        el('button', { type:'button', class:'ghost', text:'Supprimer la capacité', onclick: () => { cur.abilities.splice(ai, 1); renderAbilities(); changed(); } })),
-      effs,
-      el('button', { type:'button', style:'align-self:start', text:'Ajouter un effet', onclick: () => { ab.effects.push(jdrBlankEffect('damage')); renderAbilities(); changed(); } }),
-      gen));
-  });
+  cur.abilities.forEach((ab, i) => box.append(abilityBlock(ab, 'Capacité ' + (i + 1), { key:'pa', label:"Coût en points d'action" },
+    () => { cur.abilities.splice(i, 1); renderAbilities(); changed(); }, renderAbilities)));
+  applyRights(); renderGen();
 }
-$id('ab-add').addEventListener('click', () => { cur.abilities.push({ triggers:[{ trigger:'onPlay' }], cost:'', effects:[jdrBlankEffect('damage')] }); renderAbilities(); changed(); });
+$id('ab-add').addEventListener('click', () => { const ab = jdrBlankAbility(); ab.effects.push(jdrBlankEffect('damage')); cur.abilities.push(ab); renderAbilities(); changed(); });
 
+function renderSpecial(){
+  const box = $id('special'); box.replaceChildren();
+  $id('sp-on').checked = !!cur.special.enabled;
+  if(!cur.special.enabled) return;
+  const nm = el('input', { value: cur.special.name || '', placeholder: 'ex. Surcharge', maxlength: 40 });
+  nm.addEventListener('input', () => { cur.special.name = nm.value; changed(); });
+  box.append(el('label', { class:'f', style:'margin-bottom:8px' }, document.createTextNode('Nom du spécial (facultatif)'), nm),
+    abilityBlock(cur.special, 'Spécial', { key:'mana', label:'Coût en mana' }, null, renderSpecial));
+  applyRights(); renderGen();
+}
+$id('sp-on').addEventListener('change', e => {
+  cur.special.enabled = e.target.checked;
+  if(cur.special.enabled && !cur.special.effects.length) cur.special.effects.push(jdrBlankEffect('damage'));
+  renderSpecial(); changed();
+});
+
+/* ================= Options de deck ================= */
+function renderReqs(){
+  const box = $id('reqs'); box.replaceChildren();
+  cur.requirements.forEach((r, i) => {
+    const s = el('select', { 'aria-label': 'Caractéristique' }); JDR_STATS.forEach(st => s.append(el('option', { value: st.key, text: st.label }))); s.value = r.stat;
+    s.addEventListener('change', () => { r.stat = s.value; changed(); });
+    const m = el('input', { type:'number', value: r.min, 'aria-label': 'Minimum', style:'max-width:90px' }); m.addEventListener('input', () => { r.min = Number(m.value) || 0; changed(); });
+    box.append(el('div', { class:'row', style:'align-items:center' }, s, document.createTextNode('minimum'), m,
+      el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { cur.requirements.splice(i, 1); renderReqs(); changed(); } })));
+  });
+  applyRights();
+}
+$id('req-add').addEventListener('click', () => { cur.requirements.push({ stat:'corps', min:1 }); renderReqs(); changed(); });
+$id('f-persistent').addEventListener('change', e => { cur.persistent = e.target.checked; changed(); });
+$id('f-horsdeck').addEventListener('change', e => { cur.horsDeck = e.target.checked; changed(); });
+$id('f-max').addEventListener('input', e => { cur.maxCopies = num(e.target.value); changed(); });
+$id('f-footer').addEventListener('input', e => { cur.footer = e.target.value; changed(); });
+
+/* ================= Formulaire complet + aperçu ================= */
+function renderForm(){
+  $id('f-name').value = cur.name; $id('f-id').value = cur.id; $id('f-id').disabled = !!savedId;
+  $id('f-type').value = cur.type; $id('f-subtype').value = cur.subtype || '';
+  $id('f-value').value = cur.value ?? ''; $id('f-mana').value = cur.mana ?? '';
+  ['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).checked = !!cur.components[k]);
+  chipGroup($id('f-classes'), Object.keys(JDR_CLASSES), cur.classes, (v, on) => toggleIn(cur.classes, v, on));
+  renderSupertypes();
+  $id('f-image').value = cur.image_url;
+  $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
+  $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';
+  renderReqs(); renderAbilities(); renderSpecial(); renderPreview(); artLayout(); applyRights();
+}
+function renderGen(){
+  document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(ajoute un effet)'; });
+  const sp = document.querySelector('#special [data-gen]'); if(sp) sp.textContent = jdrAbilityText(cur.special) || '(ajoute un effet)';
+}
 function renderPreview(){
   $id('preview').innerHTML = jdrCardHTML(cur);
-  document.querySelectorAll('#abilities .gen').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(ajoute un effet)'; });
+  const col = JDR_CARD_COLORS[jdrCardColorKey(cur)];
+  $id('ident').style.setProperty('--cc', col.color); $id('ident').style.setProperty('--ci', col.ink);
+  renderGen();
 }
 
-/* ---------- Droits ---------- */
+/* ================= Droits et enregistrement ================= */
 function applyRights(){
   $id('ro').hidden = JDR_IS_EDITOR;
-  ['save','dup','del','new','ab-add','req-add'].forEach(id => $id(id).disabled = !JDR_IS_EDITOR);
-  $id('del').disabled = !JDR_IS_EDITOR || !savedId;
+  document.querySelectorAll('#form input, #form select, #form textarea, #form button, #new').forEach(e => e.disabled = !JDR_IS_EDITOR);
+  if(JDR_IS_EDITOR){ $id('f-id').disabled = !!savedId; $id('del').disabled = !savedId; }
 }
-
-/* ---------- Enregistrement ---------- */
 async function save(){
   if(!JDR_IS_EDITOR) return;
   cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
   if(!cur.name){ status('Donne un nom à la carte.', true); return; }
   if(!/^[a-z0-9_-]{3,64}$/.test(cur.id)){ status("L'identifiant doit faire 3 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
   if(!savedId && cards.some(c => c.id === cur.id)){ status('Une carte porte déjà cet identifiant : change-le.', true); return; }
-  const data = structuredClone(cur); delete data.updated_at;
+  const data = jdrNormalizeCard(structuredClone(cur)); delete data.updated_at;
   status('Enregistrement…');
   const q = savedId ? jdrSb.from('cards').update({ name: cur.name, data }).eq('id', savedId)
                     : jdrSb.from('cards').insert({ id: cur.id, name: cur.name, data });
@@ -288,7 +456,7 @@ $id('del').addEventListener('click', async () => {
   delArmed = false; $id('del').textContent = 'Supprimer';
   const { error } = await jdrSb.from('cards').delete().eq('id', savedId);
   if(error){ status(jdrErrorText(error), true); return; }
-  await reload(); newCard(); status('Carte supprimée');
+  dirty = false; await reload(); newCard(); status('Carte supprimée');
 });
 window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
 

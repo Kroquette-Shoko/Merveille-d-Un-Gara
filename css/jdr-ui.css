@@ -88,7 +88,9 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jcard .head{background:var(--cc);color:var(--ci);padding:2.6cqw 3.4cqw 2.9cqw 1.1cqw;line-height:1.1}
 .jcard .name{font-family:var(--f-display);font-weight:700;font-size:6.3cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .jcard .type{font-size:3.4cqw;opacity:.92;margin-top:.9cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.jcard .art{flex:0 0 48cqw;background:linear-gradient(160deg,#55606b,#2d353d) center/cover;position:relative}
+.jcard .art{flex:0 0 48cqw;background:linear-gradient(160deg,#55606b,#2d353d) center/cover;position:relative;overflow:hidden}
+.jcard .artin{position:absolute;inset:0;transform-origin:50% 50%}
+.jcard .artin img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;pointer-events:none;user-select:none}
 .jcard .art.ph::after{content:"Illustration";position:absolute;inset:0;display:grid;place-items:center;color:#c5ccd3;font-size:3.4cqw;letter-spacing:.12em;text-transform:uppercase}
 .jcard .txt{padding:3.4cqw 4cqw 2.3cqw;font-size:4.1cqw;line-height:1.4;flex:1;min-height:0;overflow:hidden}
 .jcard .txt p{margin:0 0 1.5cqw}

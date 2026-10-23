@@ -82,10 +82,10 @@ function openDetail(id){
   $id('dlg-title').textContent = c.name;
   const acc = (l, all) => l.length ? l.join(', ') : all;
   const rows = [
-    ['Type', [c.type, ...c.subtypes].join(' - ')],
-    ['Valeur', c.value ?? '—'], ['Coût', [c.mana !== null && c.type === 'Sort' ? c.mana + ' mana' : '', c.pa !== null ? c.pa + ' PA' : ''].filter(Boolean).join(' · ') || '—'],
-    ['Classes', acc(c.access.classes, 'Toutes')], ['Spécialisations', acc(c.access.specs, 'Toutes')],
-    ['Passés', acc(c.access.passes, 'Tous')], ['Peuples', acc(c.access.peuples, 'Tous')],
+    ['Type', [c.type, c.subtype].filter(Boolean).join(' — ')],
+    ['Super-types', acc(c.supertypes, 'Aucun')],
+    ['Classes', acc(c.classes, 'Toutes')],
+    ['Valeur', c.value ?? '—'], ['Mana', c.mana !== null && c.mana !== '' ? c.mana : '—'],
     ['Prérequis', c.requirements.length ? c.requirements.map(r => `${JDR_STAT_LABEL[r.stat]} ${r.min}`).join(', ') : 'Aucun'],
     ['Exemplaires', c.horsDeck ? 'Hors deck (1)' : (c.maxCopies ? c.maxCopies + ' maximum' : 'Illimité')]
   ];

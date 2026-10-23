@@ -5,8 +5,8 @@
 
    Disposition :
    - colonne de couleur à gauche : valeur (écusson), mana (sorts), composantes (sorts), persistance
-   - bandeau du haut : nom, puis « Super type · Type — sous-types »
-   - illustration, capacités, encadré « Spécial · <nom> » pour les capacités marquées spéciales
+   - bandeau du haut : nom, puis « Super-types · Type — Sous-type »
+   - illustration cadrée, capacités, encadré « Spécial · <nom> » si la carte a une capacité spéciale
    - couleur : celle de la classe (une seule classe), neutre sinon, violet sombre pour les Risques */
 
 // "2+corps" → "2 + Corps" ; avec une fiche → "6 (2 + Corps)"
@@ -20,25 +20,28 @@ function jdrPrettyAmount(expr, sheet){
 }
 
 // Texte d'une capacité, formules affichées lisiblement
-function jdrPrettyAbility(ab, sheet, extraCost){
-  const cost = [extraCost, ab.cost].filter(Boolean).join(', ');
-  const copy = Object.assign({}, ab, { cost, effects: (ab.effects || []).map(e => Object.assign({}, e, { amount: jdrPrettyAmount(e.amount, sheet) })) });
+function jdrPrettyAbility(ab, sheet){
+  const copy = Object.assign({}, ab, { effects: (ab.effects || []).map(e => Object.assign({}, e, { amount: jdrPrettyAmount(e.amount, sheet) })) });
   return jdrAbilityText(copy);
 }
 
-// { main: [lignes], special: [lignes] } — le coût en PA s'ajoute à la première capacité normale
+// { main: [lignes], special: [lignes] }
 function jdrCardTextLines(card, sheet){
-  const pa = (card.pa !== null && card.pa !== '' && card.pa !== undefined && card.type !== 'Risque') ? `${card.pa} PA` : '';
-  const main = [], special = [];
-  let paUsed = false;
-  (card.abilities || []).forEach(ab => {
-    if(ab.special){ const t = jdrPrettyAbility(ab, sheet, ''); if(t) special.push(t); return; }
-    const t = jdrPrettyAbility(ab, sheet, paUsed ? '' : pa);
-    if(t){ main.push(t); if((ab.triggers || []).length) paUsed = true; }
-  });
+  const main = (card.abilities || []).map(ab => jdrPrettyAbility(ab, sheet)).filter(Boolean);
   if(card.text) main.push(card.text);
-  if(pa && !paUsed) main.unshift(`Coût : ${pa}.`);
+  const special = card.special && card.special.enabled ? [jdrPrettyAbility(card.special, sheet)].filter(Boolean) : [];
   return { main, special };
+}
+
+// Illustration cadrée (même calcul que Rimd'Orël) : l'image remplit le cadre (« cover »),
+// puis déplacement en % du cadre, rotation, zoom et miroirs autour du centre.
+function jdrArtHTML(c, esc){
+  if(!c.image_url) return `<div class="art ph"></div>`;
+  const a = c.art || {};
+  const n = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : d;
+  const sc = Math.max(1, n(a.scale, 100)) / 100;
+  const tr = `translate(${n(a.ox,0)}%,${n(a.oy,0)}%) rotate(${n(a.rot,0)}deg) scale(${(a.fx ? -1 : 1) * sc},${(a.fy ? -1 : 1) * sc})`;
+  return `<div class="art"><div class="artin" style="transform:${tr}"><img src="${esc(c.image_url)}" alt="" draggable="false" loading="lazy"></div></div>`;
 }
 
 const JDR_COMP_ICONS = {
@@ -52,14 +55,12 @@ function jdrCardHTML(card, opts = {}){
   const c = jdrNormalizeCard(card);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   const col = JDR_CARD_COLORS[jdrCardColorKey(c)];
-  const sup = jdrCardSuperType(c);
-  const typeLine = [c.type, c.subtypes.join(', ')].filter(Boolean).join(' — ');
-  const comps = c.type === 'Sort' ? ['sonore','gestuelle','materielle'].filter(k => c.components[k]) : [];
-  const hasMana = c.type === 'Sort' && c.mana !== null && c.mana !== '' && c.mana !== undefined;
+  const typeLine = [c.type, c.subtype].filter(Boolean).join(' — ');
+  const sup = c.supertypes.join(', ');
+  const comps = ['sonore','gestuelle','materielle'].filter(k => c.components[k]);
+  const hasMana = c.mana !== null && c.mana !== '' && c.mana !== undefined;
   const { main, special } = jdrCardTextLines(c, opts.sheet);
-  const art = c.image_url
-    ? `<div class="art" style="background-image:url('${esc(c.image_url).replace(/'/g, '%27')}')"></div>`
-    : `<div class="art ph"></div>`;
+  const art = jdrArtHTML(c, esc);
   const cls = ['jcard', opts.size === 'small' ? 'small' : '', opts.locked ? 'locked' : ''].filter(Boolean).join(' ');
   const showVal = c.value !== null && c.value !== '' && c.value !== undefined;
 
@@ -78,7 +79,7 @@ function jdrCardHTML(card, opts = {}){
       </div>
       ${art}
       <div class="txt">${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>
-      ${special.length ? `<div class="spec"><div class="st">Spécial${c.specialName ? ' · ' + esc(c.specialName) : ''}</div>${special.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
+      ${special.length ? `<div class="spec"><div class="st">Spécial${c.special.name ? ' · ' + esc(c.special.name) : ''}</div>${special.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>
   </div>`;
