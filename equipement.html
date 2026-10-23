@@ -30,7 +30,8 @@
 @media (max-width:560px){.atk{grid-template-columns:1fr}.atk .lab{padding:0}}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:560px){.grid3{grid-template-columns:1fr}}
-.actions{display:flex;flex-wrap:wrap;gap:8px}
+/* Barre Enregistrer : reste visible en bas de l'écran pendant le défilement */
+.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:8px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .soon{background:var(--panel);border-radius:10px;padding:14px;color:var(--muted)}
 .sizes{display:flex;flex-wrap:wrap;gap:4px}
 .sizes button{padding:5px 9px;font-size:.85rem;border-radius:999px}

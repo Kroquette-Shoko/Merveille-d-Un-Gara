@@ -31,7 +31,8 @@
 .ab .r{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:8px;align-items:end}
 .ab .r2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 @media (max-width:560px){.ab .r,.ab .r2{grid-template-columns:1fr}}
-.actions{display:flex;flex-wrap:wrap;gap:8px}
+/* Barre Enregistrer : reste visible en bas de l'écran pendant le défilement */
+.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:8px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .prog{display:grid;grid-template-columns:3rem 5rem minmax(0,1fr);gap:4px 8px;align-items:center}
 .prog .h{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .prog .lv{font-weight:700;text-align:center}

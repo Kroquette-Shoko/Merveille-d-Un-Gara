@@ -49,7 +49,8 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 @media (max-width:1000px){.ed.crea{grid-template-columns:1fr}.ed.crea .preview{order:-1;position:static}}
 .ed.crea .preview{align-items:stretch}
 .capr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;background:var(--panel);border-radius:8px;padding:8px}
-.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line);z-index:2}
+/* Barre Enregistrer : reste visible en bas de l'écran pendant le défilement */
+.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:8px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px;margin:0}
 /* Studio d'illustration (cadrage libre, repris de Rimd'Orël) */
 .as-canvas{position:relative;height:300px;background:#0f1419;border-radius:10px;overflow:hidden;touch-action:none;cursor:grab;user-select:none}
