@@ -108,7 +108,7 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
 function jdrBlankCard(){
   return {
     id: '', name: '', type: 'Manœuvre', subtypes: [], origin: '',
-    value: 1, mana: null, pa: 1, persistent: false, horsDeck: false,
+    value: 1, mana: null, pa: null, persistent: false, horsDeck: false,
     components: { sonore: false, gestuelle: false, materielle: false },
     access: { classes: [], specs: [], passes: [], peuples: [] },
     requirements: [], maxCopies: null,
@@ -205,6 +205,8 @@ function jdrEffectText(e){
   const d = JDR_DURATIONS[e.duration] ? ' ' + JDR_DURATIONS[e.duration] : '';
   const res = e.opposeRes ? "S'oppose à la résistance de la cible : en cas de réussite, " : '';
   const plural = (v, s, p) => (String(v) === '1' ? s : p);
+  // conjugaison selon la cible : « vous prenez », « un allié prend », « vos alliés prennent »
+  const vb = (sg, vous, pl) => (e.target === 'self' || e.target === 'selfAllies') ? vous : (e.target === 'allies' || e.target === 'enemies') ? pl : sg;
   switch(e.type){
     case 'damage': {
       // accord : « 1 dégât feu », « 3 dégâts contondants » ; « à une créature » / « aux créatures »
@@ -215,25 +217,25 @@ function jdrEffectText(e){
       const to = t.startsWith('les ') ? 'aux ' + t.slice(4) : t.startsWith('le ') ? 'au ' + t.slice(3) : 'à ' + t.replace(' et les ', ' et aux ');
       return `${res}inflige ${n} dégât${plural(n,'','s')} ${dt} ${to}.`.replace(/\s+/g,' ');
     }
-    case 'wound':    return `${cap(t)} subit ${n} case${plural(n,'','s')} de blessure.`;
+    case 'wound':    return `${cap(t)} ${vb('subit','subissez','subissent')} ${n} case${plural(n,'','s')} de blessure.`;
     case 'heal':     return `Soignez ${n} case${plural(n,'','s')} de blessure (${t}).`;
-    case 'armor':    return `${cap(t)} gagne ${n} point${plural(n,'','s')} d'armure${e.magic ? ' magique' : ''}${d}.`;
+    case 'armor':    return `${cap(t)} ${vb('gagne','gagnez','gagnent')} ${n} point${plural(n,'','s')} d'armure${e.magic ? ' magique' : ''}${d}.`;
     case 'modifyStat': {
       const v = String(n).startsWith('-') ? n : '+' + n;
       return `${cap(t)} : ${JDR_STAT_LABEL[e.stat] || e.stat} ${v}${d}.`;
     }
     case 'resource': {
       const neg = String(n).startsWith('-');
-      return `${cap(t)} ${neg ? 'perd' : 'gagne'} ${neg ? n.slice(1) : n} ${e.resource || 'ressource'}.`;
+      return `${cap(t)} ${neg ? vb('perd','perdez','perdent') : vb('gagne','gagnez','gagnent')} ${neg ? n.slice(1) : n} ${e.resource || 'ressource'}.`;
     }
     case 'draw':     return `Piochez ${n} carte${plural(n,'','s')}.`;
     case 'explore':  return `Explorez ${n} (mettez les ${n} carte${plural(n,'','s')} du dessus de votre deck dans votre défausse).`;
     case 'discard':  return `Défaussez ${n} carte${plural(n,'','s')}.`;
-    case 'takeRisk': return `${cap(t)} prend ${n} risque${plural(n,'','s')}.`;
+    case 'takeRisk': return `${cap(t)} ${vb('prend','prenez','prennent')} ${n} risque${plural(n,'','s')}.`;
     case 'banishRisk': return `Bannissez ${n} carte${plural(n,'','s')} Risque (${t}).`;
-    case 'affliction': return `${res}${t} gagne l'affliction ${e.affliction || '…'}${d}.`.replace(/^./, c => c.toUpperCase());
+    case 'affliction': return `${res}${t} ${vb('gagne','gagnez','gagnent')} l'affliction ${e.affliction || '…'}${d}.`.replace(/^./, c => c.toUpperCase());
     case 'extraReaction': return `Vous disposez de ${n} réaction${plural(n,'','s')} supplémentaire${plural(n,'','s')}${d}.`;
-    case 'move':     return `${cap(t)} se déplace de ${n} case${plural(n,'','s')}.`;
+    case 'move':     return `${cap(t)} ${vb('se déplace','vous déplacez','se déplacent')} de ${n} case${plural(n,'','s')}.`;
     case 'posture':  return 'Vous adoptez cette posture.';
     case 'recover':  return `Placez dans votre main une carte ${JDR_FROM[e.from] || ''}.`;
     case 'custom':   return e.text || '';
