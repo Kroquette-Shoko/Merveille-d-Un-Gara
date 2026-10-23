@@ -10,6 +10,7 @@ const JDR_PAGES = [
   { id: 'editeur',      href: 'editeur-cartes.html',   label: 'Éditeur de cartes', editorOnly: true },
   { id: 'groupes',      href: 'editeur-groupes.html',  label: 'Actions de groupe', editorOnly: true },
   { id: 'motscles',     href: 'mots-cles.html',        label: 'Mots-clés' },
+  { id: 'equipement',   href: 'equipement.html',       label: 'Équipement' },
   { id: 'campagnes',    href: 'campagnes.html',        label: 'Campagnes' }
 ];
 
@@ -83,6 +84,14 @@ async function jdrLoadKeywords(){
   const list = data.map(jdrNormalizeKeyword);
   JDR_KW = Object.fromEntries(list.map(k => [k.id, k]));
   return { list, byId: JDR_KW };
+}
+
+// Équipement (table jdr.items) : renvoie { list, byId } — nécessite js/jdr-items.js
+async function jdrLoadItems(){
+  const { data, error } = await jdrSb.from('items').select('id,name,data,updated_at').order('name');
+  if(error) throw error;
+  const list = data.map(r => Object.assign(jdrNormalizeItem(r), { updated_at: r.updated_at }));
+  return { list, byId: Object.fromEntries(list.map(i => [i.id, i])) };
 }
 
 // Charge les tableaux d'action de groupe : renvoie { list, byId }

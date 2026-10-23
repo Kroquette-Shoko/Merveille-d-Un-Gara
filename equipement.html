@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Équipement Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Layout : onglets par type + liste à gauche, formulaire au centre, aperçu de la fiche d'objet à droite.
+   Tout le monde peut consulter ; seul le compte éditeur peut modifier. */
+.ed{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(300px,420px);gap:16px;align-items:start}
+@media (max-width:1180px){.ed{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}.ed .list{grid-column:1/-1}}
+@media (max-width:760px){.ed{grid-template-columns:1fr}}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tabs button{padding:5px 10px;border-radius:999px;font-size:.9rem}
+.tabs button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs button:disabled{opacity:.5;cursor:not-allowed}
+.list ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:1px}
+.list li button{width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;display:flex;flex-direction:column;gap:1px}
+.list li button.on{background:var(--panel);font-weight:700}
+.list li .s{color:var(--muted);font-size:.8rem;font-weight:400}
+.pv{position:sticky;top:12px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.part{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.part:first-child{border-top:0;padding-top:0;margin-top:0}
+.part h2{font-size:1.1rem}
+.atk{display:grid;grid-template-columns:5.8rem minmax(0,.7fr) minmax(0,1.6fr);gap:8px;align-items:end}
+.sub-h{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 4px}
+.atk .lab{font-weight:700;padding-bottom:6px}
+@media (max-width:560px){.atk{grid-template-columns:1fr}.atk .lab{padding:0}}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.grid3{grid-template-columns:1fr}}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.soon{background:var(--panel);border-radius:10px;padding:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><h1>Équipement</h1><p class="sub">Armes, armures et boucliers. Les objets magiques et les objets divers arrivent à l'étape suivante.</p></div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+  <p class="status bad" id="ro" hidden>Lecture seule : seul le compte éditeur peut modifier l'équipement.</p>
+
+  <div class="ed">
+    <aside class="sheet list">
+      <div class="tabs" id="tabs" role="tablist" aria-label="Type d'équipement"></div>
+      <div class="row"><input id="q" type="search" placeholder="Rechercher…" aria-label="Rechercher"><button class="primary" id="new" type="button">Nouveau</button></div>
+      <ul id="items"></ul>
+    </aside>
+
+    <main class="sheet" id="form">
+      <div id="soon" class="soon" hidden>Ce type d'objet sera disponible à l'étape 2.</div>
+      <div id="fields">
+        <!-- Commun -->
+        <section class="part">
+          <h2>Identité</h2>
+          <div class="grid2">
+            <label class="f">Nom<input id="i-name" maxlength="80" placeholder="ex. Pistolet à silex"></label>
+            <label class="f">Identifiant<input id="i-id" maxlength="64" placeholder="rempli depuis le nom"></label>
+          </div>
+          <div class="grid2">
+            <label class="f">Taille dans l'inventaire<select id="i-size"></select></label>
+            <span></span>
+          </div>
+        </section>
+
+        <!-- Arme -->
+        <section class="part" data-kind="arme">
+          <h2>Arme</h2>
+          <div class="grid2">
+            <label class="f">Catégorie<select id="w-cat"></select></label>
+            <label class="f">Combat<select id="w-reach"></select></label>
+            <label class="f">Type de dégât<select id="w-dmg"></select></label>
+            <label class="f">Portée<select id="w-range"></select></label>
+          </div>
+          <p class="sub-h" style="margin:0">Attaques</p>
+          <div class="atk"><span class="lab">Principale</span><span class="hint" style="padding-bottom:6px">sans coût</span>
+            <label class="f">Effet<input id="w-a1" placeholder="ex. 1 blessure"></label></div>
+          <div class="atk"><span class="lab">Secondaire</span>
+            <label class="f">Coût<input id="w-c2" placeholder="ex. Défausse 1"></label>
+            <label class="f">Effet<input id="w-a2" placeholder="ex. 1 blessure légère et désarme"></label></div>
+          <div class="atk"><span class="lab">Tertiaire</span>
+            <label class="f">Coût<input id="w-c3" placeholder="ex. Défausse 2"></label>
+            <label class="f">Effet<input id="w-a3" placeholder="ex. Opp. à la résistance → Saignement"></label></div>
+        </section>
+
+        <!-- Armure -->
+        <section class="part" data-kind="armure">
+          <h2>Armure</h2>
+          <label class="f" style="max-width:260px">Catégorie<select id="r-cat"></select></label>
+        </section>
+
+        <!-- Bouclier -->
+        <section class="part" data-kind="bouclier">
+          <h2>Bouclier</h2>
+          <div class="atk"><span class="lab">Attaque</span>
+            <label class="f">Coût<input id="s-cost" placeholder="facultatif"></label>
+            <label class="f">Effet<input id="s-text" placeholder="ex. 1 blessure légère"></label></div>
+          <label class="f" style="max-width:260px">Type de dégât de l'attaque<select id="s-dmg"></select></label>
+        </section>
+
+        <!-- Armure + bouclier : protection -->
+        <section class="part" data-kind="armure bouclier">
+          <h2>Protection</h2>
+          <div class="grid3">
+            <label class="f">Armure<input id="p-armor" type="number" min="0" max="30"></label>
+            <label class="f">Armure magique<input id="p-mag" type="number" min="0" max="30"></label>
+            <label class="f">Résistance<input id="p-res" type="number" min="-5" max="10"></label>
+          </div>
+        </section>
+
+        <!-- Commun : propriétés + description -->
+        <section class="part">
+          <h2>Propriétés <a href="mots-cles.html" target="_blank" rel="noopener" style="font-family:var(--f-body);font-weight:400;font-size:.85rem">· voir la liste</a></h2>
+          <div class="chips" id="i-props"></div>
+          <div class="row">
+            <select id="prop-pick" aria-label="Propriété à ajouter" style="width:auto;min-width:220px"></select>
+            <button type="button" id="prop-add">Ajouter la propriété</button>
+          </div>
+          <label class="f">Description<textarea id="i-desc" rows="3" maxlength="1000" placeholder="Apparence, histoire, précisions de règle…"></textarea></label>
+        </section>
+
+        <div class="actions" style="margin-top:12px">
+          <button class="primary" id="save" type="button">Enregistrer</button>
+          <button id="dup" type="button">Dupliquer</button>
+          <button class="danger" id="del" type="button">Supprimer</button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="pv"><div id="preview" style="width:100%;display:flex;justify-content:center"></div><p class="hint">Aperçu de la fiche d'objet</p></aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script src="js/jdr-items.js"></script>
+<script>
+let items = [], kind = 'arme', cur = jdrBlankItem('arme'), savedId = null, dirty = false;
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
+const fill = (id, list, labels) => $id(id).replaceChildren(...list.map((v, i) => new Option(labels ? labels[i] : v, v)));
+const num = v => v === '' ? 0 : Number(v) || 0;
+
+// ---------- Listes déroulantes ----------
+fill('i-size', JDR_ITEM_SIZES.map(s => String(s.n)), JDR_ITEM_SIZES.map(s => `${s.n} case${s.n > 1 ? 's' : ''} · ${s.t}`));
+fill('w-cat', JDR_WEAPON_CATEGORIES); fill('w-reach', JDR_WEAPON_REACH);
+fill('w-dmg', JDR_DAMAGE_TYPES); fill('s-dmg', JDR_DAMAGE_TYPES);
+fill('w-range', ['', ...JDR_RANGES.filter(r => r !== 'Soi')], ['Aucune', ...JDR_RANGES.filter(r => r !== 'Soi')]);
+fill('r-cat', JDR_ARMOR_CATEGORIES);
+
+// ---------- Onglets et liste ----------
+function renderTabs(){
+  $id('tabs').replaceChildren(...Object.entries(JDR_ITEM_KINDS).map(([k, d]) => {
+    const n = items.filter(i => i.kind === k).length;
+    return el('button', { type:'button', role:'tab', 'aria-selected': k === kind ? 'true' : 'false', class: k === kind ? 'on' : '', disabled: !d.ready,
+      title: d.ready ? '' : 'Étape 2', text: d.plural + (d.ready ? ` (${n})` : ''), onclick: () => switchKind(k) });
+  }));
+}
+function renderList(){
+  const q = jdrNorm($id('q').value);
+  const list = items.filter(i => i.kind === kind && (!q || jdrNorm(i.name + ' ' + jdrItemSummary(i)).includes(q)));
+  $id('items').innerHTML = list.length ? list.map(i => `<li><button type="button" data-id="${jdrEsc(i.id)}" class="${i.id === savedId ? 'on' : ''}"><span>${jdrEsc(i.name)}</span><span class="s">${jdrEsc(jdrItemSummary(i))}</span></button></li>`).join('')
+    : `<li class="empty">${items.some(i => i.kind === kind) ? 'Aucun résultat.' : 'Rien pour l’instant.'}</li>`;
+}
+$id('q').addEventListener('input', renderList);
+$id('items').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b) open(b.dataset.id); });
+function switchKind(k){
+  if(k === kind) return;
+  if(!leaveOk()) return;
+  kind = k; renderTabs(); fresh();
+}
+
+// ---------- Formulaire ----------
+const bind = (id, get, set, ev = 'input') => $id(id).addEventListener(ev, e => { set(e.target.value); changed(); });
+bind('i-name', null, v => { cur.name = v; if(!savedId){ cur.id = jdrSlug(v); $id('i-id').value = cur.id; } });
+bind('i-id', null, v => { cur.id = v.toLowerCase().replace(/[^a-z0-9_-]/g, ''); $id('i-id').value = cur.id; });
+bind('i-size', null, v => cur.size = Number(v), 'change');
+bind('i-desc', null, v => cur.description = v);
+bind('w-cat', null, v => cur.category = v, 'change');
+bind('w-reach', null, v => cur.reach = v, 'change');
+bind('w-dmg', null, v => cur.damageType = v, 'change');
+bind('w-range', null, v => cur.range = v, 'change');
+bind('w-a1', null, v => cur.attacks.main.text = v);
+bind('w-c2', null, v => cur.attacks.second.cost = v); bind('w-a2', null, v => cur.attacks.second.text = v);
+bind('w-c3', null, v => cur.attacks.third.cost = v);  bind('w-a3', null, v => cur.attacks.third.text = v);
+bind('r-cat', null, v => cur.category = v, 'change');
+bind('s-cost', null, v => cur.attack.cost = v); bind('s-text', null, v => cur.attack.text = v);
+bind('s-dmg', null, v => cur.damageType = v, 'change');
+bind('p-armor', null, v => cur.armor = num(v)); bind('p-mag', null, v => cur.armorMagic = num(v)); bind('p-res', null, v => cur.resistance = num(v));
+
+function renderForm(){
+  const ready = JDR_ITEM_KINDS[kind].ready;
+  $id('soon').hidden = ready; $id('fields').hidden = !ready;
+  document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
+  $id('i-name').value = cur.name; $id('i-id').value = cur.id; $id('i-size').value = String(cur.size);
+  $id('i-desc').value = cur.description || '';
+  if(cur.kind === 'arme'){
+    $id('w-cat').value = cur.category; $id('w-reach').value = cur.reach; $id('w-dmg').value = cur.damageType; $id('w-range').value = cur.range || '';
+    $id('w-a1').value = cur.attacks.main.text; $id('w-c2').value = cur.attacks.second.cost; $id('w-a2').value = cur.attacks.second.text;
+    $id('w-c3').value = cur.attacks.third.cost; $id('w-a3').value = cur.attacks.third.text;
+  }
+  if(cur.kind === 'armure') $id('r-cat').value = cur.category;
+  if(cur.kind === 'bouclier'){ $id('s-cost').value = cur.attack.cost; $id('s-text').value = cur.attack.text; $id('s-dmg').value = cur.damageType; }
+  if(cur.kind === 'armure' || cur.kind === 'bouclier'){ $id('p-armor').value = cur.armor; $id('p-mag').value = cur.armorMagic; $id('p-res').value = cur.resistance; }
+  renderProps(); preview(); renderList(); rights();
+}
+function preview(){ $id('preview').innerHTML = JDR_ITEM_KINDS[kind].ready ? jdrItemHTML(cur) : ''; }
+function changed(){ dirty = true; preview(); }
+
+// ---------- Propriétés (mots-clés « Propriété ») ----------
+function fillPropPicker(){
+  const list = Object.values(JDR_KW).filter(k => k.category === 'Propriété').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  $id('prop-pick').replaceChildren(new Option(list.length ? '— choisir une propriété —' : 'Liste indisponible', ''), ...list.map(k => { const o = new Option(k.name, k.id); o.title = k.text; return o; }));
+}
+function renderProps(){
+  const box = $id('i-props'); box.replaceChildren();
+  if(!cur.properties.length) box.append(el('span', { class:'hint', text:'Aucune propriété.' }));
+  cur.properties.forEach((p, i) => {
+    const def = JDR_KW[p.id] || { name: p.name || p.id, text: '', hasValue: false };
+    const kids = [el('b', { text: def.name.replace(/\s*\(?\+?X\)?\s*$/, '') || def.name })];
+    if(def.hasValue){
+      const v = el('input', { value: p.value || '', placeholder: 'X', 'aria-label': 'Valeur de ' + def.name, style: 'width:4.5em;padding:0 2px' });
+      v.addEventListener('input', () => { p.value = v.value; changed(); }); kids.push(v);
+    }
+    kids.push(el('button', { type:'button', class:'ghost', 'aria-label':'Retirer ' + def.name, text:'✕', style:'padding:0 4px', onclick: () => { cur.properties.splice(i, 1); renderProps(); changed(); } }));
+    box.append(el('span', { class:'chip on', title: def.text }, ...kids));
+  });
+  rights();
+}
+$id('prop-add').addEventListener('click', () => {
+  const id = $id('prop-pick').value; if(!id) return;
+  if(cur.properties.some(p => p.id === id)){ status('Cette propriété est déjà ajoutée.', true); return; }
+  cur.properties.push({ id, name: (JDR_KW[id] || {}).name || id, value: '' }); $id('prop-pick').value = ''; renderProps(); changed();
+});
+
+// ---------- Droits ----------
+function rights(){
+  $id('ro').hidden = JDR_IS_EDITOR;
+  document.querySelectorAll('#form input, #form select, #form textarea, #form button, #new').forEach(e => e.disabled = !JDR_IS_EDITOR);
+  if(JDR_IS_EDITOR){ $id('i-id').disabled = !!savedId; $id('del').disabled = !savedId; $id('dup').disabled = !savedId; }
+}
+
+// ---------- Ouvrir / nouveau / enregistrer ----------
+let leaveArmed = false;
+function leaveOk(){
+  if(!dirty || !JDR_IS_EDITOR) return true;
+  if(leaveArmed){ leaveArmed = false; return true; }
+  leaveArmed = true; status('Modifications non enregistrées : clique à nouveau pour les abandonner.', true);
+  setTimeout(() => leaveArmed = false, 4000); return false;
+}
+function open(id){
+  if(id !== savedId && !leaveOk()) return;
+  const it = items.find(x => x.id === id); if(!it) return;
+  cur = jdrNormalizeItem({ id: it.id, name: it.name, data: jdrItemData(it) }); savedId = id; kind = it.kind; dirty = false;
+  renderTabs(); renderForm(); status('');
+  try{ history.replaceState(null, '', '?id=' + encodeURIComponent(id)); }catch(e){}
+}
+function fresh(){ cur = jdrBlankItem(kind); savedId = null; dirty = false; renderForm(); }
+$id('new').addEventListener('click', () => { if(leaveOk()) fresh(); });
+
+$id('save').addEventListener('click', async () => {
+  if(!JDR_IS_EDITOR) return;
+  cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
+  if(!cur.name){ status("Donne un nom à l'objet.", true); return; }
+  if(!/^[a-z0-9_-]{2,64}$/.test(cur.id)){ status("L'identifiant doit faire 2 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
+  if(!savedId && items.some(i => i.id === cur.id)){ status('Un objet porte déjà cet identifiant : change-le.', true); return; }
+  const data = jdrItemData(jdrNormalizeItem({ id: cur.id, name: cur.name, data: jdrItemData(cur) }));
+  status('Enregistrement…');
+  const q = savedId ? jdrSb.from('items').update({ name: cur.name, data }).eq('id', savedId)
+                    : jdrSb.from('items').insert({ id: cur.id, name: cur.name, data });
+  const { error } = await q;
+  if(error){ status(jdrErrorText(error), true); return; }
+  savedId = cur.id; dirty = false; await reload(); open(savedId); status('Enregistré');
+});
+$id('dup').addEventListener('click', () => {
+  if(!savedId) return;
+  cur = structuredClone(cur); cur.name += ' (copie)'; cur.id = jdrSlug(cur.name); savedId = null; dirty = true; renderForm(); status('Copie créée : pense à enregistrer');
+});
+let delArmed = false;
+$id('del').addEventListener('click', async () => {
+  if(!savedId) return;
+  if(!delArmed){ delArmed = true; $id('del').textContent = 'Confirmer la suppression'; setTimeout(() => { delArmed = false; $id('del').textContent = 'Supprimer'; }, 3000); return; }
+  delArmed = false; $id('del').textContent = 'Supprimer';
+  const { error } = await jdrSb.from('items').delete().eq('id', savedId);
+  if(error){ status(jdrErrorText(error), true); return; }
+  dirty = false; await reload(); fresh(); status('Supprimé');
+});
+window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
+
+async function reload(){
+  try{ const [it] = await Promise.all([jdrLoadItems(), jdrLoadKeywords().catch(err => console.warn('[jdr] mots-clés non chargés :', err))]); items = it.list; }
+  catch(err){ status(jdrErrorText(err), true); }
+  fillPropPicker(); renderTabs(); renderList();
+}
+(async () => {
+  renderTabs(); renderForm();
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  const me = await jdrPage('equipement', { requireLogin: true }); if(!me) return;
+  await reload();
+  const wanted = new URLSearchParams(location.search).get('id');
+  if(wanted && items.some(i => i.id === wanted)) open(wanted); else fresh();
+})();
+</script>
+</body>
+</html>
