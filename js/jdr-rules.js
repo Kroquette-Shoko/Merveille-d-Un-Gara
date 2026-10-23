@@ -180,10 +180,21 @@ function jdrBulletButton(textarea, onChange){
     special: { enabled:false, name:"", rule:false, mana:null, cost:"", reaction:false, mode:"text", text:"", effects:[] },
     -- Options de deck --
     persistent:false, horsDeck:false, requirements:[{ stat:"corps", min:2 }], maxCopies:null,
+    -- Pacte (type « Pacte ») : 3 parties --
+       le POUVOIR = les capacités ci-dessus ; l'ENGAGEMENT (ou MISSION) = ce que le pacte demande ;
+       la RÉCOMPENSE = toujours une carte (id + copie du nom au moment du choix)
+    pact: { label:"Engagement", mission:"Jouez 2 sorts pendant un même tour.", reward:{ id:"malediction_des_horreurs", name:"Malédiction des horreurs" } },
     footer: "",                      // mention en bas de carte
     text: ""                         // ancien texte libre (conservé à l'affichage)
   }
 */
+const JDR_PACT_LABELS = ['Engagement', 'Mission'];
+function jdrNormalizePact(p){
+  p = (p && typeof p === 'object') ? p : {};
+  const r = (p.reward && typeof p.reward === 'object') ? p.reward : {};
+  return { label: JDR_PACT_LABELS.includes(p.label) ? p.label : 'Engagement', mission: String(p.mission || ''),
+           reward: { id: String(r.id || ''), name: String(r.name || '') } };
+}
 function jdrBlankArt(){ return { ox: 0, oy: 0, scale: 100, rot: 0, fx: false, fy: false }; }
 function jdrBlankAbility(){ return { pa: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
 function jdrBlankSpecial(){ return { enabled: false, name: '', rule: false, mana: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
@@ -303,6 +314,7 @@ function jdrNormalizeCard(c){
   o.abilities.forEach(ab => { delete ab.special; });
   ['subtypes','access','origin','pa','specialName'].forEach(k => delete o[k]);
   if(o.type === 'Créature') o.creature = jdrNormalizeCreature(c.creature);
+  o.pact = jdrNormalizePact(c.pact);
   return o;
 }
 
@@ -453,6 +465,7 @@ function jdrCardText(card){
   if(card.keywords && card.keywords.length) parts.unshift(card.keywords.map(jdrKeywordLabel).join(', '));
   if(card.special && card.special.enabled){ const t = jdrAbilityText(card.special); if(t) parts.push(t); }
   if(card.text) parts.push(card.text);
+  if(card.type === 'Pacte' && card.pact){ if(card.pact.mission) parts.push(card.pact.mission); if(card.pact.reward && card.pact.reward.name) parts.push(card.pact.reward.name); }
   return parts;
 }
 

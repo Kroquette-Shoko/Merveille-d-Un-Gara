@@ -72,7 +72,29 @@ function jdrCardHTML(card, opts = {}){
   // Mots-clés ajoutés à la carte (ceux des super-types sont déjà dans le bandeau)
   const kws = (c.keywords || []).map(k => ({ label: jdrKeywordLabel(k), text: (JDR_KW[k.id] || {}).text || '' }));
   const art = jdrArtHTML(c, esc);
-  const cls = ['jcard', opts.size === 'small' ? 'small' : '', opts.locked ? 'locked' : ''].filter(Boolean).join(' ');
+  const isPact = c.type === 'Pacte';
+  const cls = ['jcard', isPact ? 'pact' : '', opts.size === 'small' ? 'small' : '', opts.locked ? 'locked' : ''].filter(Boolean).join(' ');
+  const kwHTML = kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : '';
+  const mainHTML = main.map(l => `<div class="p${l.ab !== null ? ' abl" data-ab="' + l.ab : ''}">${jdrRichText(l.text)}</div>`).join('');
+  // Pacte : 3 parties — Pacte (le pouvoir) | Engagement ou Mission (la demande) + Récompense (une carte)
+  let txtHTML = `<div class="txt">${kwHTML}${mainHTML}</div>`;
+  if(isPact){
+    const p = c.pact, rid = p.reward.id;
+    const idx = opts.cardsById || (typeof window !== 'undefined' && window.JDR_CARD_INDEX) || {};
+    const rc = rid ? idx[rid] : null;
+    const rName = rc ? rc.name : p.reward.name;
+    const rCol = rc ? JDR_CARD_COLORS[jdrCardColorKey(jdrNormalizeCard(rc))] : { color: '#6B7280', ink: '#FFFFFF' };
+    const reward = rid || rName
+      ? `<div class="prw" data-reward="${esc(rid)}" title="Carte gagnée : ${esc(rName)}" style="--rc:${rCol.color};--ri:${rCol.ink}"><span class="pmini" aria-hidden="true"></span><span>${esc(rName || rid)}</span></div>`
+      : `<div class="pempty">Aucune carte choisie</div>`;
+    txtHTML = `<div class="pact3">
+        <div class="ppow"><div class="ph">Pacte</div>${kwHTML}${mainHTML || '<div class="pempty">Pouvoir du pacte…</div>'}</div>
+        <div class="pside">
+          <div class="pmis"><div class="ph">${esc(p.label)}</div>${p.mission ? `<div class="p">${jdrRichText(p.mission)}</div>` : '<div class="pempty">Ce que le pacte demande…</div>'}</div>
+          <div class="prew"><div class="ph">Récompense</div>${reward}</div>
+        </div>
+      </div>`;
+  }
   const showVal = c.value !== null && c.value !== '' && c.value !== undefined;
 
   return `<div class="${cls}" data-card="${esc(c.id)}" title="${esc(c.name)}" style="--cc:${col.color};--ci:${col.ink}">
@@ -89,7 +111,7 @@ function jdrCardHTML(card, opts = {}){
         <div class="type"><b>${esc(c.type)}</b>${c.subtype ? ' — ' + esc(c.subtype) : ''}${sup ? ` · ${esc(sup)}` : ''}</div>
       </div>
       ${art}
-      <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<div class="p${l.ab !== null ? ' abl" data-ab="' + l.ab : ''}">${jdrRichText(l.text)}</div>`).join('')}</div>
+      ${txtHTML}
       ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<div class="p${l.rule ? ' rule"' : ' abl" data-ab="special"'}>${jdrRichText(l.text)}</div>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>

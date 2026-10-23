@@ -190,7 +190,8 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 
       <!-- 3. CAPACITÉS -->
       <section class="part" data-classic>
-        <h2><span class="num">3</span>Capacités</h2>
+        <h2><span class="num">3</span><span id="ab-title">Capacités</span></h2>
+        <p class="hint" id="ab-pact-hint" hidden>Pacte : ces capacités forment le <b>pouvoir du pacte</b> (partie gauche de la carte).</p>
         <p class="sub-h">Mots-clés <a href="mots-cles.html" target="_blank" rel="noopener" style="font-weight:400;font-size:.85rem">· voir / gérer la liste</a></p>
         <div class="chips" id="f-keywords"></div>
         <div class="row">
@@ -201,6 +202,18 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
         <p class="hint">Chaque capacité a un coût en points d'action (PA) ; coche « Réaction » si elle se joue en réaction. Par défaut on l'écrit en texte libre.</p>
         <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
         <button type="button" id="ab-add" style="align-self:start">Ajouter une capacité</button>
+      </section>
+
+      <!-- 3 bis. PACTE : engagement / mission + récompense (seulement pour le type « Pacte ») -->
+      <section class="part" id="pact-sec" hidden>
+        <h2><span class="num">3b</span>Engagement et récompense</h2>
+        <div class="grid2">
+          <label class="f">Titre de la demande<select id="pa-label"></select></label>
+          <label class="f">Récompense (une carte)<select id="pa-reward"></select></label>
+        </div>
+        <label class="f">Ce que le pacte demande<textarea id="pa-mission" rows="4" placeholder="ex. Jouez 2 sorts pendant un même tour."></textarea></label>
+        <div id="pa-tools" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>
+        <p class="hint" id="pa-reward-hint"></p>
       </section>
 
       <!-- 4. CAPACITÉ SPÉCIALE (facultative) -->
@@ -370,7 +383,7 @@ function renderSubtypes(){
 $id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
 $id('f-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); });
 $id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
-$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); renderCreature(); changed(); artLayout(); });
+$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); renderCreature(); renderPact(); changed(); artLayout(); });
 $id('f-subtype').addEventListener('change', e => { cur.subtype = e.target.value; changed(); });
 $id('f-value').addEventListener('input', e => { cur.value = num(e.target.value); changed(); });
 $id('f-mana').addEventListener('input', e => { cur.mana = num(e.target.value); changed(); });
@@ -576,6 +589,35 @@ document.querySelectorAll('[data-cr]').forEach(inp => {
     crSet(inp.dataset.cr, v); changed();
   });
 });
+/* ================= Pacte : engagement / mission + récompense ================= */
+$id('pa-label').replaceChildren(...JDR_PACT_LABELS.map(l => el('option', { value: l, text: l })));
+$id('pa-tools').append(jdrBulletButton($id('pa-mission')), el('span', { class:'hint', text:'ou commence une ligne par « - » : elle devient un point de liste.' }));
+function renderPact(){
+  const isP = cur.type === 'Pacte';
+  $id('pact-sec').hidden = !isP;
+  $id('ab-title').textContent = isP ? 'Pouvoir du pacte (capacités)' : 'Capacités';
+  $id('ab-pact-hint').hidden = !isP;
+  if(!isP) return;
+  cur.pact = jdrNormalizePact(cur.pact);
+  $id('pa-label').value = cur.pact.label;
+  if(document.activeElement !== $id('pa-mission')) $id('pa-mission').value = cur.pact.mission;
+  // liste des cartes (toutes sauf celle-ci), triées par nom ; carte disparue gardée avec son nom
+  const rid = cur.pact.reward.id;
+  const opts = cards.filter(c => c.id !== cur.id).slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+    .map(c => el('option', { value: c.id, text: `${c.name} (${c.type}${c.rank ? ' · R' + c.rank : ''})` }));
+  if(rid && !cards.some(c => c.id === rid)) opts.unshift(el('option', { value: rid, text: `${cur.pact.reward.name || rid} (carte introuvable)` }));
+  $id('pa-reward').replaceChildren(el('option', { value: '', text: '— choisir une carte —' }), ...opts);
+  $id('pa-reward').value = rid;
+  $id('pa-reward-hint').textContent = 'La récompense est toujours une carte : elle doit d\'abord exister dans la liste des cartes.';
+  applyRights();
+}
+$id('pa-label').addEventListener('change', e => { cur.pact.label = e.target.value; changed(); });
+$id('pa-mission').addEventListener('input', e => { cur.pact.mission = e.target.value; changed(); });
+$id('pa-reward').addEventListener('change', e => {
+  const c = cards.find(x => x.id === e.target.value);
+  cur.pact.reward = { id: e.target.value, name: c ? c.name : '' }; changed();
+});
+
 function renderCreature(){
   const isC = cur.type === 'Créature';
   document.querySelector('.ed').classList.toggle('crea', isC);
@@ -662,7 +704,7 @@ function renderForm(){
   $id('f-image').value = cur.image_url;
   $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
   $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';
-  renderReqs(); renderKeywords(); renderAbilities(); renderSpecial(); renderCreature(); renderPreview(); artLayout(); applyRights();
+  renderReqs(); renderKeywords(); renderAbilities(); renderSpecial(); renderCreature(); renderPact(); renderPreview(); artLayout(); applyRights();
 }
 function renderGen(){
   document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(capacité vide)'; });
@@ -670,7 +712,7 @@ function renderGen(){
 }
 function renderPreview(){
   const isC = cur.type === 'Créature';
-  $id('preview').innerHTML = jdrCardHTML(cur, isC ? { groups: groups.byId, width: Math.min(1040, $id('preview').parentElement.clientWidth || 600) + 'px' } : {});
+  $id('preview').innerHTML = jdrCardHTML(cur, isC ? { groups: groups.byId, width: Math.min(1040, $id('preview').parentElement.clientWidth || 600) + 'px' } : { cardsById: Object.fromEntries(cards.map(c => [c.id, c])) });
   const col = JDR_CARD_COLORS[jdrCardColorKey(cur)];
   $id('ident').style.setProperty('--cc', col.color); $id('ident').style.setProperty('--ci', col.ink);
   renderGen();

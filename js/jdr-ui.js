@@ -76,7 +76,9 @@ async function jdrLoadCards(){
   ]);
   if(error) throw error;
   const list = data.map(r => Object.assign(jdrNormalizeCard(r.data), { id: r.id, name: r.name, updated_at: r.updated_at }));
-  return { list, byId: Object.fromEntries(list.map(c => [c.id, c])) };
+  const byId = Object.fromEntries(list.map(c => [c.id, c]));
+  window.JDR_CARD_INDEX = byId;   // sert à l'affichage des pactes (couleur / nom à jour de la carte récompense)
+  return { list, byId };
 }
 
 // Mots-clés (table jdr.keywords) → remplit JDR_KW, utilisé par l'affichage des cartes

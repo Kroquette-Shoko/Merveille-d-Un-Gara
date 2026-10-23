@@ -113,6 +113,19 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jcard .spec p,.jcard .spec .p{margin:0;padding:1.7cqw 2.9cqw 2.3cqw;font-size:3.7cqw;line-height:1.35}
 .jcard .foot{font-size:3.4cqw;color:#7a5d17;font-weight:700;text-align:center;padding:0 3cqw 2.3cqw}
 .jcard.small{--w:150px}
+/* ----- Pacte : 3 parties (24/10/2026) -----
+   gauche = le pouvoir du pacte (le plus de texte) ; droite = engagement / mission, puis la récompense (une carte) */
+.jcard.pact .art{flex-basis:38cqw}
+.jcard .pact3{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);overflow:hidden;font-size:3.6cqw;line-height:1.35}
+.jcard .pact3>div{padding:2.6cqw 3cqw 2.3cqw;min-height:0;overflow:hidden}
+.jcard .pside{display:flex;flex-direction:column;gap:2.3cqw;border-left:.43cqw solid var(--cc);background:color-mix(in srgb, var(--cc) 7%, #FBFAF6)}
+.jcard .pact3 .ph{font-family:var(--f-display);font-weight:800;font-size:3.7cqw;letter-spacing:.04em;text-transform:uppercase;color:var(--cc);border-bottom:.3cqw solid color-mix(in srgb, var(--cc) 45%, transparent);margin-bottom:1.3cqw;padding-bottom:.4cqw}
+.jcard .pact3 .p{margin:0 0 1.3cqw}
+.jcard .pact3 p.kw{font-weight:700;margin:0 0 1.3cqw}
+.jcard .prew{margin-top:auto}
+.jcard .prw{display:flex;align-items:center;gap:1.8cqw;font-weight:700;line-height:1.2}
+.jcard .pmini{flex:0 0 auto;width:5.4cqw;height:7.6cqw;border-radius:.9cqw;background:#FBFAF6;border:.6cqw solid var(--rc);box-shadow:inset 1.6cqw 0 0 var(--rc)}
+.jcard .pempty{color:#8a8173;font-style:italic}
 .jcard.locked{filter:grayscale(.85);opacity:.6}
 
 /* ----- Fiche de créature (maquette validée le 23/10/2026, format paysage 1040 × 800) -----
