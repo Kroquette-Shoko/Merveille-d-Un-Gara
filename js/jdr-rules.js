@@ -180,7 +180,7 @@ function jdrNormalizeAbility(ab, isSpecial){
    Fiche paysage validée le 23/10/2026. Stockée dans card.creature ; le tableau d'action
    de groupe est préparé à part (table jdr.creature_groups) et attribué par son id. */
 const JDR_DICE = ['D4', 'D6', 'D8', 'D10', 'D12', 'D20'];
-const JDR_CREATURE_MAX_HEARTS = 3;          // 3 cœurs = 18 blessures légères
+const JDR_CREATURE_MAX_HEARTS = 3;          // 3 cœurs = 18 cases de points de vie
 function jdrBlankCreature(){
   return {
     category: 'Bête', family: '',           // « Créature · Bête — Araignée »
@@ -314,8 +314,8 @@ const JDR_DURATIONS = {
 // Chaque effet : un libellé pour l'éditeur, ses champs, et une phrase générée
 const JDR_EFFECTS = {
   damage:      { label: 'Infliger des dégâts',        fields: ['amount','damageType','target','opposeRes'] },
-  wound:       { label: 'Infliger des blessures',     fields: ['amount','target'] },
-  heal:        { label: 'Soigner des blessures',      fields: ['amount','target'] },
+  wound:       { label: 'Infliger des blessures (retire des PV)', fields: ['amount','target'] },
+  heal:        { label: 'Soigner (rend des PV)',      fields: ['amount','target'] },
   armor:       { label: "Donner de l'armure",         fields: ['amount','magic','target'] },
   modifyStat:  { label: 'Modifier une caractéristique', fields: ['stat','amount','target','duration'] },
   resource:    { label: 'Gagner / perdre une ressource', fields: ['resource','amount','target'] },
@@ -359,8 +359,8 @@ function jdrEffectText(e){
       const to = t.startsWith('les ') ? 'aux ' + t.slice(4) : t.startsWith('le ') ? 'au ' + t.slice(3) : 'à ' + t.replace(' et les ', ' et aux ');
       return `${res}inflige ${n} dégât${plural(n,'','s')} ${dt} ${to}.`.replace(/\s+/g,' ');
     }
-    case 'wound':    return `${cap(t)} ${vb('subit','subissez','subissent')} ${n} case${plural(n,'','s')} de blessure.`;
-    case 'heal':     return `Soignez ${n} case${plural(n,'','s')} de blessure (${t}).`;
+    case 'wound':    return `${cap(t)} ${vb('perd','perdez','perdent')} ${n} point${plural(n,'','s')} de vie.`;
+    case 'heal':     return `Rendez ${n} point${plural(n,'','s')} de vie (${t}).`;
     case 'armor':    return `${cap(t)} ${vb('gagne','gagnez','gagnent')} ${n} point${plural(n,'','s')} d'armure${e.magic ? ' magique' : ''}${d}.`;
     case 'modifyStat': {
       const v = String(n).startsWith('-') ? n : '+' + n;

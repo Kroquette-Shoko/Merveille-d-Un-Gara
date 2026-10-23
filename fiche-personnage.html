@@ -13,7 +13,7 @@
    1. Haut : identité (en haut à gauche), portrait rond au centre,
       Corps / Esprit / Charme à gauche, Opportunisme / Anticipation /
       Résistance / Points d'action à droite.
-   2. Blessures + armures | Ressources (section à part)
+   2. Points de vie + armures | Ressources (section à part)
    3. Armes | Armure et bouclier
    4. Inventaire (la charge est dans l'en-tête de l'inventaire)
    Sur téléphone, tout passe sur une seule colonne.
@@ -140,7 +140,7 @@ summary{cursor:pointer;font-weight:700}
   .calc{grid-template-columns:1fr}
 }
 
-/* ---------- 2. Blessures, armures | Ressources ---------- */
+/* ---------- 2. Points de vie, armures | Ressources ---------- */
 .row2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:20px}
 .row3{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px}
 @media (max-width:1000px){.row2,.row3{grid-template-columns:1fr}}
@@ -342,21 +342,21 @@ summary{cursor:pointer;font-weight:700}
     <div class="row" style="margin-top:8px"><button class="primary" id="c-apply" type="button">Reporter sur la fiche</button></div>
   </details>
 
-  <!-- ===== 2. Blessures + armures | Ressources ===== -->
+  <!-- ===== 2. Points de vie + armures | Ressources ===== -->
   <div class="row2">
     <section class="panel" aria-labelledby="t-hp">
       <div class="panel-head">
-        <h2 id="t-hp">Blessures <span class="count-big" id="w-count"></span></h2>
+        <h2 id="t-hp">Points de vie <span class="count-big" id="w-count" title="Points de vie restants / total"></span></h2>
         <div class="wbtns">
-          <button class="wbtn" type="button" data-add="1">+ Légère</button>
-          <button class="wbtn" type="button" data-add="3">+ Blessure</button>
-          <button class="wbtn" type="button" data-add="6">+ Grave</button>
-          <button class="wbtn heal" type="button" id="w-heal">Soigner</button>
+          <button class="wbtn" type="button" data-add="1" title="Blessure légère : retire 1 case">Légère −1</button>
+          <button class="wbtn" type="button" data-add="3" title="Blessure : retire 3 cases">Blessure −3</button>
+          <button class="wbtn" type="button" data-add="6" title="Blessure grave : retire 6 cases">Grave −6</button>
+          <button class="wbtn heal" type="button" id="w-heal" title="Rend tous les points de vie">Soigner</button>
         </div>
       </div>
       <div class="paliers" id="paliers"></div>
-      <div class="legend">Blessure légère = 1 case · Blessure = 3 cases · Blessure grave = 6 cases. Touchez une case pour corriger.</div>
-      <label class="legend" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Nombre de cases de blessures
+      <div class="legend">Une blessure retire des cases de points de vie : légère = 1 case · blessure = 3 cases · grave = 6 cases. Touchez une case pour corriger.</div>
+      <label class="legend" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Nombre de cases de points de vie
         <input type="number" id="w-max" min="1" max="120" style="width:5rem;border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:var(--medal)">
         <span id="w-max-hint"></span></label>
       <div class="trk"><b>Armure</b><div class="pips" id="tr-armor" style="--n:18;--c:var(--armor)"></div><span class="num" id="ct-armor"></span><button class="ghost" type="button" id="rs-armor" title="Remettre l'armure au maximum">Restaurer</button></div>
@@ -572,8 +572,9 @@ $("portrait-file").addEventListener("change",e=>{
 });
 $("portrait-clear").addEventListener("click",()=>{ S.portrait=""; save(); renderPortrait(); });
 
-// ---------- Blessures : nombre de cases variable (peuple + classe + passé), rangées par paliers de 6 ----------
-// S.woundsMax = nombre total de cases ; S.wounds = une case par blessure (vrai = blessée)
+// ---------- Points de vie : nombre de cases variable (peuple + classe + passé), rangées par paliers de 6 ----------
+// S.woundsMax = nombre total de cases de points de vie ; S.wounds = une case par point de vie (vrai = perdu à cause d'une blessure)
+// (noms internes « wounds » gardés pour ne pas casser les fiches déjà enregistrées)
 function woundCount(){ return S.wounds.filter(Boolean).length; }
 function setWoundsMax(n){
   n = Math.max(1, Math.min(120, Math.round(Number(n) || 1)));
@@ -590,17 +591,17 @@ function renderWounds(){
     }
     P.append(el("div",{class:"palier"+(n===size?" full":"")},cells,el("span",{class:"lbl",text:"Palier "+(h+1)})));
   }
-  $("w-count").textContent = woundCount()+" / "+max;
+  $("w-count").textContent = (max-woundCount())+" / "+max;
   $("w-max").value = max;
   const o = S.origins && S.origins.woundsFromOrigins;
   $("w-max-hint").textContent = o ? `(peuple + classe + passé = ${o})` : "";
 }
 $("w-max").addEventListener("change",e=>{ setWoundsMax(e.target.value); save(); renderWounds(); });
-// Ajoute n blessures dans les premières cases libres
+// Une blessure retire n cases de points de vie (les premières cases encore pleines)
 document.querySelectorAll(".wbtn[data-add]").forEach(b=>b.addEventListener("click",()=>{
   let n=Number(b.dataset.add);
   for(let i=0;i<S.woundsMax && n>0;i++){ if(!S.wounds[i]){ S.wounds[i]=true; n--; } }
-  if(n>0) toast("Toutes les cases de blessure sont remplies");
+  if(n>0) toast("Plus aucun point de vie");
   save(); renderWounds();
 }));
 $("w-heal").addEventListener("click",()=>{ S.wounds=Array(S.woundsMax).fill(false); save(); renderWounds(); });
@@ -750,7 +751,7 @@ function calcSum(){
   const p=PEUPLES[$("c-peuple").value],c=CLASSES[$("c-classe").value],q=PASSES[$("c-passe").value];
   const rows=[["Peuple",p],["Classe",c],["Passé",q]];
   const tot=COLS.map((_,i)=>rows.reduce((a,[,r])=>a+(r?r[i]:0),0));
-  // les PV du manuel V1 sont remplacés par les blessures sur la fiche : colonne masquée
+  // les PV du manuel V1 sont remplacés par les cases de points de vie (peuple + classe + passé) : colonne masquée
   const SHOW=[0,1,2,3,4,6,7];
   const t=el("table"),th=el("tr",{},el("th",{text:""}),...SHOW.map(i=>el("th",{text:COLS[i]})));
   t.append(el("thead",{},th)); const tb=el("tbody");
@@ -810,7 +811,7 @@ function applyReadOnly(){
 // Complète une fiche venant d'une ancienne version ou d'un import
 function normalize(d){
   const s=Object.assign(BLANK(), d||{}); s.stats=Object.assign(BLANK().stats,(d&&d.stats)||{});
-  // Nombre de cases de blessures : celui de la fiche, sinon 30 (anciennes fiches)
+  // Nombre de cases de points de vie : celui de la fiche, sinon 30 (anciennes fiches)
   s.woundsMax = Math.max(1, Math.min(120, Math.round(Number(s.woundsMax) || (Array.isArray(s.wounds) && s.wounds.length) || 30)));
   s.wounds = Array.from({length:s.woundsMax},(_,i)=>!!(Array.isArray(s.wounds)&&s.wounds[i]));
   ["resources","weapons","armors","items"].forEach(k=>{ if(!Array.isArray(s[k])) s[k]=BLANK()[k]; });

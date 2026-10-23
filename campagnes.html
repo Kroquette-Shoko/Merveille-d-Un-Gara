@@ -103,11 +103,14 @@ function renderAccount(){
 function summary(d){
   d = d || {};
   const st = d.stats || {};
-  const wounds = Array.isArray(d.wounds) ? d.wounds.filter(Boolean).length : 0;
+  // points de vie : cases restantes / total (une blessure retire des cases)
+  const max = Number(d.woundsMax) || (Array.isArray(d.wounds) ? d.wounds.length : 0) || 30;
+  const lost = Array.isArray(d.wounds) ? d.wounds.filter(Boolean).length : 0;
+  const wounds = lost, hp = `${Math.max(0, max - lost)} / ${max}`;
   return {
     who: [d.peuple, d.classe, d.passe].filter(Boolean).join(" · ") || "—",
     stats: `Corps ${st.corps??0} · Esprit ${st.esprit??0} · Charme ${st.charme??0} · PA ${st.pa??0}`,
-    wounds, player: d.player || ""
+    wounds, hp, player: d.player || ""
   };
 }
 
@@ -130,14 +133,14 @@ async function loadCampaigns(){
     const rows = list.map(ch=>{
       const s = summary(ch.data);
       return `<tr><td><b>${esc(ch.name||"Sans nom")}</b><br><span class="hint">${esc(s.player)}</span></td><td>${esc(s.who)}</td><td>${esc(s.stats)}</td>
-        <td><span class="pill ${s.wounds?"hurt":""}">${s.wounds} case${s.wounds>1?"s":""}</span></td>
+        <td><span class="pill ${s.wounds?"hurt":""}">${s.hp}</span></td>
         <td><a href="fiche-personnage.html?id=${encodeURIComponent(ch.id)}">Fiche</a> · <a href="deck.html?character=${encodeURIComponent(ch.id)}">Deck</a></td></tr>`;
     }).join("");
     return `<section class="sheet">
       <div class="camp-head"><h2>${esc(c.name)}</h2>
         <div class="row" style="align-items:center"><span class="hint">Code d'invitation</span><span class="code">${esc(c.invite_code)}</span>
         <button type="button" data-copy="${esc(c.invite_code)}">Copier</button></div></div>
-      ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Personnage</th><th>Peuple · classe · passé</th><th>Caractéristiques</th><th>Blessures</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+      ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Personnage</th><th>Peuple · classe · passé</th><th>Caractéristiques</th><th>Points de vie</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
                     : `<p class="empty">Aucun joueur n'a encore rejoint cette campagne.</p>`}
     </section>`;
   }).join("") + (others.length ? `<section class="sheet"><h2>Campagnes où je joue</h2>${others.map(c=>`<p style="margin:0">${esc(c.name)}</p>`).join("")}</section>` : "");

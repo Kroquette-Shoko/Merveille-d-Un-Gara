@@ -189,7 +189,7 @@ function missing(i){
   if(i === 2 && !C.specialisation) return specsOf(C.classe).length ? 'Choisis une spécialisation.' : 'Cette classe n’a pas encore de spécialisation (à créer dans la page Origines).';
   if(i === 2 && voiesOf(C.specialisation).length && !C.voie) return 'Choisis une voie pour ta spécialisation.';
   if(i === 3 && !C.passe) return 'Choisis un passé.';
-  if(i === 3 && totals().find(r => r.key === 'wounds').total < 1) return 'Le peuple, la classe et le passé ne donnent aucune case de blessure : renseigne « Cases de blessures » dans la page Origines.';
+  if(i === 3 && totals().find(r => r.key === 'wounds').total < 1) return 'Le peuple, la classe et le passé ne donnent aucun point de vie : renseigne « Points de vie (cases) » dans la page Origines.';
   if(i === 5 && !C.name.trim()) return 'Donne un nom à ton personnage.';
   return '';
 }
@@ -207,7 +207,7 @@ function voiesOf(specId){ const sp = oById(specId); return sp ? (sp.voies || [])
 function specsOf(classeId){ const c = oById(classeId); return c ? jdrClassSpecs(c, Object.fromEntries(origins.map(o => [o.id, o]))) : []; }
 function totals(){
   const parts = ['peuple','classe','passe'].map(k => oById(C[k]));
-  const rows = [...JDR_STATS.map(s => ({ key: s.key, label: s.label })), { key: 'armor', label: 'Armure' }, { key: 'wounds', label: 'Blessures (cases)' }];
+  const rows = [...JDR_STATS.map(s => ({ key: s.key, label: s.label })), { key: 'armor', label: 'Armure' }, { key: 'wounds', label: 'Points de vie (cases)' }];
   return rows.map(r => {
     const v = parts.map(p => p ? (r.key === 'armor' || r.key === 'wounds' ? (p[r.key] || 0) : (p.stats ? p.stats[r.key] || 0 : 0)) : null);
     return { ...r, v, total: v.reduce((a, x) => a + (x || 0), 0) };

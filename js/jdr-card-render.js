@@ -157,7 +157,7 @@ function jdrCreatureHTML(card, opts = {}){
       <div class="c3">${abil}${group}</div>
     </div>
     <div class="trk">
-      <div><span class="tt">Blessures</span> <span style="color:#6B655A;font-size:calc(12 * var(--u))">${wounds} / ${cr.hearts * 6}</span><div class="hearts">${hearts}</div></div>
+      <div><span class="tt">Points de vie</span> <span style="color:#6B655A;font-size:calc(12 * var(--u))">${cr.hearts * 6 - wounds} / ${cr.hearts * 6}</span><div class="hearts">${hearts}</div></div>
       <div class="bars">${bar('Armure', Number(cr.armor) || 0, opts.armorCur, '#0f6b72')}${bar('Armure magique', Number(cr.armorMagic) || 0, opts.armorMagicCur, '#a5761d')}</div>
     </div>
   </div>`;

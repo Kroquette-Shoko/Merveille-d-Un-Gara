@@ -357,7 +357,7 @@ function renderStats(){
     i.addEventListener('input', () => { set(num(i.value)); changed(); }); return el('label', { class:'f' }, document.createTextNode(label), i); };
   JDR_STATS.forEach(s => box.append(field(s.label, () => cur.stats[s.key], v => cur.stats[s.key] = v)));
   box.append(field('Armure', () => cur.armor, v => cur.armor = v));
-  box.append(field('Cases de blessures', () => cur.wounds, v => cur.wounds = Math.max(0, v)));
+  box.append(field('Points de vie (cases)', () => cur.wounds, v => cur.wounds = Math.max(0, v)));
 }
 function renderAbilities(){
   const box = $id('o-abil'); box.replaceChildren();
