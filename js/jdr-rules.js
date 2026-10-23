@@ -120,6 +120,40 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
 function jdrBlankArt(){ return { ox: 0, oy: 0, scale: 100, rot: 0, fx: false, fy: false }; }
 function jdrBlankAbility(){ return { pa: null, cost: '', triggers: [{ trigger: 'activated' }], effects: [] }; }
 function jdrBlankSpecial(){ return { enabled: false, name: '', mana: null, cost: '', triggers: [{ trigger: 'freeAction' }], effects: [] }; }
+/* ---------- Créatures (type « Créature ») ----------
+   Fiche paysage validée le 23/10/2026. Stockée dans card.creature ; le tableau d'action
+   de groupe est préparé à part (table jdr.creature_groups) et attribué par son id. */
+const JDR_DICE = ['D4', 'D6', 'D8', 'D10', 'D12', 'D20'];
+const JDR_CREATURE_MAX_HEARTS = 3;          // 3 cœurs = 18 blessures légères
+function jdrBlankCreature(){
+  return {
+    category: 'Bête', family: '',           // « Créature · Bête — Araignée »
+    level: 0, groupDie: 'D4', group: '',    // group = id du tableau d'action de groupe
+    hearts: 3, armor: 0, armorMagic: 0, res: 0, opres: 'D4',
+    corps: 0, esprit: 0, charme: 0,
+    movement: 'marche', speed: 'proche (9 m)',
+    attacks: { primary: '', secondary: '', tertiary: '' },
+    immuneAfflictions: '', immuneDamage: '', weakDamage: '',
+    abilities: [ { name: '', text: '' } ]   // capacités de monstre
+  };
+}
+function jdrNormalizeCreature(cr){
+  const b = jdrBlankCreature();
+  const o = Object.assign(b, cr || {});
+  o.attacks = Object.assign(jdrBlankCreature().attacks, (cr && cr.attacks) || {});
+  if(!Array.isArray(o.abilities)) o.abilities = [];
+  o.hearts = Math.max(1, Math.min(JDR_CREATURE_MAX_HEARTS, Number(o.hearts) || 1));
+  return o;
+}
+function jdrBlankGroup(){ return { id: '', name: '', rows: Array.from({ length: 6 }, () => ({ effect: '', bonus: '' })) }; }
+function jdrNormalizeGroup(g){
+  const o = Object.assign(jdrBlankGroup(), g || {});
+  const rows = Array.isArray(o.rows) ? o.rows : [];
+  o.rows = Array.from({ length: 6 }, (_, i) => Object.assign({ effect: '', bonus: '' }, rows[i] || {}));
+  return o;
+}
+function jdrDieSize(d){ return Number(String(d || '').replace(/[^0-9]/g, '')) || 6; }
+
 function jdrBlankCard(){
   return {
     id: '', name: '', type: 'Manœuvre', subtype: '', supertypes: [], classes: [], restrict: [],
@@ -166,6 +200,7 @@ function jdrNormalizeCard(c){
   if(c.pa !== undefined && c.pa !== null && c.pa !== '' && o.abilities[0] && (o.abilities[0].pa === null || o.abilities[0].pa === undefined)) o.abilities[0].pa = c.pa;
   o.abilities.forEach(ab => { delete ab.special; });
   ['subtypes','access','origin','pa','specialName'].forEach(k => delete o[k]);
+  if(o.type === 'Créature') o.creature = jdrNormalizeCreature(c.creature);
   return o;
 }
 

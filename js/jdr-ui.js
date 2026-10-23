@@ -8,6 +8,7 @@ const JDR_PAGES = [
   { id: 'deck',         href: 'deck.html',             label: 'Deck' },
   { id: 'bibliotheque', href: 'bibliotheque.html',     label: 'Bibliothèque' },
   { id: 'editeur',      href: 'editeur-cartes.html',   label: 'Éditeur de cartes', editorOnly: true },
+  { id: 'groupes',      href: 'editeur-groupes.html',  label: 'Actions de groupe', editorOnly: true },
   { id: 'campagnes',    href: 'campagnes.html',        label: 'Campagnes' }
 ];
 
@@ -69,4 +70,12 @@ async function jdrLoadCards(){
   if(error) throw error;
   const list = data.map(r => Object.assign(jdrNormalizeCard(r.data), { id: r.id, name: r.name, updated_at: r.updated_at }));
   return { list, byId: Object.fromEntries(list.map(c => [c.id, c])) };
+}
+
+// Charge les tableaux d'action de groupe : renvoie { list, byId }
+async function jdrLoadGroups(){
+  const { data, error } = await jdrSb.from('creature_groups').select('id,name,data').order('name');
+  if(error) throw error;
+  const list = data.map(r => Object.assign(jdrNormalizeGroup(r.data), { id: r.id, name: r.name }));
+  return { list, byId: Object.fromEntries(list.map(g => [g.id, g])) };
 }
