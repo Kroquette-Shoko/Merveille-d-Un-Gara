@@ -18,7 +18,7 @@
 .list li .ty{color:var(--muted);font-size:.8rem;font-weight:400}
 @media (max-width:1050px){.list{max-height:220px}}
 .preview{position:sticky;top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.preview .jcard{--w:240px}
+.preview .jcard{--w:260px}
 fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
 legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
 .ab{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--panel)}
@@ -55,14 +55,14 @@ legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
           <label class="f">Type<select id="f-type"></select></label>
         </div>
         <div class="grid3">
-          <label class="f">Origine (ligne au-dessus du type)<input id="f-origin" placeholder="ex. Passé de brute"></label>
+          <label class="f">Super type (avant le type)<input id="f-origin" placeholder="vide = la classe ; ex. Passé de brute"></label>
           <label class="f">Image (adresse web)<input id="f-image" placeholder="https://…"></label>
           <label class="f">Mention en bas<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
         </div>
         <div class="grid4">
           <label class="f">Valeur<input id="f-value" type="number" min="0" max="20"></label>
           <label class="f" id="w-mana">Coût en mana<input id="f-mana" type="number" min="0" max="30"></label>
-          <label class="f">Coût en PA<input id="f-pa" type="number" min="0" max="10"></label>
+          <label class="f">Coût en PA (ajouté à la 1<sup>re</sup> capacité)<input id="f-pa" type="number" min="0" max="10"></label>
           <label class="f">Exemplaires max<input id="f-max" type="number" min="1" placeholder="illimité"></label>
         </div>
         <div class="row">
@@ -91,6 +91,7 @@ legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
         <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>. Le déclencheur « Tant que cette carte est dans votre deck » + « Modifier une caractéristique » ciblant « vous » change les caractéristiques de la fiche.</p>
         <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
         <button type="button" id="ab-add" style="align-self:start">Ajouter une capacité</button>
+        <label class="f">Nom de la zone spéciale (si une capacité est cochée « spéciale »)<input id="f-special" maxlength="40" placeholder="ex. Surcharge"></label>
         <label class="f">Texte libre (ajouté après les capacités)<textarea id="f-text" rows="2"></textarea></label>
       </fieldset>
 
@@ -103,7 +104,7 @@ legend{font-family:var(--f-display);font-weight:700;padding:0 6px}
 
     <aside class="preview">
       <div id="preview"></div>
-      <p class="hint" id="preview-note">Aperçu en direct</p>
+      <p class="hint" id="preview-note">Aperçu en direct · la couleur suit la classe cochée (neutre si aucune ou plusieurs)</p>
     </aside>
   </div>
 </div>
@@ -163,7 +164,7 @@ function renderForm(){
   $id('f-name').value = cur.name; $id('f-id').value = cur.id; $id('f-id').disabled = !!savedId;
   $id('f-type').value = cur.type; $id('f-origin').value = cur.origin; $id('f-image').value = cur.image_url; $id('f-footer').value = cur.footer;
   $id('f-value').value = cur.value ?? ''; $id('f-mana').value = cur.mana ?? ''; $id('f-pa').value = cur.pa ?? ''; $id('f-max').value = cur.maxCopies ?? '';
-  $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck; $id('f-text').value = cur.text;
+  $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck; $id('f-text').value = cur.text; $id('f-special').value = cur.specialName || '';
   ['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).checked = !!cur.components[k]);
   chipGroup('f-subtypes', JDR_SUBTYPES, cur.subtypes, (v, on) => toggleIn(cur.subtypes, v, on));
   chipGroup('a-classes', Object.keys(JDR_CLASSES), cur.access.classes, (v, on) => toggleIn(cur.access.classes, v, on));
@@ -176,7 +177,7 @@ function typeVisibility(){ const spell = cur.type === 'Sort'; $id('w-mana').hidd
 
 $id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
 const num = v => v === '' ? null : Number(v);
-[['f-name','name'],['f-origin','origin'],['f-image','image_url'],['f-footer','footer'],['f-text','text']].forEach(([id, k]) =>
+[['f-name','name'],['f-origin','origin'],['f-image','image_url'],['f-footer','footer'],['f-text','text'],['f-special','specialName']].forEach(([id, k]) =>
   $id(id).addEventListener('input', e => { cur[k] = e.target.value; if(k === 'name' && !savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); }));
 $id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
 $id('f-type').addEventListener('change', e => { cur.type = e.target.value; typeVisibility(); changed(); });
@@ -224,6 +225,7 @@ function renderAbilities(){
     if(!ab.effects) ab.effects = [];
     const trig = selectOf(JDR_TRIGGERS, ab.triggers[0].trigger, v => { ab.triggers[0].trigger = v; changed(); }, 'Déclencheur');
     const cost = el('input', { value: ab.cost || '', placeholder: 'ex. Défaussez 1' }); cost.addEventListener('input', () => { ab.cost = cost.value; changed(); });
+    const spec = el('input', { type:'checkbox' }); spec.checked = !!ab.special; spec.addEventListener('change', () => { ab.special = spec.checked; changed(); });
     const effs = el('div', { style: 'display:flex;flex-direction:column;gap:6px' });
     ab.effects.forEach((e, ei) => {
       const type = selectOf(Object.fromEntries(Object.entries(JDR_EFFECTS).map(([k, v]) => [k, v.label])), e.type, v => {
@@ -238,6 +240,7 @@ function renderAbilities(){
       el('div', { class:'ab-head' },
         el('label', { class:'f', style:'flex:1 1 220px' }, document.createTextNode('Déclencheur'), trig),
         el('label', { class:'f', style:'flex:1 1 160px' }, document.createTextNode('Coût (facultatif)'), cost),
+        el('label', { class:'chk', title:'Affichée dans l\u2019encadré « Spécial » en bas de la carte' }, spec, document.createTextNode('Capacité spéciale')),
         el('button', { type:'button', class:'ghost', text:'Supprimer la capacité', onclick: () => { cur.abilities.splice(ai, 1); renderAbilities(); changed(); } })),
       effs,
       el('button', { type:'button', style:'align-self:start', text:'Ajouter un effet', onclick: () => { ab.effects.push(jdrBlankEffect('damage')); renderAbilities(); changed(); } }),

@@ -50,6 +50,31 @@ const JDR_RANGES = ['Soi','Contact','Allonge','Proche','Moyenne portée','Grande
 const JDR_DECK_MAX_BY_LEVEL = [0, 25,25,30,30,30,35,35,35,40,40,40,45,45,45,50];
 const JDR_DECK_MIN = 25;
 
+// Couleur de contour des cartes (modèle validé le 23/10/2026). ink = couleur du texte posé dessus.
+const JDR_CARD_COLORS = {
+  'Acolyte':    { color: '#C9A227', ink: '#1D1A16' },
+  'Combattant': { color: '#B23A2E', ink: '#FFFFFF' },
+  'Éclaireur':  { color: '#2E7D4F', ink: '#FFFFFF' },
+  'Érudit':     { color: '#3A5BB8', ink: '#FFFFFF' },
+  'Neutre':     { color: '#6B7280', ink: '#FFFFFF' },
+  'Risque':     { color: '#3B2F4A', ink: '#FFFFFF' }
+};
+// Coloris d'une carte : Risque → violet ; une seule classe → sa couleur ; sinon (aucune ou plusieurs) → neutre
+function jdrCardColorKey(card){
+  if(card.type === 'Risque') return 'Risque';
+  let classes = (card.access && card.access.classes) || [];
+  if(!classes.length && card.access && card.access.specs && card.access.specs.length){
+    classes = [...new Set(card.access.specs.map(sp => Object.keys(JDR_CLASSES).find(c => JDR_CLASSES[c].includes(sp))).filter(Boolean))];
+  }
+  return classes.length === 1 && JDR_CARD_COLORS[classes[0]] ? classes[0] : 'Neutre';
+}
+// Super type affiché devant le type : l'origine saisie, sinon la classe, sinon rien
+function jdrCardSuperType(card){
+  if(card.origin) return card.origin;
+  const k = jdrCardColorKey(card);
+  return k === 'Neutre' || k === 'Risque' ? '' : k;
+}
+
 /* ---------- Outils texte ---------- */
 
 // Compare des noms sans tenir compte des majuscules ni des accents ("Eclaireur" = "Éclaireur")
@@ -73,7 +98,8 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
     access: { classes:[], specs:[], passes:[], peuples:[] },   // vide = tout le monde
     requirements: [ { stat:"corps", min:2 } ],                 // prérequis de caractéristique
     maxCopies: null,                 // null = illimité (règle du manuel)
-    abilities: [ { triggers:[{ trigger:"onPlay" }], cost:"", effects:[ {...} ] } ],
+    abilities: [ { triggers:[{ trigger:"onPlay" }], cost:"", special:false, effects:[ {...} ] } ],
+    specialName: "Surcharge",        // titre de la zone spéciale (capacités marquées special:true)
     text: "",                        // texte libre ajouté après le texte généré
     footer: "",                      // mention en bas (ex. "Bannissez cette carte lors de votre prochain repos.")
     image_url: ""
@@ -86,7 +112,7 @@ function jdrBlankCard(){
     components: { sonore: false, gestuelle: false, materielle: false },
     access: { classes: [], specs: [], passes: [], peuples: [] },
     requirements: [], maxCopies: null,
-    abilities: [], text: '', footer: '', image_url: ''
+    abilities: [], specialName: '', text: '', footer: '', image_url: ''
   };
 }
 // Complète une carte incomplète (anciennes cartes, saisie partielle)
@@ -225,7 +251,7 @@ function jdrAbilityText(ab){
   return `${trig}${cost} : ${body}`;
 }
 function jdrCardText(card){
-  const parts = (card.abilities || []).map(jdrAbilityText).filter(Boolean);
+  const parts = (card.abilities || []).map(jdrAbilityText).filter(Boolean); // toutes, spéciales comprises (recherche)
   if(card.text) parts.push(card.text);
   return parts;
 }

@@ -66,28 +66,33 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .empty{color:var(--muted);font-style:italic}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);padding:8px 14px;border-radius:999px;font-size:.9rem;z-index:50}
 
-/* ----- Carte du JDR (rendu commun) ----- */
-.jcard{--w:220px;width:var(--w);aspect-ratio:5/7;position:relative;border-radius:calc(var(--w)*.06);background:var(--card-frame);padding:calc(var(--w)*.035);
-  display:flex;flex-direction:column;color:var(--card-ink);font-family:var(--f-body);box-shadow:0 2px 6px rgba(0,0,0,.25);container-type:inline-size;flex:0 0 auto}
-.jcard .art{flex:0 0 46%;border-radius:calc(var(--w)*.035) calc(var(--w)*.035) 0 0;background:linear-gradient(160deg,#55606b,#2d353d);background-size:cover;background-position:center;position:relative}
-.jcard .art.ph::after{content:"Illustration";position:absolute;inset:0;display:grid;place-items:center;color:#c5ccd3;font-size:6cqw;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
-.jcard .val{position:absolute;top:0;left:calc(var(--w)*.06);width:13cqw;height:15cqw;background:#3a4047;color:#fff;font-family:var(--f-display);font-weight:800;font-size:9cqw;
-  display:grid;place-items:center;clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%);border:0}
-.jcard .mana{position:absolute;left:calc(var(--w)*.0);top:40%;width:14cqw;height:14cqw;border-radius:50%;background:radial-gradient(circle at 35% 35%,#8fb5ff,var(--mana) 60%,#1b3c86);color:#fff;
-  font-family:var(--f-display);font-weight:800;font-size:8cqw;display:grid;place-items:center;border:2px solid #dfe8ff;transform:translateX(-25%)}
-.jcard .pers{position:absolute;top:0;right:calc(var(--w)*.06);width:11cqw;height:13cqw;background:#3a4047;color:#fff;display:grid;place-items:center;font-size:6.5cqw;
-  clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%)}
-.jcard .pa{position:absolute;bottom:4cqw;right:4cqw;background:rgba(20,26,32,.82);color:#fff;border-radius:999px;font-size:5cqw;padding:.5cqw 2.5cqw;font-weight:700}
-.jcard .face{flex:1;background:var(--card-face);border-radius:0 0 calc(var(--w)*.035) calc(var(--w)*.035);display:flex;flex-direction:column;align-items:stretch;padding:0 5cqw 3cqw;position:relative;min-height:0}
-.jcard .banner{margin:-6cqw auto 1cqw;background:#5d646c;color:#f2f2f2;text-align:center;padding:1.2cqw 8cqw;line-height:1.05;
-  clip-path:polygon(6% 0,94% 0,100% 50%,94% 100%,6% 100%,0 50%);min-width:72%}
-.jcard .banner .o{font-family:var(--f-display);font-size:5.6cqw;display:block}
-.jcard .banner .t{font-size:4cqw;display:block;opacity:.9}
-.jcard .name{font-family:var(--f-display);font-weight:700;font-size:6.6cqw;text-align:center;text-decoration:underline;text-underline-offset:1cqw;margin:1cqw 0}
-.jcard .txt{font-size:4.3cqw;line-height:1.25;overflow:hidden;flex:1;min-height:0;text-align:justify;hyphens:auto}
+/* ----- Carte du JDR (modèle D validé le 23/10/2026) -----
+   Colonne de couleur à gauche (valeur, mana, composantes) + bandeau nom/type en haut,
+   illustration, capacités, encadré « Spécial ». Tailles en cqw : 1cqw = 1 % de la largeur. */
+.jcard{--w:220px;--cc:#6B7280;--ci:#FFFFFF;width:var(--w);aspect-ratio:5/7;container-type:inline-size;flex:0 0 auto;position:relative;
+  box-sizing:border-box;border:.86cqw solid var(--cc);border-radius:4.6cqw;background:#FBFAF6;display:flex;overflow:hidden;
+  color:#1D1A16;font-family:var(--f-body);text-align:left;box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.jcard .col{width:16cqw;flex:0 0 16cqw;background:var(--cc);color:var(--ci);display:flex;flex-direction:column;align-items:center;gap:4cqw;padding:2.9cqw 0}
+.jcard .vbox{display:flex;flex-direction:column;align-items:center;gap:1.1cqw;line-height:1}
+.jcard .val{width:12.6cqw;height:14.3cqw;box-sizing:border-box;background:#FBFAF6;color:#1D1A16;border:.6cqw solid #1D232A;border-radius:2.3cqw 2.3cqw 6.3cqw 6.3cqw;
+  box-shadow:0 .6cqw 0 rgba(0,0,0,.25);font-family:var(--f-display);font-weight:800;font-size:8.6cqw;display:flex;align-items:center;justify-content:center;padding-bottom:1.1cqw}
+.jcard .vlab{font-size:2.9cqw;letter-spacing:.1em;text-transform:uppercase}
+.jcard .mana{width:11.4cqw;height:11.4cqw;box-sizing:border-box;border-radius:50%;background:#FBFAF6;border:.86cqw solid #1F4FB8;color:#1F4FB8;
+  box-shadow:0 0 0 .6cqw #1D232A,0 .6cqw 0 .6cqw rgba(0,0,0,.25);font-family:var(--f-display);font-weight:800;font-size:5.7cqw;display:flex;align-items:center;justify-content:center}
+.jcard .comps{display:flex;flex-direction:column;gap:2.3cqw;margin-top:1.1cqw}
+.jcard .comps svg{width:5.7cqw;height:5.7cqw}
+.jcard .pers{font-size:5.5cqw;line-height:1;margin-top:auto}
+.jcard .main{flex:1;min-width:0;display:flex;flex-direction:column}
+.jcard .head{background:var(--cc);color:var(--ci);padding:2.6cqw 3.4cqw 2.9cqw 1.1cqw;line-height:1.1}
+.jcard .name{font-family:var(--f-display);font-weight:700;font-size:6.3cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jcard .type{font-size:3.4cqw;opacity:.92;margin-top:.9cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jcard .art{flex:0 0 48cqw;background:linear-gradient(160deg,#55606b,#2d353d) center/cover;position:relative}
+.jcard .art.ph::after{content:"Illustration";position:absolute;inset:0;display:grid;place-items:center;color:#c5ccd3;font-size:3.4cqw;letter-spacing:.12em;text-transform:uppercase}
+.jcard .txt{padding:3.4cqw 4cqw 2.3cqw;font-size:4.1cqw;line-height:1.4;flex:1;min-height:0;overflow:hidden}
 .jcard .txt p{margin:0 0 1.5cqw}
-.jcard .comp{font-size:3.8cqw;color:#5d564c;margin-bottom:1cqw;text-align:center}
-.jcard .foot{font-size:3.8cqw;color:#9a7420;font-weight:700;text-align:center;margin-top:auto;padding-top:1cqw}
-.jcard.risk .face{background:#efeae0}
+.jcard .spec{margin:0 2.9cqw 2.9cqw;border:.43cqw solid var(--cc);border-radius:2.3cqw;overflow:hidden;flex:0 0 auto}
+.jcard .spec .st{background:var(--cc);color:var(--ci);font-family:var(--f-display);font-weight:700;font-size:4cqw;padding:.9cqw 2.9cqw}
+.jcard .spec p{margin:0;padding:1.7cqw 2.9cqw 2.3cqw;font-size:3.7cqw;line-height:1.35}
+.jcard .foot{font-size:3.4cqw;color:#7a5d17;font-weight:700;text-align:center;padding:0 3cqw 2.3cqw}
 .jcard.small{--w:150px}
 .jcard.locked{filter:grayscale(.85);opacity:.6}
