@@ -104,6 +104,7 @@ async function jdrLoadOrigins(){
   const byId = Object.fromEntries(list.map(o => [o.id, o]));
   // Magie des spécialisations (utilisée par jdrCanCastSpells : cartes Sortilège autorisées ou non)
   JDR_SPEC_MAGIC = Object.fromEntries(list.filter(o => o.kind === 'specialisation').map(o => [jdrNorm(o.name), !!o.magic]));
+  jdrApplyOrigins(list);   // listes « Qui peut jouer cette carte » + couleurs des classes
   return { list, byId };
 }
 

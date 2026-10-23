@@ -88,9 +88,12 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
           <div class="chips" id="f-supertypes"></div>
         </div>
         <div data-classic>
-          <p class="sub-h">Classes (qui peut jouer cette carte — vide = toutes)</p>
+          <p class="sub-h">Qui peut jouer cette carte (vide partout = tout le monde)</p>
+          <p class="hint" style="margin:0 0 3px">Classes</p>
           <div class="chips" id="f-classes"></div>
           <p class="hint" style="margin-top:4px">Une seule classe = la couleur de cette classe. Aucune ou plusieurs = gris neutre.</p>
+          <div id="f-restrict" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+          <p class="hint" style="margin-top:4px">Spécialisation, passé ou peuple coché : seuls les personnages qui en ont un peuvent jouer la carte. Les listes viennent de la page Origines.</p>
         </div>
         <div class="grid2" data-classic>
           <label class="f">Valeur<input id="f-value" type="number" min="0" max="20"></label>
@@ -198,8 +201,6 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
             <label class="f">Exemplaires max dans un deck<input id="f-max" type="number" min="1" placeholder="illimité"></label>
             <label class="f">Mention en bas de carte<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
           </div>
-          <div><p class="sub-h">Réservée à (spécialisations, passés, peuples — vide = pas de restriction)</p>
-            <div id="f-restrict" style="display:flex;flex-direction:column;gap:8px"></div></div>
           <div><p class="sub-h">Prérequis de caractéristique</p><div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
             <button type="button" id="req-add" style="margin-top:6px">Ajouter un prérequis</button></div>
         </div>
@@ -228,6 +229,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 <script src="js/jdr-rules.js"></script>
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
+<script src="js/jdr-origins.js"></script>
 <script>
 let cards = [];
 let cur = jdrBlankCard();
@@ -599,7 +601,7 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
 window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
 
 async function reload(){
-  try{ const [c, g] = await Promise.all([jdrLoadCards(), jdrLoadGroups()]); cards = c.list; groups = g; } catch(err){ status(jdrErrorText(err), true); cards = []; }
+  try{ const [c, g] = await Promise.all([jdrLoadCards(), jdrLoadGroups(), jdrLoadOrigins().catch(err => console.warn('[jdr] origines non chargées :', err))]); cards = c.list; groups = g; } catch(err){ status(jdrErrorText(err), true); cards = []; }
   fillGroupSelect(); fillKeywordPicker();
   renderList();
 }

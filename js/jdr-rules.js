@@ -85,6 +85,26 @@ const JDR_RESTRICT_GROUPS = {
   'Peuples': JDR_PEUPLES
 };
 
+// Ajoute les classes, spécialisations, passés et peuples de la page Origines (table jdr.origins)
+// aux listes ci-dessus, sans retirer les noms déjà connus (les cartes existantes les utilisent).
+// Appelée par jdrLoadOrigins(). Les classes prennent aussi leur couleur de la page Origines.
+function jdrApplyOrigins(list){
+  const add = (arr, name) => { if(name && !arr.map(jdrNorm).includes(jdrNorm(name))) arr.push(name); };
+  const byId = Object.fromEntries(list.map(o => [o.id, o]));
+  list.filter(o => o.kind === 'classe').forEach(c => {
+    if(!JDR_CLASSES[c.name]) JDR_CLASSES[c.name] = [];
+    (c.specs || []).map(id => byId[id]).filter(Boolean).forEach(sp => add(JDR_CLASSES[c.name], sp.name));
+    if(/^#[0-9a-fA-F]{6}$/.test(c.color || '')){
+      const h = c.color.slice(1), r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+      const light = (0.299 * r + 0.587 * g + 0.114 * b) > 160;       // texte foncé sur couleur claire
+      JDR_CARD_COLORS[c.name] = { color: c.color, ink: light ? '#1D1A16' : '#FFFFFF' };
+    }
+  });
+  list.filter(o => o.kind === 'specialisation').forEach(o => add(JDR_RESTRICT_GROUPS['Spécialisations'], o.name));
+  list.filter(o => o.kind === 'passe').forEach(o => add(JDR_RESTRICT_GROUPS['Passés'], o.name));
+  list.filter(o => o.kind === 'peuple').forEach(o => add(JDR_RESTRICT_GROUPS['Peuples'], o.name));
+}
+
 /* ---------- Outils texte ---------- */
 
 // Compare des noms sans tenir compte des majuscules ni des accents ("Eclaireur" = "Éclaireur")
@@ -469,7 +489,7 @@ function jdrCardAllowed(card, sheet, effectiveStats){
   });
   // Un sort sans classe ni spécialisation imposée demande de savoir lancer des sorts
   if(c.type === 'Sortilège' && !c.classes.length && !inGroup('Spécialisations').length && !jdrCanCastSpells(sheet))
-    reasons.push('Sort : réservé aux Érudits, Prêtres, Druides et Bardes');
+    reasons.push(JDR_SPEC_MAGIC ? 'Sortilège : la spécialisation de ce personnage n’utilise pas la magie' : 'Sort : réservé aux Érudits, Prêtres, Druides et Bardes');
   const stats = effectiveStats || (sheet && sheet.stats) || {};
   c.requirements.forEach(r => {
     if((Number(stats[r.stat]) || 0) < Number(r.min)) reasons.push(`${JDR_STAT_LABEL[r.stat] || r.stat} ${r.min} minimum`);
