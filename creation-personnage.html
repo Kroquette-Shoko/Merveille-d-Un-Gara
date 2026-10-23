@@ -41,6 +41,9 @@ h1{color:var(--bg-ink)} .sub{color:var(--bg-muted)}
 .box h2{font-size:1.35rem;margin-bottom:8px}
 .left,.right{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
 @media (max-width:1150px){.left,.right{position:static;max-height:none}}
+/* Les blocs du panneau gardent leur taille réelle : c'est le panneau qui défile (sinon une fiche avec overflow:hidden était écrasée). */
+.left>*,.right>*{flex-shrink:0}
+.left,.right{overscroll-behavior:contain;scrollbar-gutter:stable}
 
 /* Choix (gauche) */
 .choices{display:flex;flex-direction:column;gap:4px}
