@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Origines Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Layout : onglets (peuples, classes, spécialisations, passés) + liste à gauche, formulaire au centre, aperçu à droite.
+   Tout le monde peut consulter ; seul le compte éditeur peut modifier. */
+.ed{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(300px,420px);gap:16px;align-items:start}
+@media (max-width:1180px){.ed{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}.ed .list{grid-column:1/-1}}
+@media (max-width:760px){.ed{grid-template-columns:1fr}}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tabs button{padding:5px 10px;border-radius:999px;font-size:.9rem}
+.tabs button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs button:disabled{opacity:.5;cursor:not-allowed}
+.list ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:1px}
+.list li.fam{margin-top:8px;font-family:var(--f-display);font-weight:700;color:var(--muted);font-size:.9rem;padding:0 8px}
+.list li button{width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;display:flex;flex-direction:column;gap:1px}
+.list li button.on{background:var(--panel);font-weight:700}
+.list li .s{color:var(--muted);font-size:.8rem;font-weight:400}
+.pv{position:sticky;top:12px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.part{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.part:first-child{border-top:0;padding-top:0;margin-top:0}
+.part h2{font-size:1.1rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.stats label.f{letter-spacing:.02em}
+.ab{background:var(--panel);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.ab .r{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+.ab .r2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+@media (max-width:560px){.ab .r,.ab .r2{grid-template-columns:1fr}}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.soon{background:var(--panel);border-radius:10px;padding:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><h1>Origines</h1><p class="sub">Peuples. Les classes, spécialisations et passés arrivent aux étapes suivantes.</p></div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+  <p class="status bad" id="ro" hidden>Lecture seule : seul le compte éditeur peut modifier les origines.</p>
+
+  <div class="ed">
+    <aside class="sheet list">
+      <div class="tabs" id="tabs" role="tablist" aria-label="Type d'origine"></div>
+      <div class="row"><input id="q" type="search" placeholder="Rechercher…" aria-label="Rechercher"><button class="primary" id="new" type="button">Nouveau</button></div>
+      <ul id="list"></ul>
+    </aside>
+
+    <main class="sheet" id="form">
+      <div id="soon" class="soon" hidden>Ce type d'origine sera disponible à une prochaine étape.</div>
+      <div id="fields">
+        <section class="part">
+          <h2>Identité</h2>
+          <div class="grid2">
+            <label class="f">Nom<input id="o-name" maxlength="80" placeholder="ex. Sirène"></label>
+            <label class="f">Identifiant<input id="o-id" maxlength="64" placeholder="rempli depuis le nom"></label>
+          </div>
+        </section>
+
+        <!-- Peuple -->
+        <section class="part" data-kind="peuple">
+          <div class="grid2">
+            <label class="f">Famille (facultatif)<input id="p-fam" maxlength="60" list="dl-fam" placeholder="ex. Elfes"></label>
+            <label class="f">Taille du personnage<select id="p-size"></select></label>
+          </div>
+          <datalist id="dl-fam"></datalist>
+          <h2>Caractéristiques <span class="hint" style="font-family:var(--f-body);font-weight:400">— bonus ou malus apportés par le peuple</span></h2>
+          <div class="stats" id="p-stats"></div>
+          <h2>Capacités du peuple</h2>
+          <div id="p-abil" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button type="button" id="p-add" style="align-self:start">Ajouter une capacité</button>
+        </section>
+
+        <section class="part">
+          <label class="f">Description (histoire, apparence, culture)<textarea id="o-desc" rows="6" maxlength="5000"></textarea></label>
+        </section>
+
+        <div class="actions" style="margin-top:12px">
+          <button class="primary" id="save" type="button">Enregistrer</button>
+          <button id="dup" type="button">Dupliquer</button>
+          <button class="danger" id="del" type="button">Supprimer</button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="pv"><div id="preview" style="width:100%;display:flex;justify-content:center"></div><p class="hint">Aperçu</p></aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script src="js/jdr-origins.js"></script>
+<script>
+let all = [], kind = 'peuple', cur = jdrBlankOrigin('peuple'), savedId = null, dirty = false;
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
+const num = v => v === '' || v === '-' ? 0 : Number(v) || 0;
+$id('p-size').replaceChildren(...Object.entries(JDR_CHAR_SIZES).map(([k, v]) => new Option(`${v} (${k})`, k)));
+
+// ---------- Onglets et liste ----------
+function renderTabs(){
+  $id('tabs').replaceChildren(...Object.entries(JDR_ORIGIN_KINDS).map(([k, d]) => {
+    const n = all.filter(o => o.kind === k).length;
+    return el('button', { type:'button', role:'tab', 'aria-selected': k === kind ? 'true' : 'false', class: k === kind ? 'on' : '', disabled: !d.ready,
+      title: d.ready ? '' : 'Prochaine étape', text: d.plural + (d.ready ? ` (${n})` : ''), onclick: () => switchKind(k) });
+  }));
+}
+function renderList(){
+  const q = jdrNorm($id('q').value);
+  const list = all.filter(o => o.kind === kind && (!q || jdrNorm(o.name + ' ' + (o.family || '')).includes(q)))
+    .sort((a, b) => (a.family || a.name).localeCompare(b.family || b.name, 'fr') || a.name.localeCompare(b.name, 'fr'));
+  let html = '', fam = null;
+  list.forEach(o => {
+    const f = o.family || '';
+    if(kind === 'peuple' && f !== fam){ fam = f; if(f) html += `<li class="fam">${jdrEsc(f)}</li>`; }
+    html += `<li><button type="button" data-id="${jdrEsc(o.id)}" class="${o.id === savedId ? 'on' : ''}"><span>${jdrEsc(o.name)}</span><span class="s">${jdrEsc(jdrOriginSummary(o))}</span></button></li>`;
+  });
+  $id('list').innerHTML = html || `<li class="empty">${all.some(o => o.kind === kind) ? 'Aucun résultat.' : 'Rien pour l’instant.'}</li>`;
+  $id('dl-fam').replaceChildren(...[...new Set(all.map(o => o.family).filter(Boolean))].map(f => new Option(f)));
+}
+$id('q').addEventListener('input', renderList);
+$id('list').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b) open(b.dataset.id); });
+function switchKind(k){ if(k === kind || !leaveOk()) return; kind = k; renderTabs(); fresh(); }
+
+// ---------- Formulaire ----------
+$id('o-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('o-id').value = cur.id; } changed(); });
+$id('o-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; });
+$id('o-desc').addEventListener('input', e => { cur.description = e.target.value; changed(); });
+$id('p-fam').addEventListener('input', e => { cur.family = e.target.value; changed(); });
+$id('p-size').addEventListener('change', e => { cur.size = e.target.value; changed(); });
+
+function renderStats(){
+  const box = $id('p-stats'); box.replaceChildren();
+  const field = (label, get, set) => { const i = el('input', { type:'number', min:'-5', max:'10', value: get(), 'aria-label': label });
+    i.addEventListener('input', () => { set(num(i.value)); changed(); }); return el('label', { class:'f' }, document.createTextNode(label), i); };
+  JDR_STATS.forEach(s => box.append(field(s.label, () => cur.stats[s.key], v => cur.stats[s.key] = v)));
+  box.append(field('Armure', () => cur.armor, v => cur.armor = v));
+}
+function renderAbilities(){
+  const box = $id('p-abil'); box.replaceChildren();
+  if(!cur.abilities.length) box.append(el('span', { class:'hint', text:'Aucune capacité.' }));
+  cur.abilities.forEach((a, i) => {
+    const inp = (k, attrs) => { const x = el('input', Object.assign({ value: a[k] || '' }, attrs)); x.addEventListener('input', () => { a[k] = x.value; changed(); }); return x; };
+    const sp = el('select', { 'aria-label': 'Vitesse' }, ...JDR_ABILITY_SPEEDS.map(v => new Option(v, v))); sp.value = a.speed;
+    sp.addEventListener('change', () => { a.speed = sp.value; changed(); });
+    const tx = el('textarea', { rows: 3, maxlength: 1000, placeholder: 'ex. Lorsque vous faites un test de compétence, la première carte que vous défaussez gagne +1 à sa valeur.', 'aria-label': 'Effet de la capacité' }); tx.value = a.text;
+    tx.addEventListener('input', () => { a.text = tx.value; changed(); });
+    box.append(el('div', { class:'ab' },
+      el('div', { class:'r' },
+        el('label', { class:'f' }, document.createTextNode('Nom'), inp('name', { maxlength: 80, placeholder: 'ex. Capacité des humains' })),
+        el('label', { class:'f' }, document.createTextNode('Vitesse'), sp),
+        el('button', { type:'button', class:'ghost', 'aria-label':'Supprimer cette capacité', text:'✕', onclick: () => { cur.abilities.splice(i, 1); renderAbilities(); changed(); } })),
+      el('div', { class:'r2' },
+        el('label', { class:'f' }, document.createTextNode('Coût (facultatif)'), inp('cost', { maxlength: 60, placeholder: 'ex. Défausse 1' })),
+        el('label', { class:'f' }, document.createTextNode('Limite (facultatif)'), inp('uses', { maxlength: 60, placeholder: 'ex. 3 fois par jour' }))),
+      el('label', { class:'f' }, document.createTextNode('Effet'), tx)));
+  });
+  rights();
+}
+$id('p-add').addEventListener('click', () => { cur.abilities.push(jdrBlankOriginAbility()); renderAbilities(); changed(); });
+
+function renderForm(){
+  const ready = JDR_ORIGIN_KINDS[kind].ready;
+  $id('soon').hidden = ready; $id('fields').hidden = !ready;
+  document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
+  $id('o-name').value = cur.name; $id('o-id').value = cur.id; $id('o-desc').value = cur.description || '';
+  if(cur.kind === 'peuple'){ $id('p-fam').value = cur.family; $id('p-size').value = cur.size; renderStats(); renderAbilities(); }
+  preview(); renderList(); rights();
+}
+function preview(){ $id('preview').innerHTML = JDR_ORIGIN_KINDS[kind].ready ? jdrOriginHTML(cur) : ''; }
+function changed(){ dirty = true; preview(); }
+function rights(){
+  $id('ro').hidden = JDR_IS_EDITOR;
+  document.querySelectorAll('#form input, #form select, #form textarea, #form button, #new').forEach(e => e.disabled = !JDR_IS_EDITOR);
+  if(JDR_IS_EDITOR){ $id('o-id').disabled = !!savedId; $id('del').disabled = !savedId; $id('dup').disabled = !savedId; }
+}
+
+// ---------- Ouvrir / nouveau / enregistrer ----------
+let leaveArmed = false;
+function leaveOk(){
+  if(!dirty || !JDR_IS_EDITOR) return true;
+  if(leaveArmed){ leaveArmed = false; return true; }
+  leaveArmed = true; status('Modifications non enregistrées : clique à nouveau pour les abandonner.', true);
+  setTimeout(() => leaveArmed = false, 4000); return false;
+}
+function open(id){
+  if(id !== savedId && !leaveOk()) return;
+  const o = all.find(x => x.id === id); if(!o) return;
+  cur = jdrNormalizeOrigin({ id: o.id, name: o.name, data: jdrOriginData(o) }); savedId = id; kind = o.kind; dirty = false;
+  renderTabs(); renderForm(); status('');
+  try{ history.replaceState(null, '', '?id=' + encodeURIComponent(id)); }catch(e){}
+}
+function fresh(){ cur = jdrBlankOrigin(kind); savedId = null; dirty = false; renderForm(); }
+$id('new').addEventListener('click', () => { if(leaveOk()) fresh(); });
+
+$id('save').addEventListener('click', async () => {
+  if(!JDR_IS_EDITOR) return;
+  cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
+  if(!cur.name){ status('Donne un nom.', true); return; }
+  if(!/^[a-z0-9_-]{2,64}$/.test(cur.id)){ status("L'identifiant doit faire 2 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
+  if(!savedId && all.some(o => o.id === cur.id)){ status('Une origine porte déjà cet identifiant : change-le.', true); return; }
+  const data = jdrOriginData(jdrNormalizeOrigin({ id: cur.id, name: cur.name, data: jdrOriginData(cur) }));
+  status('Enregistrement…');
+  const q = savedId ? jdrSb.from('origins').update({ name: cur.name, data }).eq('id', savedId)
+                    : jdrSb.from('origins').insert({ id: cur.id, name: cur.name, data });
+  const { error } = await q;
+  if(error){ status(jdrErrorText(error), true); return; }
+  savedId = cur.id; dirty = false; await reload(); open(savedId); status('Enregistré');
+});
+$id('dup').addEventListener('click', () => {
+  if(!savedId) return;
+  cur = structuredClone(cur); cur.name += ' (copie)'; cur.id = jdrSlug(cur.name); savedId = null; dirty = true; renderForm(); status('Copie créée : pense à enregistrer');
+});
+let delArmed = false;
+$id('del').addEventListener('click', async () => {
+  if(!savedId) return;
+  if(!delArmed){ delArmed = true; $id('del').textContent = 'Confirmer la suppression'; setTimeout(() => { delArmed = false; $id('del').textContent = 'Supprimer'; }, 3000); return; }
+  delArmed = false; $id('del').textContent = 'Supprimer';
+  const { error } = await jdrSb.from('origins').delete().eq('id', savedId);
+  if(error){ status(jdrErrorText(error), true); return; }
+  dirty = false; await reload(); fresh(); status('Supprimé');
+});
+window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
+
+async function reload(){
+  try{ all = (await jdrLoadOrigins()).list; } catch(err){ status(jdrErrorText(err), true); }
+  renderTabs(); renderList();
+}
+(async () => {
+  renderTabs(); renderForm();
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  const me = await jdrPage('origines', { requireLogin: true }); if(!me) return;
+  await reload();
+  const wanted = new URLSearchParams(location.search).get('id');
+  if(wanted && all.some(o => o.id === wanted)) open(wanted); else fresh();
+})();
+</script>
+</body>
+</html>

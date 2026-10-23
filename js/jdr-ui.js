@@ -11,6 +11,7 @@ const JDR_PAGES = [
   { id: 'groupes',      href: 'editeur-groupes.html',  label: 'Actions de groupe', editorOnly: true },
   { id: 'motscles',     href: 'mots-cles.html',        label: 'Mots-clés' },
   { id: 'equipement',   href: 'equipement.html',       label: 'Équipement' },
+  { id: 'origines',     href: 'origines.html',         label: 'Origines' },
   { id: 'campagnes',    href: 'campagnes.html',        label: 'Campagnes' }
 ];
 
@@ -92,6 +93,14 @@ async function jdrLoadItems(){
   if(error) throw error;
   const list = data.map(r => Object.assign(jdrNormalizeItem(r), { updated_at: r.updated_at }));
   return { list, byId: Object.fromEntries(list.map(i => [i.id, i])) };
+}
+
+// Origines (table jdr.origins) : renvoie { list, byId } — nécessite js/jdr-origins.js
+async function jdrLoadOrigins(){
+  const { data, error } = await jdrSb.from('origins').select('id,name,data,updated_at').order('name');
+  if(error) throw error;
+  const list = data.map(r => Object.assign(jdrNormalizeOrigin(r), { updated_at: r.updated_at }));
+  return { list, byId: Object.fromEntries(list.map(o => [o.id, o])) };
 }
 
 // Charge les tableaux d'action de groupe : renvoie { list, byId }

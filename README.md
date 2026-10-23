@@ -32,6 +32,8 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | `mots-cles.html` | Liste des mots-clés (mécaniques, super-types, afflictions, propriétés) avec leur définition. Tout le monde lit ; le compte éditeur ajoute / modifie / supprime. Les mots-clés s'ajoutent aux cartes dans l'éditeur de cartes |
 | `equipement.html` | Équipement : armes, armures, boucliers, objets magiques (emplacement, rareté, bonus, pouvoirs) et objets divers (catégorie, consommable, effet), avec aperçu de la fiche d'objet. Tout le monde consulte ; le compte éditeur modifie |
 | `js/jdr-items.js` | Modèle et affichage de l'équipement (table `jdr.items`) |
+| `origines.html` | Origines du personnage : peuples (famille, taille, bonus de caractéristiques et d'armure, capacités avec vitesse / coût / limite, description). Classes, spécialisations et passés aux étapes suivantes |
+| `js/jdr-origins.js` | Modèle et affichage des origines (table `jdr.origins`) |
 | `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches et decks des joueurs (lecture seule) |
 | `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |
 | `js/jdr-rules.js` | Règles : modèle de carte, déclencheurs, effets, formules avec les caractéristiques, effets des cartes sur les caractéristiques, règles de deck |

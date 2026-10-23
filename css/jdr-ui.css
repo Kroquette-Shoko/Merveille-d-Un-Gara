@@ -189,3 +189,13 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jitem .id{margin:0;font-size:.92rem;line-height:1.4;white-space:pre-line}
 .jitem .ie{margin:0;font-size:.88rem;color:#7A6548;font-style:italic}
 .jitem .isz{font-size:.8rem;color:#7A6548;border-top:1px dashed #B79E73;padding-top:6px}
+/* Fiche d'origine (peuple, classe…) : même base que la fiche d'objet */
+.jorig .ost{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;text-align:center}
+.jorig .ost div{background:#E8D9B6;border-radius:8px;padding:5px 2px;display:flex;flex-direction:column}
+.jorig .ost div.z{opacity:.45}
+.jorig .ost b{font-family:var(--f-display);font-size:1.3rem;line-height:1}
+.jorig .ost span{font-size:.68rem;color:#7A6548;line-height:1.1}
+.jorig .oa{background:#E8D9B6;border-radius:8px;padding:6px 10px}
+.jorig .oah{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.jorig .osp{font-size:.78rem;color:#7A6548}
+.jorig .oa p{margin:3px 0 0;font-size:.92rem;line-height:1.4;white-space:pre-line}
