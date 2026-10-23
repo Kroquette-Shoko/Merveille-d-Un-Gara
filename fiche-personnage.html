@@ -164,7 +164,7 @@ summary{cursor:pointer;font-weight:700}
 .pip.off{opacity:.3}
 .trk .num{font-family:var(--f-display);font-weight:800;font-size:1.15rem;min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:560px){.trk{grid-template-columns:1fr auto auto}.trk .pips{grid-column:1/-1;grid-row:2}}
-@media (max-width:560px){.palier .cells{grid-template-columns:repeat(6,18px)}.paliers{gap:10px}.icard .top{flex-wrap:wrap}.icard .dmg{text-align:left}}
+@media (max-width:560px){.palier .cells{--wc:18px}.paliers{gap:10px}.icard .top{flex-wrap:wrap}.icard .dmg{text-align:left}}
 
 .res{background:var(--cell);border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:6px}
 .res-head{display:flex;align-items:center;gap:8px}
@@ -356,6 +356,9 @@ summary{cursor:pointer;font-weight:700}
       </div>
       <div class="paliers" id="paliers"></div>
       <div class="legend">Blessure légère = 1 case · Blessure = 3 cases · Blessure grave = 6 cases. Touchez une case pour corriger.</div>
+      <label class="legend" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Nombre de cases de blessures
+        <input type="number" id="w-max" min="1" max="120" style="width:5rem;border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:var(--medal)">
+        <span id="w-max-hint"></span></label>
       <div class="trk"><b>Armure</b><div class="pips" id="tr-armor" style="--n:18;--c:var(--armor)"></div><span class="num" id="ct-armor"></span><button class="ghost" type="button" id="rs-armor" title="Remettre l'armure au maximum">Restaurer</button></div>
       <div class="trk"><b>Armure magique</b><div class="pips" id="tr-armag" style="--n:18;--c:var(--armag)"></div><span class="num" id="ct-armag"></span><button class="ghost" type="button" id="rs-armag" title="Remettre l'armure magique au maximum">Restaurer</button></div>
       <div class="legend">Le maximum vient de la section « Armure et bouclier ». Les armures sont restaurées après chaque combat.</div>
@@ -490,14 +493,14 @@ const KEY = "ungara-fiche-v1";
 const SAMPLE = {
   player:"Kroquette",name:"Calypso",level:1,genre:"Femme",peuple:"Sirène",classe:"Acolyte / Éclaireur",specialisation:"",passe:"Pirate",taillepoids:"",
   portrait:"",stats:{corps:4,esprit:1,charme:3,opp:4,ant:1,res:0,pa:4},
-  wounds:Array(30).fill(false),armor:0,armag:0,
+  wounds:Array(30).fill(false),woundsMax:30,armor:0,armag:0,
   resources:[{name:"Mana",max:10,val:0}],
   weapons:[{name:"Pistolet à silex",a1:"1 blessure",a2:"1 blessure légère et désarme",a3:"",type:"Perforant",prop:"Portée : distance moyenne / Munition"}],
   armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""},{kind:"Bouclier",name:"",att:"",pa:"",pam:"",res:"",prop:""}],
   items:[{name:"Munitions",cases:1,where:"ceinture"},{name:"Corde (15 m)",cases:2,where:"sac"}],
   coins:150,taille:"M",notes:""
 };
-const BLANK = ()=>({player:"",name:"",level:1,genre:"",peuple:"",classe:"",specialisation:"",passe:"",taillepoids:"",portrait:"",stats:{corps:0,esprit:0,charme:0,opp:0,ant:0,res:0,pa:0},wounds:Array(30).fill(false),armor:0,armag:0,resources:[{name:"Mana",max:10,val:0}],weapons:[{name:"",a1:"",a2:"",a3:"",type:"",prop:""}],armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""}],items:[],coins:0,taille:"M",notes:""});
+const BLANK = ()=>({player:"",name:"",level:1,genre:"",peuple:"",classe:"",specialisation:"",passe:"",taillepoids:"",portrait:"",stats:{corps:0,esprit:0,charme:0,opp:0,ant:0,res:0,pa:0},wounds:Array(30).fill(false),woundsMax:30,armor:0,armag:0,resources:[{name:"Mana",max:10,val:0}],weapons:[{name:"",a1:"",a2:"",a3:"",type:"",prop:""}],armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""}],items:[],coins:0,taille:"M",notes:""});
 
 let S;
 try{ const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : structuredClone(SAMPLE); }catch(e){ S = structuredClone(SAMPLE); }
@@ -569,28 +572,38 @@ $("portrait-file").addEventListener("change",e=>{
 });
 $("portrait-clear").addEventListener("click",()=>{ S.portrait=""; save(); renderPortrait(); });
 
-// ---------- Blessures : 5 paliers de 6 cases ----------
+// ---------- Blessures : nombre de cases variable (peuple + classe + passé), rangées par paliers de 6 ----------
+// S.woundsMax = nombre total de cases ; S.wounds = une case par blessure (vrai = blessée)
 function woundCount(){ return S.wounds.filter(Boolean).length; }
+function setWoundsMax(n){
+  n = Math.max(1, Math.min(120, Math.round(Number(n) || 1)));
+  S.woundsMax = n; S.wounds = Array.from({length:n},(_,i)=>!!S.wounds[i]);
+}
 function renderWounds(){
   const P=$("paliers"); P.replaceChildren();
-  for(let h=0;h<5;h++){
-    const cells=el("div",{class:"cells"}); let n=0;
-    for(let c=0;c<6;c++){ const i=h*6+c; if(S.wounds[i]) n++;
+  const max=S.woundsMax, paliers=Math.ceil(max/6);
+  for(let h=0;h<paliers;h++){
+    const size=Math.min(6,max-h*6); const cells=el("div",{class:"cells",style:`grid-template-columns:repeat(${size},var(--wc,22px))`}); let n=0;
+    for(let c=0;c<size;c++){ const i=h*6+c; if(S.wounds[i]) n++;
       cells.append(el("button",{type:"button",class:"wcell"+(S.wounds[i]?" on":""),"aria-label":`Palier ${h+1}, case ${c+1}`,"aria-pressed":S.wounds[i]?"true":"false",
         onclick:()=>{ S.wounds[i]=!S.wounds[i]; save(); renderWounds(); }}));
     }
-    P.append(el("div",{class:"palier"+(n===6?" full":"")},cells,el("span",{class:"lbl",text:"Palier "+(h+1)})));
+    P.append(el("div",{class:"palier"+(n===size?" full":"")},cells,el("span",{class:"lbl",text:"Palier "+(h+1)})));
   }
-  $("w-count").textContent = woundCount()+" / 30";
+  $("w-count").textContent = woundCount()+" / "+max;
+  $("w-max").value = max;
+  const o = S.origins && S.origins.woundsFromOrigins;
+  $("w-max-hint").textContent = o ? `(peuple + classe + passé = ${o})` : "";
 }
+$("w-max").addEventListener("change",e=>{ setWoundsMax(e.target.value); save(); renderWounds(); });
 // Ajoute n blessures dans les premières cases libres
 document.querySelectorAll(".wbtn[data-add]").forEach(b=>b.addEventListener("click",()=>{
   let n=Number(b.dataset.add);
-  for(let i=0;i<30 && n>0;i++){ if(!S.wounds[i]){ S.wounds[i]=true; n--; } }
+  for(let i=0;i<S.woundsMax && n>0;i++){ if(!S.wounds[i]){ S.wounds[i]=true; n--; } }
   if(n>0) toast("Toutes les cases de blessure sont remplies");
   save(); renderWounds();
 }));
-$("w-heal").addEventListener("click",()=>{ S.wounds=Array(30).fill(false); save(); renderWounds(); });
+$("w-heal").addEventListener("click",()=>{ S.wounds=Array(S.woundsMax).fill(false); save(); renderWounds(); });
 
 // ---------- Armures : maximum calculé depuis « Armure et bouclier » ----------
 function armorMax(field){ return S.armors.reduce((a,x)=>a+num(x[field]),0); }
@@ -797,7 +810,9 @@ function applyReadOnly(){
 // Complète une fiche venant d'une ancienne version ou d'un import
 function normalize(d){
   const s=Object.assign(BLANK(), d||{}); s.stats=Object.assign(BLANK().stats,(d&&d.stats)||{});
-  if(!Array.isArray(s.wounds) || s.wounds.length!==30) s.wounds=Array.from({length:30},(_,i)=>!!(s.wounds&&s.wounds[i]));
+  // Nombre de cases de blessures : celui de la fiche, sinon 30 (anciennes fiches)
+  s.woundsMax = Math.max(1, Math.min(120, Math.round(Number(s.woundsMax) || (Array.isArray(s.wounds) && s.wounds.length) || 30)));
+  s.wounds = Array.from({length:s.woundsMax},(_,i)=>!!(Array.isArray(s.wounds)&&s.wounds[i]));
   ["resources","weapons","armors","items"].forEach(k=>{ if(!Array.isArray(s[k])) s[k]=BLANK()[k]; });
   if(!BASE[s.taille]) s.taille="M";
   return s;

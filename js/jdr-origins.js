@@ -11,6 +11,8 @@
      size         taille du personnage : 'P' | 'M' | 'G' (sert à la charge sur la fiche)
      stats        { opp, ant, corps, esprit, charme, res, pa } : bonus ou malus (nombres)
      armor        bonus d'armure (nombre)
+     wounds       nombre de cases de blessures apportées (nombre) — aussi pour la classe et le passé :
+                  le personnage peut prendre peuple + classe + passé cases de blessures
      abilities    [{ name, speed, cost, text, uses }] : capacités du peuple
                   speed = 'Passif' | 'Action' | 'Action libre' | 'Réaction' | 'Mouvement'
                   cost  = coût (ex. « Défausse 1 »), uses = limite (ex. « 3 fois par jour »)
@@ -54,10 +56,10 @@ function jdrBlankProgression(){
 function jdrBlankOrigin(kind){
   kind = JDR_ORIGIN_KINDS[kind] ? kind : 'peuple';
   const base = { id: '', name: '', kind, description: '', image_url: '', image: { fit: 'cover', x: 50, y: 50 } };
-  if(kind === 'peuple') return Object.assign(base, { family: '', size: 'M', stats: jdrBlankStats(), armor: 0, abilities: [jdrBlankOriginAbility()] });
-  if(kind === 'classe') return Object.assign(base, { color: '#8A5A2B', stats: jdrBlankStats(), armor: 0, magic: 'aucune', mechanics: [{ name: '', text: '' }], progression: jdrBlankProgression() });
+  if(kind === 'peuple') return Object.assign(base, { family: '', size: 'M', stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [jdrBlankOriginAbility()] });
+  if(kind === 'classe') return Object.assign(base, { color: '#8A5A2B', stats: jdrBlankStats(), armor: 0, wounds: 0, magic: 'aucune', mechanics: [{ name: '', text: '' }], progression: jdrBlankProgression() });
   if(kind === 'specialisation') return Object.assign(base, { classe: '', magic: false, abilities: [jdrBlankOriginAbility()], improvements: [] });
-  if(kind === 'passe') return Object.assign(base, { stats: jdrBlankStats(), armor: 0, events: ['', '', '', '', '', ''], card: '' });
+  if(kind === 'passe') return Object.assign(base, { stats: jdrBlankStats(), armor: 0, wounds: 0, events: ['', '', '', '', '', ''], card: '' });
   return base;
 }
 function jdrNormalizeOrigin(row){
@@ -74,6 +76,7 @@ function jdrNormalizeOrigin(row){
     o.stats = Object.assign(jdrBlankStats(), o.stats || {});
     Object.keys(o.stats).forEach(k => o.stats[k] = num(o.stats[k]));
     o.armor = num(o.armor);
+    o.wounds = Math.max(0, num(o.wounds));
   }
   if(o.kind === 'peuple' || o.kind === 'specialisation')
     o.abilities = arr(o.abilities).map(a => Object.assign(jdrBlankOriginAbility(), a || {}));
@@ -110,7 +113,7 @@ function jdrOriginHTML(o, opts = {}){
   const k = JDR_ORIGIN_KINDS[o.kind] || JDR_ORIGIN_KINDS.peuple;
   const color = o.kind === 'classe' ? o.color : k.color;
   const sign = v => (v > 0 ? '+' : '') + v;
-  const statsHTML = () => `<div class="ost">${JDR_STATS.map(s => `<div class="${o.stats[s.key] ? '' : 'z'}"><b>${esc(sign(o.stats[s.key]))}</b><span>${esc(s.label)}</span></div>`).join('')}<div class="${o.armor ? '' : 'z'}"><b>${esc(sign(o.armor))}</b><span>Armure</span></div></div>`;
+  const statsHTML = () => `<div class="ost">${JDR_STATS.map(s => `<div class="${o.stats[s.key] ? '' : 'z'}"><b>${esc(sign(o.stats[s.key]))}</b><span>${esc(s.label)}</span></div>`).join('')}<div class="${o.armor ? '' : 'z'}"><b>${esc(sign(o.armor))}</b><span>Armure</span></div><div class="${o.wounds ? '' : 'z'}"><b>${esc(sign(o.wounds || 0))}</b><span>Cases de blessures</span></div></div>`;
   const abilHTML = (list, empty) => (list || []).filter(a => a.name || a.text).map(a => `<div class="oa">
       <div class="oah"><b>${esc(a.name || 'Capacité')}</b>${a.speed && a.speed !== 'Passif' ? `<span class="ic">${esc(a.speed)}</span>` : '<span class="osp">Passif</span>'}${a.cost ? `<span class="ic">${esc(a.cost)}</span>` : ''}${a.uses ? `<span class="osp">${esc(a.uses)}</span>` : ''}</div>
       ${a.text ? `<p>${esc(a.text)}</p>` : ''}</div>`).join('') || `<p class="ie">${empty}</p>`;
