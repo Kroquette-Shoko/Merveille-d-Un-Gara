@@ -201,3 +201,8 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jorig .oah{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
 .jorig .osp{font-size:.78rem;color:#7A6548}
 .jorig .oa p{margin:3px 0 0;font-size:.92rem;line-height:1.4;white-space:pre-line}
+.jorig .osec{font-family:var(--f-display);font-weight:700;font-size:1rem;border-bottom:1px solid #B79E73;margin-top:2px}
+.jorig .oprog{width:100%;border-collapse:collapse;font-size:.85rem}
+.jorig .oprog th{font-weight:500;color:#7A6548;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;padding:2px 4px}
+.jorig .oprog td{padding:3px 4px;border-top:1px dashed #D8C6A3;vertical-align:top}
+.jorig .oprog td:nth-child(-n+2){width:2.6rem;font-variant-numeric:tabular-nums}

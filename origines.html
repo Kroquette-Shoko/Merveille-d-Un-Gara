@@ -32,6 +32,11 @@
 .ab .r2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 @media (max-width:560px){.ab .r,.ab .r2{grid-template-columns:1fr}}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
+.prog{display:grid;grid-template-columns:3rem 5rem minmax(0,1fr);gap:4px 8px;align-items:center}
+.prog .h{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.prog .lv{font-weight:700;text-align:center}
+.mech{background:var(--panel);border-radius:10px;padding:10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.mech textarea{grid-column:1/-1}
 .soon{background:var(--panel);border-radius:10px;padding:14px;color:var(--muted)}
 .sizes{display:flex;flex-wrap:wrap;gap:4px}
 .sizes button{padding:5px 9px;font-size:.85rem;border-radius:999px}
@@ -41,7 +46,7 @@
 <body>
 <div class="wrap">
   <div class="row" style="justify-content:space-between;align-items:baseline">
-    <div><h1>Origines</h1><p class="sub">Peuples. Les classes, spécialisations et passés arrivent aux étapes suivantes.</p></div>
+    <div><h1>Origines</h1><p class="sub">Peuples, classes et spécialisations. Les passés arrivent à l'étape suivante.</p></div>
     <span class="status" id="status" role="status"></span>
   </div>
   <p class="status bad" id="ro" hidden>Lecture seule : seul le compte éditeur peut modifier les origines.</p>
@@ -85,11 +90,54 @@
             <label class="f">Taille du personnage<select id="p-size"></select></label>
           </div>
           <datalist id="dl-fam"></datalist>
-          <h2>Caractéristiques <span class="hint" style="font-family:var(--f-body);font-weight:400">— bonus ou malus apportés par le peuple</span></h2>
-          <div class="stats" id="p-stats"></div>
-          <h2>Capacités du peuple</h2>
-          <div id="p-abil" style="display:flex;flex-direction:column;gap:10px"></div>
-          <button type="button" id="p-add" style="align-self:start">Ajouter une capacité</button>
+        </section>
+
+        <!-- Classe -->
+        <section class="part" data-kind="classe">
+          <div class="grid2">
+            <label class="f">Accès à la magie<select id="c-magic"></select></label>
+            <label class="f">Couleur de la classe (contour des cartes)<input id="c-color" type="color" style="height:38px;padding:2px"></label>
+          </div>
+        </section>
+
+        <!-- Spécialisation -->
+        <section class="part" data-kind="specialisation">
+          <div class="grid2">
+            <label class="f">Classe<select id="s-classe"></select></label>
+            <label class="chk" style="align-self:end"><input type="checkbox" id="s-magic"> Peut lancer des sorts</label>
+          </div>
+          <p class="hint" style="margin:0" id="s-hint"></p>
+        </section>
+
+        <!-- Caractéristiques : peuple et classe -->
+        <section class="part" data-kind="peuple classe">
+          <h2>Caractéristiques <span class="hint" style="font-family:var(--f-body);font-weight:400" id="o-stats-h"></span></h2>
+          <div class="stats" id="o-stats"></div>
+        </section>
+
+        <!-- Capacités : peuple (capacités du peuple) et spécialisation (passif de base) -->
+        <section class="part" data-kind="peuple specialisation">
+          <h2 id="o-abil-h">Capacités</h2>
+          <div id="o-abil" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button type="button" id="o-add" style="align-self:start">Ajouter une capacité</button>
+        </section>
+
+        <!-- Classe : mécaniques principales + évolution -->
+        <section class="part" data-kind="classe">
+          <h2>Mécaniques principales de la classe</h2>
+          <div id="c-mech" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button type="button" id="c-mech-add" style="align-self:start">Ajouter une mécanique</button>
+        </section>
+        <section class="part" data-kind="classe">
+          <h2>Évolution du personnage <span class="hint" style="font-family:var(--f-body);font-weight:400">— taille du deck et gains à chaque niveau</span></h2>
+          <div class="prog" id="c-prog"></div>
+        </section>
+
+        <!-- Spécialisation : améliorations -->
+        <section class="part" data-kind="specialisation">
+          <h2>Améliorations de spécialisation</h2>
+          <div id="s-imp" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button type="button" id="s-imp-add" style="align-self:start">Ajouter une amélioration</button>
         </section>
 
         <section class="part">
@@ -130,13 +178,16 @@ function renderTabs(){
 }
 function renderList(){
   const q = jdrNorm($id('q').value);
-  const list = all.filter(o => o.kind === kind && (!q || jdrNorm(o.name + ' ' + (o.family || '')).includes(q)))
-    .sort((a, b) => (a.family || a.name).localeCompare(b.family || b.name, 'fr') || a.name.localeCompare(b.name, 'fr'));
+  const map = byId();
+  // Regroupement : peuples par famille, spécialisations par classe
+  const group = o => o.kind === 'peuple' ? (o.family || '') : o.kind === 'specialisation' ? ((map[o.classe] || {}).name || 'Sans classe') : '';
+  const list = all.filter(o => o.kind === kind && (!q || jdrNorm(o.name + ' ' + group(o)).includes(q)))
+    .sort((a, b) => (group(a) || a.name).localeCompare(group(b) || b.name, 'fr') || a.name.localeCompare(b.name, 'fr'));
   let html = '', fam = null;
   list.forEach(o => {
-    const f = o.family || '';
-    if(kind === 'peuple' && f !== fam){ fam = f; if(f) html += `<li class="fam">${jdrEsc(f)}</li>`; }
-    html += `<li><button type="button" data-id="${jdrEsc(o.id)}" class="${o.id === savedId ? 'on' : ''}"><span>${jdrEsc(o.name)}</span><span class="s">${jdrEsc(jdrOriginSummary(o))}</span></button></li>`;
+    const f = group(o);
+    if(f !== fam){ fam = f; if(f) html += `<li class="fam">${jdrEsc(f)}</li>`; }
+    html += `<li><button type="button" data-id="${jdrEsc(o.id)}" class="${o.id === savedId ? 'on' : ''}"><span>${jdrEsc(o.name)}</span><span class="s">${jdrEsc(jdrOriginSummary(o, map))}</span></button></li>`;
   });
   $id('list').innerHTML = html || `<li class="empty">${all.some(o => o.kind === kind) ? 'Aucun résultat.' : 'Rien pour l’instant.'}</li>`;
   $id('dl-fam').replaceChildren(...[...new Set(all.map(o => o.family).filter(Boolean))].map(f => new Option(f)));
@@ -165,15 +216,75 @@ $id('im-center').addEventListener('click', () => { cur.image.x = 50; cur.image.y
 $id('im-x').addEventListener('input', e => { cur.image.x = Number(e.target.value); changed(); });
 $id('im-y').addEventListener('input', e => { cur.image.y = Number(e.target.value); changed(); });
 
+$id('c-magic').replaceChildren(...Object.entries(JDR_CLASS_MAGIC).map(([k, v]) => new Option(v, k)));
+$id('c-magic').addEventListener('change', e => { cur.magic = e.target.value; changed(); });
+$id('c-color').addEventListener('input', e => { cur.color = e.target.value; changed(); });
+$id('s-classe').addEventListener('change', e => { cur.classe = e.target.value; renderSpecHint(); changed(); });
+$id('s-magic').addEventListener('change', e => { cur.magic = e.target.checked; changed(); });
+function fillClassSelect(){
+  const classes = all.filter(o => o.kind === 'classe').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  $id('s-classe').replaceChildren(new Option(classes.length ? '— choisir —' : 'Aucune classe créée', ''), ...classes.map(c => new Option(c.name, c.id)));
+}
+function renderSpecHint(){
+  const c = byId()[cur.classe];
+  $id('s-hint').textContent = !c ? 'Crée d’abord la classe dans l’onglet « Classes ».'
+    : c.magic === 'aucune' ? `La classe ${c.name} n'a pas accès à la magie : laisse la case décochée.`
+    : c.magic === 'toutes' ? `Toutes les spécialisations de ${c.name} lancent des sorts.` : `Seulement certaines spécialisations de ${c.name} lancent des sorts.`;
+}
+const byId = () => Object.fromEntries(all.map(o => [o.id, o]));
+
+// Mécaniques de classe : nom + texte
+function renderMechanics(){
+  const box = $id('c-mech'); box.replaceChildren();
+  if(!cur.mechanics.length) box.append(el('span', { class:'hint', text:'Aucune mécanique.' }));
+  cur.mechanics.forEach((m, i) => {
+    const n = el('input', { value: m.name, maxlength: 80, placeholder: 'ex. Les auras', 'aria-label': 'Nom de la mécanique' });
+    n.addEventListener('input', () => { m.name = n.value; changed(); });
+    const t = el('textarea', { rows: 3, maxlength: 2000, placeholder: 'Comment fonctionne cette mécanique.', 'aria-label': 'Description de la mécanique' }); t.value = m.text;
+    t.addEventListener('input', () => { m.text = t.value; changed(); });
+    box.append(el('div', { class:'mech' }, n, el('button', { type:'button', class:'ghost', 'aria-label':'Supprimer cette mécanique', text:'✕', onclick: () => { cur.mechanics.splice(i, 1); renderMechanics(); changed(); } }), t));
+  });
+  rights();
+}
+$id('c-mech-add').addEventListener('click', () => { cur.mechanics.push({ name: '', text: '' }); renderMechanics(); changed(); });
+
+// Évolution : 15 niveaux, taille du deck + gains
+function renderProgression(){
+  const box = $id('c-prog'); box.replaceChildren(el('span', { class:'h', text:'Niv.' }), el('span', { class:'h', text:'Deck' }), el('span', { class:'h', text:'Gains à ce niveau' }));
+  cur.progression.forEach((r, i) => {
+    const d = el('input', { type:'number', min:'0', max:'100', value: r.deck, 'aria-label': `Taille du deck au niveau ${i + 1}` });
+    d.addEventListener('input', () => { r.deck = num(d.value); changed(); });
+    const t = el('input', { value: r.text, maxlength: 200, placeholder: i === 0 ? 'ex. Choix de spécialisation, set de rang 1' : '', 'aria-label': `Gains au niveau ${i + 1}` });
+    t.addEventListener('input', () => { r.text = t.value; changed(); });
+    box.append(el('span', { class:'lv', text: String(i + 1) }), d, t);
+  });
+  rights();
+}
+
+// Améliorations de spécialisation : niveau + texte
+function renderImprovements(){
+  const box = $id('s-imp'); box.replaceChildren();
+  if(!cur.improvements.length) box.append(el('span', { class:'hint', text:'Aucune amélioration.' }));
+  cur.improvements.forEach((m, i) => {
+    const lv = el('select', { 'aria-label': 'Niveau' }, ...Array.from({ length: JDR_MAX_LEVEL }, (_, k) => new Option('Niveau ' + (k + 1), String(k + 1)))); lv.value = String(m.level);
+    lv.addEventListener('change', () => { m.level = Number(lv.value); changed(); });
+    const t = el('textarea', { rows: 3, maxlength: 2000, placeholder: 'Ce que gagne la spécialisation à ce niveau.', 'aria-label': 'Amélioration' }); t.value = m.text;
+    t.addEventListener('input', () => { m.text = t.value; changed(); });
+    box.append(el('div', { class:'mech' }, lv, el('button', { type:'button', class:'ghost', 'aria-label':'Supprimer cette amélioration', text:'✕', onclick: () => { cur.improvements.splice(i, 1); renderImprovements(); changed(); } }), t));
+  });
+  rights();
+}
+$id('s-imp-add').addEventListener('click', () => { const last = cur.improvements[cur.improvements.length - 1]; cur.improvements.push({ level: last ? Math.min(JDR_MAX_LEVEL, last.level + 5) : 5, text: '' }); renderImprovements(); changed(); });
+
 function renderStats(){
-  const box = $id('p-stats'); box.replaceChildren();
+  const box = $id('o-stats'); box.replaceChildren();
   const field = (label, get, set) => { const i = el('input', { type:'number', min:'-5', max:'10', value: get(), 'aria-label': label });
     i.addEventListener('input', () => { set(num(i.value)); changed(); }); return el('label', { class:'f' }, document.createTextNode(label), i); };
   JDR_STATS.forEach(s => box.append(field(s.label, () => cur.stats[s.key], v => cur.stats[s.key] = v)));
   box.append(field('Armure', () => cur.armor, v => cur.armor = v));
 }
 function renderAbilities(){
-  const box = $id('p-abil'); box.replaceChildren();
+  const box = $id('o-abil'); box.replaceChildren();
   if(!cur.abilities.length) box.append(el('span', { class:'hint', text:'Aucune capacité.' }));
   cur.abilities.forEach((a, i) => {
     const inp = (k, attrs) => { const x = el('input', Object.assign({ value: a[k] || '' }, attrs)); x.addEventListener('input', () => { a[k] = x.value; changed(); }); return x; };
@@ -193,17 +304,21 @@ function renderAbilities(){
   });
   rights();
 }
-$id('p-add').addEventListener('click', () => { cur.abilities.push(jdrBlankOriginAbility()); renderAbilities(); changed(); });
+$id('o-add').addEventListener('click', () => { cur.abilities.push(jdrBlankOriginAbility()); renderAbilities(); changed(); });
 
 function renderForm(){
   const ready = JDR_ORIGIN_KINDS[kind].ready;
   $id('soon').hidden = ready; $id('fields').hidden = !ready;
   document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
   $id('o-name').value = cur.name; $id('o-id').value = cur.id; $id('o-desc').value = cur.description || ''; renderImage();
-  if(cur.kind === 'peuple'){ $id('p-fam').value = cur.family; $id('p-size').value = cur.size; renderStats(); renderAbilities(); }
+  if(cur.kind === 'peuple'){ $id('p-fam').value = cur.family; $id('p-size').value = cur.size; }
+  if(cur.kind === 'peuple' || cur.kind === 'classe'){ renderStats(); $id('o-stats-h').textContent = cur.kind === 'peuple' ? '— bonus ou malus apportés par le peuple' : '— valeurs apportées par la classe'; }
+  if(cur.kind === 'peuple' || cur.kind === 'specialisation'){ renderAbilities(); $id('o-abil-h').textContent = cur.kind === 'peuple' ? 'Capacités du peuple' : 'Passif de base'; $id('o-add').textContent = cur.kind === 'peuple' ? 'Ajouter une capacité' : 'Ajouter un passif'; }
+  if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; renderMechanics(); renderProgression(); }
+  if(cur.kind === 'specialisation'){ fillClassSelect(); $id('s-classe').value = cur.classe; $id('s-magic').checked = cur.magic; renderSpecHint(); renderImprovements(); }
   preview(); renderList(); rights();
 }
-function preview(){ $id('preview').innerHTML = JDR_ORIGIN_KINDS[kind].ready ? jdrOriginHTML(cur) : ''; }
+function preview(){ $id('preview').innerHTML = JDR_ORIGIN_KINDS[kind].ready ? jdrOriginHTML(cur, { byId: byId() }) : ''; }
 function changed(){ dirty = true; preview(); }
 function rights(){
   $id('ro').hidden = JDR_IS_EDITOR;
