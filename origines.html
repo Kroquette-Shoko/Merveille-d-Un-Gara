@@ -46,7 +46,7 @@
 <body>
 <div class="wrap">
   <div class="row" style="justify-content:space-between;align-items:baseline">
-    <div><h1>Origines</h1><p class="sub">Peuples, classes et spécialisations. Les passés arrivent à l'étape suivante.</p></div>
+    <div><h1>Origines</h1><p class="sub">Peuples, classes, spécialisations et passés.</p></div>
     <span class="status" id="status" role="status"></span>
   </div>
   <p class="status bad" id="ro" hidden>Lecture seule : seul le compte éditeur peut modifier les origines.</p>
@@ -110,7 +110,7 @@
         </section>
 
         <!-- Caractéristiques : peuple et classe -->
-        <section class="part" data-kind="peuple classe">
+        <section class="part" data-kind="peuple classe passe">
           <h2>Caractéristiques <span class="hint" style="font-family:var(--f-body);font-weight:400" id="o-stats-h"></span></h2>
           <div class="stats" id="o-stats"></div>
         </section>
@@ -131,6 +131,18 @@
         <section class="part" data-kind="classe">
           <h2>Évolution du personnage <span class="hint" style="font-family:var(--f-body);font-weight:400">— taille du deck et gains à chaque niveau</span></h2>
           <div class="prog" id="c-prog"></div>
+        </section>
+
+        <!-- Passé : carte de passé + événements -->
+        <section class="part" data-kind="passe">
+          <h2>Carte de passé</h2>
+          <label class="f">Carte (jouable seulement avec ce passé)<select id="ps-card"></select></label>
+          <p class="hint" style="margin:0">Pense aussi à cocher ce passé dans « Réservée à » sur la carte, dans l'éditeur de cartes.</p>
+        </section>
+        <section class="part" data-kind="passe">
+          <h2>Événements possibles <span class="hint" style="font-family:var(--f-body);font-weight:400">— pistes pour l'histoire du personnage</span></h2>
+          <div id="ps-ev" style="display:flex;flex-direction:column;gap:6px"></div>
+          <button type="button" id="ps-ev-add" style="align-self:start">Ajouter un événement</button>
         </section>
 
         <!-- Spécialisation : améliorations -->
@@ -261,6 +273,28 @@ function renderProgression(){
   rights();
 }
 
+// Passé : carte de passé (liste des cartes) et événements
+let cardsById = {};
+function fillCardSelect(){
+  const list = Object.values(cardsById).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  $id('ps-card').replaceChildren(new Option(list.length ? '— aucune —' : 'Aucune carte disponible', ''), ...list.map(c => new Option(`${c.name} (${c.type})`, c.id)));
+}
+$id('ps-card').addEventListener('change', e => { cur.card = e.target.value; changed(); });
+function renderEvents(){
+  const box = $id('ps-ev'); box.replaceChildren();
+  if(!cur.events.length) box.append(el('span', { class:'hint', text:'Aucun événement.' }));
+  cur.events.forEach((t, i) => {
+    const x = el('input', { value: t, maxlength: 300, placeholder: i === 0 ? 'ex. Une œuvre vous obsède : vous ne pouvez ni la finir, ni l’oublier.' : '', 'aria-label': 'Événement ' + (i + 1) });
+    x.addEventListener('input', () => { cur.events[i] = x.value; changed(); });
+    box.append(el('div', { style:'display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;gap:6px;align-items:center' },
+      el('b', { text: String(i + 1) }), x,
+      el('button', { type:'button', class:'ghost', 'aria-label':'Supprimer cet événement', text:'✕', onclick: () => { cur.events.splice(i, 1); renderEvents(); changed(); } })));
+  });
+  rights();
+}
+$id('ps-ev-add').addEventListener('click', () => { cur.events.push(''); renderEvents(); changed(); focusLast('ps-ev'); });
+function focusLast(id){ const i = $id(id).querySelectorAll('input'); if(i.length) i[i.length - 1].focus(); }
+
 // Améliorations de spécialisation : niveau + texte
 function renderImprovements(){
   const box = $id('s-imp'); box.replaceChildren();
@@ -312,13 +346,14 @@ function renderForm(){
   document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
   $id('o-name').value = cur.name; $id('o-id').value = cur.id; $id('o-desc').value = cur.description || ''; renderImage();
   if(cur.kind === 'peuple'){ $id('p-fam').value = cur.family; $id('p-size').value = cur.size; }
-  if(cur.kind === 'peuple' || cur.kind === 'classe'){ renderStats(); $id('o-stats-h').textContent = cur.kind === 'peuple' ? '— bonus ou malus apportés par le peuple' : '— valeurs apportées par la classe'; }
+  if(cur.kind === 'peuple' || cur.kind === 'classe' || cur.kind === 'passe'){ renderStats(); $id('o-stats-h').textContent = cur.kind === 'peuple' ? '— bonus ou malus apportés par le peuple' : cur.kind === 'classe' ? '— valeurs apportées par la classe' : '— valeurs apportées par le passé'; }
+  if(cur.kind === 'passe'){ fillCardSelect(); $id('ps-card').value = cardsById[cur.card] ? cur.card : ''; renderEvents(); }
   if(cur.kind === 'peuple' || cur.kind === 'specialisation'){ renderAbilities(); $id('o-abil-h').textContent = cur.kind === 'peuple' ? 'Capacités du peuple' : 'Passif de base'; $id('o-add').textContent = cur.kind === 'peuple' ? 'Ajouter une capacité' : 'Ajouter un passif'; }
   if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; renderMechanics(); renderProgression(); }
   if(cur.kind === 'specialisation'){ fillClassSelect(); $id('s-classe').value = cur.classe; $id('s-magic').checked = cur.magic; renderSpecHint(); renderImprovements(); }
   preview(); renderList(); rights();
 }
-function preview(){ $id('preview').innerHTML = JDR_ORIGIN_KINDS[kind].ready ? jdrOriginHTML(cur, { byId: byId() }) : ''; }
+function preview(){ $id('preview').innerHTML = JDR_ORIGIN_KINDS[kind].ready ? jdrOriginHTML(cur, { byId: byId(), cards: cardsById }) : ''; }
 function changed(){ dirty = true; preview(); }
 function rights(){
   $id('ro').hidden = JDR_IS_EDITOR;
@@ -374,7 +409,10 @@ $id('del').addEventListener('click', async () => {
 window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
 
 async function reload(){
-  try{ all = (await jdrLoadOrigins()).list; } catch(err){ status(jdrErrorText(err), true); }
+  try{
+    const [o, c] = await Promise.all([jdrLoadOrigins(), jdrLoadCards().catch(err => { console.warn('[jdr] cartes non chargées :', err); return { byId: {} }; })]);
+    all = o.list; cardsById = c.byId;
+  } catch(err){ status(jdrErrorText(err), true); }
   renderTabs(); renderList();
 }
 (async () => {
