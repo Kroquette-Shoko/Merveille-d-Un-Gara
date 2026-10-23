@@ -112,9 +112,9 @@
           <h2>Magie</h2>
           <label class="chk" style="background:var(--panel);border-radius:10px;padding:10px 12px;font-weight:700"><input type="checkbox" id="s-magic"> Peut utiliser la magie (cartes Sortilège)</label>
           <p class="hint" style="margin:0">Cochée : le personnage peut mettre des cartes Sortilège dans son deck. Décochée : les Sortilège sont refusés, sauf ceux réservés à une classe ou à une spécialisation précise (« Classes » ou « Réservée à » sur la carte).</p>
-          <h2>Voie</h2>
-          <label class="f">Carte de voie de la spécialisation<select id="s-voie"></select></label>
-          <p class="hint" style="margin:0">Cartes de type <b>Passif</b>, sous-type <b>Voie</b>. Celles réservées à cette spécialisation (« Réservée à » dans l'éditeur de cartes) sont proposées en premier.</p>
+          <h2>Voies</h2>
+          <div id="s-voies" style="display:flex;flex-direction:column;gap:6px"></div>
+          <p class="hint" style="margin:0">Coche une ou plusieurs voies : cartes de type <b>Passif</b>, sous-type <b>Voie</b>. Celles réservées à cette spécialisation (« Réservée à » dans l'éditeur de cartes) sont proposées en premier.</p>
         </section>
 
         <!-- Caractéristiques : peuple et classe -->
@@ -247,7 +247,7 @@ $id('c-hex').addEventListener('input', e => {
   if(/^#[0-9a-f]{6}$/.test(v)){ cur.color = v; $id('c-color').value = v; $id('c-hex-err').textContent = ''; changed(); }
   else $id('c-hex-err').textContent = 'Code attendu : # suivi de 6 caractères (0-9, a-f), ex. #d4af37';
 });
-$id('s-voie').addEventListener('change', e => { cur.voie = e.target.value; changed(); });
+
 $id('s-magic').addEventListener('change', e => { cur.magic = e.target.checked; changed(); });
 // Spécialisation : sa classe (celle qui la coche) et sa carte de voie
 function renderSpecHint(){
@@ -256,15 +256,32 @@ function renderSpecHint(){
     : `Classe : ${c.name}. ` + (c.magic === 'aucune' ? `Cette classe n'a pas accès à la magie : laisse la case décochée.`
       : c.magic === 'toutes' ? `Toutes les spécialisations de ${c.name} lancent des sorts.` : `Seulement certaines spécialisations de ${c.name} lancent des sorts.`);
 }
+// Voies : une ou plusieurs cartes Passif / Voie, à cocher
 function fillVoieSelect(){
   const voies = Object.values(cardsById).filter(c => c.type === 'Passif' && c.subtype === 'Voie').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   const mine = voies.filter(c => (c.restrict || []).some(r => jdrNorm(r) === jdrNorm(cur.name)));
   const others = voies.filter(c => !mine.includes(c));
-  const sel = $id('s-voie');
-  sel.replaceChildren(new Option(voies.length ? '— aucune —' : 'Aucune carte Voie (Passif → Voie) pour l’instant', ''));
-  if(mine.length) sel.append(el('optgroup', { label: 'Réservées à ' + (cur.name || 'cette spécialisation') }, ...mine.map(c => new Option(c.name, c.id))));
-  if(others.length) sel.append(el('optgroup', { label: mine.length ? 'Autres voies' : 'Voies' }, ...others.map(c => new Option(c.name, c.id))));
-  sel.value = cardsById[cur.voie] ? cur.voie : '';
+  const box = $id('s-voies'); box.replaceChildren();
+  if(!voies.length){ box.append(el('span', { class:'hint', text:'Aucune carte Voie (Passif → Voie) pour l’instant.' })); return; }
+  const group = (label, list) => {
+    if(!list.length) return;
+    const chips = el('div', { class:'chips' });
+    list.forEach(c => {
+      const on = cur.voies.includes(c.id);
+      const i = el('input', { type:'checkbox' }); i.checked = on;
+      const lab = el('label', { class:'chip' + (on ? ' on' : '') }, i, document.createTextNode(c.name));
+      i.addEventListener('change', () => { if(i.checked){ if(!cur.voies.includes(c.id)) cur.voies.push(c.id); } else cur.voies = cur.voies.filter(x => x !== c.id); lab.classList.toggle('on', i.checked); changed(); });
+      chips.append(lab);
+    });
+    box.append(el('p', { class:'hint', style:'margin:0', text: label }), chips);
+  };
+  group('Réservées à ' + (cur.name || 'cette spécialisation'), mine);
+  group(mine.length ? 'Autres voies' : 'Voies', others);
+  // Voies cochées dont la carte n'existe plus
+  const gone = cur.voies.filter(id => !cardsById[id]);
+  if(gone.length) box.append(el('div', { class:'row' }, el('span', { class:'hint', style:'color:var(--hurt)', text: 'Carte de voie introuvable (supprimée ?) : ' + gone.join(', ') }),
+    el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { cur.voies = cur.voies.filter(id => cardsById[id]); fillVoieSelect(); changed(); } })));
+  rights();
 }
 const byId = () => { const m = Object.fromEntries(all.map(o => [o.id, o])); if(cur && cur.id) m[cur.id] = cur; return m; };
 

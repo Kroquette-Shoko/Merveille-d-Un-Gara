@@ -28,7 +28,8 @@
    Spécialisation (étape 4) :
      classe       ancien champ : la classe se choisit maintenant depuis la classe (specs) ;
                   utilisé seulement si aucune classe ne liste cette spécialisation
-     voie         identifiant de la carte « Voie » de la spécialisation (carte Passif, sous-type Voie), '' = aucune
+     voies        [identifiants] : cartes « Voie » de la spécialisation (cartes Passif, sous-type Voie), plusieurs possibles
+                  (ancien champ « voie » = une seule carte, converti automatiquement)
      magic        vrai si cette spécialisation peut lancer des sorts
      abilities    passif de base (même format que les capacités de peuple)
      improvements [{ level, text }] : améliorations de spécialisation (ex. niveaux 5, 10, 15)
@@ -62,7 +63,7 @@ function jdrBlankOrigin(kind){
   const base = { id: '', name: '', kind, description: '', image_url: '', image: { fit: 'cover', x: 50, y: 50 } };
   if(kind === 'peuple') return Object.assign(base, { family: '', size: 'M', stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [jdrBlankOriginAbility()] });
   if(kind === 'classe') return Object.assign(base, { color: '#8A5A2B', stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [], magic: 'aucune', specs: [], mechanics: [], progression: jdrBlankProgression() });
-  if(kind === 'specialisation') return Object.assign(base, { classe: '', voie: '', magic: false, abilities: [jdrBlankOriginAbility()], improvements: [] });
+  if(kind === 'specialisation') return Object.assign(base, { classe: '', voies: [], magic: false, abilities: [jdrBlankOriginAbility()], improvements: [] });
   if(kind === 'passe') return Object.assign(base, { stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [], events: ['', '', '', '', '', ''], card: '' });
   return base;
 }
@@ -95,7 +96,7 @@ function jdrNormalizeOrigin(row){
   }
   if(o.kind === 'passe'){ o.events = arr(o.events).map(e => String(e || '')); o.card = String(o.card || ''); }
   if(o.kind === 'specialisation'){
-    o.classe = String(o.classe || ''); o.voie = String(o.voie || ''); o.magic = !!o.magic;
+    o.classe = String(o.classe || ''); o.voies = [...new Set([...arr(o.voies), ...(o.voie ? [o.voie] : [])].map(String).filter(Boolean))]; delete o.voie; o.magic = !!o.magic;
     o.improvements = arr(o.improvements).map(m => ({ level: Math.max(1, Math.min(JDR_MAX_LEVEL, num(m && m.level) || 1)), text: String((m && m.text) || '') }))
       .sort((a, b) => a.level - b.level);
   }
@@ -117,7 +118,7 @@ function jdrOriginSummary(o, byId){
   if(o.kind === 'peuple') return [o.family, 'Taille ' + (JDR_CHAR_SIZES[o.size] || '').toLowerCase()].filter(Boolean).join(' · ');
   if(o.kind === 'classe') return o.magic === 'aucune' ? 'Sans magie' : o.magic === 'toutes' ? 'Magie : toutes les spécialisations' : 'Magie : certaines spécialisations';
   if(o.kind === 'passe'){ const n = o.events.filter(Boolean).length; return `${n} événement${n > 1 ? 's' : ''}${o.card ? ' · carte de passé' : ''}`; }
-  if(o.kind === 'specialisation'){ const c = jdrSpecClass(o, byId); return [c ? c.name : 'Sans classe', o.magic ? 'lance des sorts' : '', o.voie ? 'voie choisie' : ''].filter(Boolean).join(' · '); }
+  if(o.kind === 'specialisation'){ const c = jdrSpecClass(o, byId); return [c ? c.name : 'Sans classe', o.magic ? 'lance des sorts' : '', o.voies.length ? `${o.voies.length} voie${o.voies.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '); }
   return '';
 }
 
@@ -148,11 +149,13 @@ function jdrOriginHTML(o, opts = {}){
       <table class="oprog"><thead><tr><th>Niv.</th><th>Deck</th><th>Gain</th></tr></thead><tbody>${rows}</tbody></table>`;
   } else if(o.kind === 'specialisation'){
     const c = jdrSpecClass(o, opts.byId);
-    const voie = o.voie ? ((opts.cards && opts.cards[o.voie]) || { name: o.voie }) : null;
+    const voies = o.voies.map(id => (opts.cards && opts.cards[id]) || { id, name: id, missing: true });
     const imp = o.improvements.filter(m => m.text).map(m => `<div class="oa"><div class="oah"><b>Niveau ${esc(m.level)}</b></div><p>${esc(m.text)}</p></div>`).join('');
     body = `<div class="im">${c ? 'Classe : ' + esc(c.name) : 'Classe non choisie'} · ${o.magic ? 'peut utiliser la magie (Sortilège)' : 'pas de magie (Sortilège)'}</div>
-      <div class="osec">Voie</div>
-      ${voie ? (typeof jdrCardHTML === 'function' && opts.cards && opts.cards[o.voie] ? `<div class="ovoie">${jdrCardHTML(voie, { width: '210px' })}</div>` : `<div class="oa"><div class="oah"><b>${esc(voie.name)}</b></div></div>`) : '<p class="ie">Aucune voie désignée.</p>'}
+      <div class="osec">${voies.length > 1 ? 'Voies' : 'Voie'}</div>
+      ${voies.length ? `<div class="ovoie">${voies.map(v => !v.missing && typeof jdrCardHTML === 'function'
+          ? jdrCardHTML(v, { width: voies.length > 1 ? '170px' : '210px' })
+          : `<div class="oa"><div class="oah"><b>${esc(v.name)}</b></div></div>`).join('')}</div>` : '<p class="ie">Aucune voie désignée.</p>'}
       <div class="osec">Passif de base</div>${abilHTML(o.abilities, 'Aucun passif renseigné.')}
       ${imp ? `<div class="osec">Améliorations de spécialisation</div>${imp}` : ''}`;
   }

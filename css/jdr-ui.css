@@ -207,4 +207,4 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jorig .oprog td{padding:3px 4px;border-top:1px dashed #D8C6A3;vertical-align:top}
 .jorig .oprog td:nth-child(-n+2){width:2.6rem;font-variant-numeric:tabular-nums}
 .jorig .oev{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:4px;font-size:.92rem;line-height:1.35}
-.jorig .ovoie{display:flex;justify-content:center}
+.jorig .ovoie{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
