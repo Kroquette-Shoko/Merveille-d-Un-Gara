@@ -117,3 +117,26 @@ async function jdrLoadGroups(){
   const list = data.map(r => Object.assign(jdrNormalizeGroup(r.data), { id: r.id, name: r.name }));
   return { list, byId: Object.fromEntries(list.map(g => [g.id, g])) };
 }
+
+
+/* ---------- Duplication / identifiants (éditeurs) ----------
+   Une copie reçoit un nom et un identifiant libres : « Nom (copie) », « Nom (copie 2) »… et nom_copie, nom_copie_2…
+   À l'enregistrement d'un nouvel élément, si l'identifiant est déjà pris, on prend le suivant libre (_2, _3…)
+   au lieu de bloquer : avant, l'enregistrement était refusé avec un message en haut de page qu'on ne voyait pas. */
+function jdrUniqueId(base, taken){
+  const set = new Set(taken); base = String(base || 'element').slice(0, 64);
+  if(!set.has(base)) return base;
+  for(let n = 2; ; n++){ const suf = '_' + n; const id = base.slice(0, 64 - suf.length) + suf; if(!set.has(id)) return id; }
+}
+function jdrCopyName(name, names){
+  const set = new Set((names || []).map(jdrNorm));
+  const root = String(name || '').replace(/\s*\(copie(?: \d+)?\)\s*$/, '');
+  let n = 1, nm = root + ' (copie)';
+  while(set.has(jdrNorm(nm))){ n++; nm = `${root} (copie ${n})`; }
+  return nm;
+}
+// Affiche aussi le message à côté du bouton Enregistrer (barre collante) : #status-bar
+function jdrStatusBar(t, bad){
+  const s = document.getElementById('status-bar'); if(!s) return;
+  s.textContent = t || ''; s.className = 'status' + (bad ? ' bad' : t ? ' good' : '');
+}

@@ -169,6 +169,7 @@
           <button class="primary" id="save" type="button">Enregistrer</button>
           <button id="dup" type="button">Dupliquer</button>
           <button class="danger" id="del" type="button">Supprimer</button>
+          <span class="status" id="status-bar" role="status" style="align-self:center;margin-left:4px"></span>
         </div>
       </div>
     </main>
@@ -185,7 +186,7 @@
 <script src="js/jdr-origins.js"></script>
 <script>
 let all = [], kind = 'peuple', cur = jdrBlankOrigin('peuple'), savedId = null, dirty = false;
-function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); jdrStatusBar(t, bad); }
 function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
 const num = v => v === '' || v === '-' ? 0 : Number(v) || 0;
 $id('p-size').replaceChildren(...Object.entries(JDR_CHAR_SIZES).map(([k, v]) => new Option(`${v} (${k})`, k)));
@@ -432,18 +433,21 @@ $id('save').addEventListener('click', async () => {
   cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
   if(!cur.name){ status('Donne un nom.', true); return; }
   if(!/^[a-z0-9_-]{2,64}$/.test(cur.id)){ status("L'identifiant doit faire 2 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
-  if(!savedId && all.some(o => o.id === cur.id)){ status('Une origine porte déjà cet identifiant : change-le.', true); return; }
+  let note = '';
+  if(!savedId && all.some(o => o.id === cur.id)){ const old = cur.id; cur.id = jdrUniqueId(cur.id, all.map(o => o.id)); note = ` (identifiant « ${old} » déjà pris : enregistré sous « ${cur.id} »)`; }
   const data = jdrOriginData(jdrNormalizeOrigin({ id: cur.id, name: cur.name, data: jdrOriginData(cur) }));
   status('Enregistrement…');
   const q = savedId ? jdrSb.from('origins').update({ name: cur.name, data }).eq('id', savedId)
                     : jdrSb.from('origins').insert({ id: cur.id, name: cur.name, data });
   const { error } = await q;
   if(error){ status(jdrErrorText(error), true); return; }
-  savedId = cur.id; dirty = false; await reload(); open(savedId); status('Enregistré');
+  savedId = cur.id; dirty = false; await reload(); open(savedId); status('Enregistré' + note);
 });
 $id('dup').addEventListener('click', () => {
   if(!savedId) return;
-  cur = structuredClone(cur); cur.name += ' (copie)'; cur.id = jdrSlug(cur.name); savedId = null; dirty = true; renderForm(); status('Copie créée : pense à enregistrer');
+  cur = structuredClone(cur); delete cur.updated_at;
+  cur.name = jdrCopyName(cur.name, all.map(x => x.name)); cur.id = jdrUniqueId(jdrSlug(cur.name), all.map(x => x.id));
+  savedId = null; dirty = true; renderForm(); status('Copie créée : clique sur Enregistrer pour la garder');
 });
 let delArmed = false;
 $id('del').addEventListener('click', async () => {

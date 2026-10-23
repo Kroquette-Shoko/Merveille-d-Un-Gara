@@ -173,6 +173,7 @@
           <button class="primary" id="save" type="button">Enregistrer</button>
           <button id="dup" type="button">Dupliquer</button>
           <button class="danger" id="del" type="button">Supprimer</button>
+          <span class="status" id="status-bar" role="status" style="align-self:center;margin-left:4px"></span>
         </div>
       </div>
     </main>
@@ -188,7 +189,7 @@
 <script src="js/jdr-items.js"></script>
 <script>
 let items = [], kind = 'arme', cur = jdrBlankItem('arme'), savedId = null, dirty = false;
-function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); jdrStatusBar(t, bad); }
 function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
 const fill = (id, list, labels) => $id(id).replaceChildren(...list.map((v, i) => new Option(labels ? labels[i] : v, v)));
 const num = v => v === '' ? 0 : Number(v) || 0;
@@ -360,18 +361,21 @@ $id('save').addEventListener('click', async () => {
   cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
   if(!cur.name){ status("Donne un nom à l'objet.", true); return; }
   if(!/^[a-z0-9_-]{2,64}$/.test(cur.id)){ status("L'identifiant doit faire 2 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
-  if(!savedId && items.some(i => i.id === cur.id)){ status('Un objet porte déjà cet identifiant : change-le.', true); return; }
+  let note = '';
+  if(!savedId && items.some(i => i.id === cur.id)){ const old = cur.id; cur.id = jdrUniqueId(cur.id, items.map(i => i.id)); note = ` (identifiant « ${old} » déjà pris : enregistré sous « ${cur.id} »)`; }
   const data = jdrItemData(jdrNormalizeItem({ id: cur.id, name: cur.name, data: jdrItemData(cur) }));
   status('Enregistrement…');
   const q = savedId ? jdrSb.from('items').update({ name: cur.name, data }).eq('id', savedId)
                     : jdrSb.from('items').insert({ id: cur.id, name: cur.name, data });
   const { error } = await q;
   if(error){ status(jdrErrorText(error), true); return; }
-  savedId = cur.id; dirty = false; await reload(); open(savedId); status('Enregistré');
+  savedId = cur.id; dirty = false; await reload(); open(savedId); status('Enregistré' + note);
 });
 $id('dup').addEventListener('click', () => {
   if(!savedId) return;
-  cur = structuredClone(cur); cur.name += ' (copie)'; cur.id = jdrSlug(cur.name); savedId = null; dirty = true; renderForm(); status('Copie créée : pense à enregistrer');
+  cur = structuredClone(cur); delete cur.updated_at;
+  cur.name = jdrCopyName(cur.name, items.map(x => x.name)); cur.id = jdrUniqueId(jdrSlug(cur.name), items.map(x => x.id));
+  savedId = null; dirty = true; renderForm(); status('Copie créée : clique sur Enregistrer pour la garder');
 });
 let delArmed = false;
 $id('del').addEventListener('click', async () => {

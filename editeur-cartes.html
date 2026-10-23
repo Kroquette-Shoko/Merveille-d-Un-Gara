@@ -244,6 +244,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
         <button class="primary" id="save" type="button">Enregistrer</button>
         <button id="dup" type="button">Dupliquer</button>
         <button class="danger" id="del" type="button">Supprimer</button>
+        <span class="status" id="status-bar" role="status" style="align-self:center;margin-left:4px"></span>
       </div>
     </main>
 
@@ -270,7 +271,7 @@ let cur = jdrBlankCard();
 let savedId = null;
 let dirty = false;
 
-function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); jdrStatusBar(t, bad); }
 function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
 function changed(){ dirty = true; renderPreview(); }
 const num = v => v === '' ? null : Number(v);
@@ -736,7 +737,8 @@ async function save(){
   cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
   if(!cur.name){ status('Donne un nom à la carte.', true); return; }
   if(!/^[a-z0-9_-]{3,64}$/.test(cur.id)){ status("L'identifiant doit faire 3 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
-  if(!savedId && cards.some(c => c.id === cur.id)){ status('Une carte porte déjà cet identifiant : change-le.', true); return; }
+  let note = '';
+  if(!savedId && cards.some(c => c.id === cur.id)){ const old = cur.id; cur.id = jdrUniqueId(cur.id, cards.map(c => c.id)); note = ` (identifiant « ${old} » déjà pris : enregistrée sous « ${cur.id} »)`; }
   const data = jdrNormalizeCard(structuredClone(cur)); delete data.updated_at;
   status('Enregistrement…');
   const q = savedId ? jdrSb.from('cards').update({ name: cur.name, data }).eq('id', savedId)
@@ -744,11 +746,13 @@ async function save(){
   const { error } = await q;
   if(error){ status(jdrErrorText(error), true); return; }
   savedId = cur.id; dirty = false;
-  await reload(); renderForm(); status('Carte enregistrée');
+  await reload(); renderForm(); status('Carte enregistrée' + note);
 }
 $id('save').addEventListener('click', save);
 $id('dup').addEventListener('click', () => {
-  cur = structuredClone(cur); cur.name = cur.name + ' (copie)'; cur.id = jdrSlug(cur.name); savedId = null; dirty = true; renderForm(); renderList(); status('Copie créée : pense à enregistrer');
+  cur = structuredClone(cur); delete cur.updated_at;
+  cur.name = jdrCopyName(cur.name, cards.map(c => c.name)); cur.id = jdrUniqueId(jdrSlug(cur.name), cards.map(c => c.id));
+  savedId = null; dirty = true; renderForm(); renderList(); status('Copie créée : clique sur Enregistrer pour la garder');
 });
 let delArmed = false;
 $id('del').addEventListener('click', async () => {
