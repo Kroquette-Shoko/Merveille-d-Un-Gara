@@ -83,7 +83,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
         <select id="lf-rank" aria-label="Filtrer par rang"></select>
         <select id="lf-classe" aria-label="Filtrer par classe"></select>
         <select id="lf-st" aria-label="Filtrer par super-type"></select>
-        <select id="lf-sort" aria-label="Ranger par"><option value="sub">Ranger par sous-type</option><option value="rank">Ranger par rang</option><option value="type">Ranger par type</option><option value="classe">Ranger par classe</option><option value="name">Ranger par nom</option></select>
+        <select id="lf-sort" aria-label="Ranger par"><option value="type">Ranger par type</option><option value="sub">Ranger par sous-type</option><option value="rank">Ranger par rang</option><option value="classe">Ranger par classe</option><option value="name">Ranger par nom</option></select>
         <button type="button" class="ghost" id="lf-reset">Tout afficher</button>
       </div>
       <p class="hint" id="lf-count" style="margin:4px 0"></p>
@@ -277,9 +277,9 @@ function changed(){ dirty = true; renderPreview(); }
 const num = v => v === '' ? null : Number(v);
 
 /* ================= Liste (filtres + rangement) ================= */
-// v2 (24/10/2026) : rangement par sous-type par défaut (l'ancien réglage « par rang » enregistré n'est pas repris)
-const LF_KEY = 'jdr-editeur-filtres-v2';
-const LF = { type:'', sub:'', rank:'', classe:'', st:'', sort:'sub' };
+// v3 (24/10/2026) : rangement par TYPE par défaut (les anciens réglages enregistrés ne sont pas repris)
+const LF_KEY = 'jdr-editeur-filtres-v3';
+const LF = { type:'', sub:'', rank:'', classe:'', st:'', sort:'type' };
 try{ Object.assign(LF, JSON.parse(localStorage.getItem(LF_KEY) || '{}')); }catch(e){}
 function fillListFilters(){
   const opts = (id, all, list, labels) => { const s = $id(id); const v = LF[id.slice(3)] ?? ''; s.replaceChildren(new Option(all, ''), ...list.map((x, i) => new Option(labels ? labels[i] : x, String(x)))); s.value = v; };
@@ -310,14 +310,16 @@ function renderList(){
     : LF.sort === 'type' ? c.type : LF.sort === 'classe' ? (c.classes.length === 1 ? c.classes[0] : c.classes.length ? 'Plusieurs classes' : 'Sans classe') : '';
   // sous-types dans l'ordre de la liste officielle (Offensif, Défensif, Utilitaire…), « Sans sous-type » à la fin
   const subIdx = c => { const i = JDR_SUBTYPES.indexOf(c.subtype); return i < 0 ? 999 : i; };
-  const gkey = c => LF.sort === 'rank' ? (c.rank || 99) : LF.sort === 'sub' ? subIdx(c) : groupOf(c);
+  // types dans l'ordre de la liste officielle (Manœuvre, Capacité, Sortilège…)
+  const typeIdx = c => { const i = JDR_CARD_TYPES.indexOf(c.type); return i < 0 ? 999 : i; };
+  const gkey = c => LF.sort === 'rank' ? (c.rank || 99) : LF.sort === 'sub' ? subIdx(c) : LF.sort === 'type' ? typeIdx(c) : groupOf(c);
   list.sort((a, b) => { const ga = gkey(a), gb = gkey(b); return (ga < gb ? -1 : ga > gb ? 1 : 0) || a.name.localeCompare(b.name, 'fr'); });
   let g = null;
   list.forEach(c => {
     const gg = groupOf(c);
     if(gg && gg !== g){ g = gg; ul.append(el('li', { class:'grp', text: `${gg} (${list.filter(x => groupOf(x) === gg).length})` })); }
     ul.append(el('li', {}, el('button', { type:'button', class: c.id === savedId ? 'on' : '', onclick: () => openCard(c.id) },
-      el('span', { text: c.name }), el('span', { class:'ty', text: [c.type, LF.sort !== 'rank' && c.rank ? 'R' + c.rank : ''].filter(Boolean).join(' · ') }))));
+      el('span', { text: c.name }), el('span', { class:'ty', text: [LF.sort === 'type' ? c.subtype : c.type, LF.sort !== 'rank' && c.rank ? 'R' + c.rank : ''].filter(Boolean).join(' · ') }))));
   });
   $id('lf-count').textContent = cards.length ? `${list.length} carte${list.length > 1 ? 's' : ''} sur ${cards.length}` : '';
   if(!list.length) ul.append(el('li', { class:'empty', text: cards.length ? 'Aucune carte ne correspond aux filtres' : 'Aucune carte pour l’instant' }));
