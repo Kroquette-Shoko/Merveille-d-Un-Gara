@@ -168,6 +168,13 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
       <!-- 3. CAPACITÉS -->
       <section class="part" data-classic>
         <h2><span class="num">3</span>Capacités</h2>
+        <p class="sub-h">Mots-clés <a href="mots-cles.html" target="_blank" rel="noopener" style="font-weight:400;font-size:.85rem">· voir / gérer la liste</a></p>
+        <div class="chips" id="f-keywords"></div>
+        <div class="row">
+          <select id="kw-pick" aria-label="Mot-clé à ajouter" style="width:auto;min-width:220px"></select>
+          <button type="button" id="kw-add">Ajouter le mot-clé</button>
+        </div>
+        <p class="hint" id="kw-st"></p>
         <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>.</p>
         <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
         <button type="button" id="ab-add" style="align-self:start">Ajouter une capacité</button>
@@ -272,7 +279,7 @@ function chipGroup(box, options, selected, onToggle){
 function toggleIn(list, v, on){ const i = list.indexOf(v); if(on && i < 0) list.push(v); if(!on && i >= 0) list.splice(i, 1); }
 
 function renderSupertypes(){
-  chipGroup($id('f-supertypes'), JDR_SUPERTYPES, cur.supertypes, (v, on) => toggleIn(cur.supertypes, v, on));
+  chipGroup($id('f-supertypes'), JDR_SUPERTYPES, cur.supertypes, (v, on) => { toggleIn(cur.supertypes, v, on); renderKeywords(); });
 }
 function renderRestrict(){
   const box = $id('f-restrict'); box.replaceChildren();
@@ -475,6 +482,42 @@ function renderCreature(){
 }
 $id('cr-abil-add').addEventListener('click', () => { cur.creature.abilities.push({ name: '', text: '' }); renderCreature(); changed(); });
 
+/* ================= Mots-clés ================= */
+// Liste dans JDR_KW (chargée avec les cartes). Les mots-clés « Super-type » ne s'ajoutent pas à la main :
+// ils viennent des super-types cochés dans l'Identité.
+function fillKeywordPicker(){
+  const list = Object.values(JDR_KW).filter(k => k.category !== 'Super-type').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const sel = $id('kw-pick');
+  sel.replaceChildren(el('option', { value: '', text: list.length ? '— choisir un mot-clé —' : 'Liste des mots-clés indisponible' }),
+    ...JDR_KEYWORD_CATEGORIES.filter(c => c !== 'Super-type').map(cat => el('optgroup', { label: cat },
+      ...list.filter(k => k.category === cat).map(k => el('option', { value: k.id, text: k.name, title: k.text })))));
+}
+function renderKeywords(){
+  const box = $id('f-keywords'); box.replaceChildren();
+  if(!cur.keywords.length) box.append(el('span', { class: 'hint', text: 'Aucun mot-clé.' }));
+  cur.keywords.forEach((k, i) => {
+    const def = JDR_KW[k.id] || { name: k.name || k.id, text: '', hasValue: false };
+    const kids = [el('b', { text: def.name.replace(/\s*\(?\+?X\)?\s*$/, '') || def.name })];
+    if(def.hasValue){
+      const v = el('input', { value: k.value || '', placeholder: 'X', 'aria-label': 'Valeur de ' + def.name, style: 'width:4.5em;padding:0 2px' });
+      v.addEventListener('input', () => { k.value = v.value; changed(); });
+      kids.push(v);
+    }
+    kids.push(el('button', { type: 'button', class: 'ghost', 'aria-label': 'Retirer ' + def.name, text: '✕', style: 'padding:0 4px',
+      onclick: () => { cur.keywords.splice(i, 1); renderKeywords(); changed(); } }));
+    box.append(el('span', { class: 'chip on', title: def.text }, ...kids));
+  });
+  const st = jdrCardKeywords(cur).filter(k => k.fromSupertype).map(k => k.label);
+  $id('kw-st').textContent = st.length ? 'Définitions ajoutées par les super-types : ' + st.join(', ') + '.' : '';
+  applyRights();
+}
+$id('kw-add').addEventListener('click', () => {
+  const id = $id('kw-pick').value; if(!id) return;
+  if(cur.keywords.some(k => k.id === id)){ status('Ce mot-clé est déjà sur la carte.', true); return; }
+  const def = JDR_KW[id]; cur.keywords.push({ id, name: def ? def.name : id, value: '' });
+  $id('kw-pick').value = ''; renderKeywords(); changed();
+});
+
 /* ================= Options de deck ================= */
 function renderReqs(){
   const box = $id('reqs'); box.replaceChildren();
@@ -504,7 +547,7 @@ function renderForm(){
   $id('f-image').value = cur.image_url;
   $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
   $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';
-  renderReqs(); renderAbilities(); renderSpecial(); renderCreature(); renderPreview(); artLayout(); applyRights();
+  renderReqs(); renderKeywords(); renderAbilities(); renderSpecial(); renderCreature(); renderPreview(); artLayout(); applyRights();
 }
 function renderGen(){
   document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(ajoute un effet)'; });
@@ -557,7 +600,7 @@ window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.pre
 
 async function reload(){
   try{ const [c, g] = await Promise.all([jdrLoadCards(), jdrLoadGroups()]); cards = c.list; groups = g; } catch(err){ status(jdrErrorText(err), true); cards = []; }
-  fillGroupSelect();
+  fillGroupSelect(); fillKeywordPicker();
   renderList();
 }
 

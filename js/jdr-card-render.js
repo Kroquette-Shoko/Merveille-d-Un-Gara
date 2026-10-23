@@ -68,6 +68,8 @@ function jdrCardHTML(card, opts = {}){
   const comps = ['sonore','gestuelle','materielle'].filter(k => c.components[k]);
   const hasMana = c.mana !== null && c.mana !== '' && c.mana !== undefined;
   const { main, special } = jdrCardTextLines(c, opts.sheet);
+  // Mots-clés ajoutés à la carte (ceux des super-types sont déjà dans le bandeau)
+  const kws = (c.keywords || []).map(k => ({ label: jdrKeywordLabel(k), text: (JDR_KW[k.id] || {}).text || '' }));
   const art = jdrArtHTML(c, esc);
   const cls = ['jcard', opts.size === 'small' ? 'small' : '', opts.locked ? 'locked' : ''].filter(Boolean).join(' ');
   const showVal = c.value !== null && c.value !== '' && c.value !== undefined;
@@ -86,7 +88,7 @@ function jdrCardHTML(card, opts = {}){
         <div class="type">${sup ? `<b>${esc(sup)}</b> · ` : ''}${esc(typeLine)}</div>
       </div>
       ${art}
-      <div class="txt">${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>
+      <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>
       ${special.length ? `<div class="spec"><div class="st">Spécial${c.special.name ? ' · ' + esc(c.special.name) : ''}</div>${special.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>

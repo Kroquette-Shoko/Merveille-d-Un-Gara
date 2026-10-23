@@ -9,6 +9,7 @@ const JDR_PAGES = [
   { id: 'bibliotheque', href: 'bibliotheque.html',     label: 'Bibliothèque' },
   { id: 'editeur',      href: 'editeur-cartes.html',   label: 'Éditeur de cartes', editorOnly: true },
   { id: 'groupes',      href: 'editeur-groupes.html',  label: 'Actions de groupe', editorOnly: true },
+  { id: 'motscles',     href: 'mots-cles.html',        label: 'Mots-clés' },
   { id: 'campagnes',    href: 'campagnes.html',        label: 'Campagnes' }
 ];
 
@@ -64,12 +65,24 @@ async function jdrPage(current, opts = {}){
   return me;
 }
 
-// Charge toutes les cartes : renvoie { list, byId }
+// Charge toutes les cartes : renvoie { list, byId } (charge aussi les mots-clés pour leur affichage)
 async function jdrLoadCards(){
-  const { data, error } = await jdrSb.from('cards').select('id,name,data,updated_at').order('name');
+  const [{ data, error }] = await Promise.all([
+    jdrSb.from('cards').select('id,name,data,updated_at').order('name'),
+    jdrLoadKeywords().catch(err => { console.warn('[jdr] mots-clés non chargés :', err); })
+  ]);
   if(error) throw error;
   const list = data.map(r => Object.assign(jdrNormalizeCard(r.data), { id: r.id, name: r.name, updated_at: r.updated_at }));
   return { list, byId: Object.fromEntries(list.map(c => [c.id, c])) };
+}
+
+// Mots-clés (table jdr.keywords) → remplit JDR_KW, utilisé par l'affichage des cartes
+async function jdrLoadKeywords(){
+  const { data, error } = await jdrSb.from('keywords').select('id,name,data').order('name');
+  if(error) throw error;
+  const list = data.map(jdrNormalizeKeyword);
+  JDR_KW = Object.fromEntries(list.map(k => [k.id, k]));
+  return { list, byId: JDR_KW };
 }
 
 // Charge les tableaux d'action de groupe : renvoie { list, byId }

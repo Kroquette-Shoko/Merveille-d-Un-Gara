@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mots-clés Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Layout : liste des mots-clés par catégorie à gauche, fiche du mot-clé à droite.
+   Tout le monde peut lire ; seul le compte éditeur peut modifier. */
+.ed{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:820px){.ed{grid-template-columns:1fr}}
+.list{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:820px){.list{position:static;max-height:none}}
+.cat{margin:10px 0 4px;font-family:var(--f-display);font-weight:700;font-size:1.05rem;display:flex;justify-content:space-between;align-items:baseline}
+.cat span{font-family:var(--f-body);font-weight:400;font-size:.8rem;color:var(--muted)}
+.list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.list li button{width:100%;text-align:left;border:0;background:transparent;padding:5px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:8px}
+.list li button.on{background:var(--panel);font-weight:700}
+.list li .n{color:var(--muted);font-size:.8rem;font-weight:400}
+.def{font-size:1.05rem;line-height:1.5;background:var(--panel);border-radius:10px;padding:12px 14px;margin:0}
+.def.empty{color:var(--muted);font-style:italic}
+.used{font-size:.9rem}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+textarea{min-height:110px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><h1>Mots-clés</h1><p class="sub">Mécaniques, super-types, afflictions et propriétés des cartes, avec leur définition.</p></div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+
+  <div class="ed">
+    <aside class="sheet list">
+      <input id="q" type="search" placeholder="Rechercher un mot-clé…" aria-label="Rechercher un mot-clé">
+      <button class="primary" id="new" type="button" hidden>Nouveau mot-clé</button>
+      <div id="groups"></div>
+    </aside>
+
+    <main class="sheet">
+      <!-- Lecture (tout le monde) -->
+      <div id="view">
+        <p class="hint" id="v-cat"></p>
+        <h2 id="v-name" style="font-size:1.6rem"></h2>
+        <p class="def" id="v-text"></p>
+        <p class="used" id="v-used"></p>
+      </div>
+      <!-- Modification (compte éditeur) -->
+      <form id="form" hidden autocomplete="off">
+        <div class="grid2">
+          <label class="f">Nom<input id="k-name" maxlength="60" placeholder="ex. Explorer X"></label>
+          <label class="f">Identifiant<input id="k-id" maxlength="64" placeholder="rempli depuis le nom"></label>
+        </div>
+        <div class="grid2">
+          <label class="f">Catégorie<select id="k-cat"></select></label>
+          <label class="chk" style="align-self:end"><input type="checkbox" id="k-val"> Prend une valeur sur la carte (mettre « X » dans le nom)</label>
+        </div>
+        <label class="f">Définition<textarea id="k-text" maxlength="600" placeholder="Ce que fait le mot-clé, en une ou deux phrases."></textarea></label>
+        <p class="hint">Catégorie « Super-type » : le nom doit être celui d'un super-type des cartes ; la définition s'affiche alors pour toutes les cartes de ce super-type.</p>
+        <p class="used" id="k-used"></p>
+        <div class="actions">
+          <button class="primary" id="save" type="submit">Enregistrer</button>
+          <button class="danger" id="del" type="button">Supprimer</button>
+        </div>
+      </form>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script>
+let kws = [], cards = [], cur = null, savedId = null;
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+const blank = () => ({ id:'', name:'', category:'Mécanique', text:'', hasValue:false });
+
+// Cartes qui utilisent un mot-clé (ajouté à la carte, ou via son super-type)
+function usedBy(k){
+  if(!k || !k.id) return [];
+  return cards.filter(c => (c.keywords || []).some(x => x.id === k.id) ||
+    (k.category === 'Super-type' && (c.supertypes || []).some(s => jdrNorm(s) === jdrNorm(k.name))));
+}
+function usedText(k){
+  const u = usedBy(k);
+  return u.length ? `Utilisé par ${u.length} carte${u.length > 1 ? 's' : ''} : ` + u.map(c => c.name).join(', ') : 'Utilisé par aucune carte pour l’instant.';
+}
+
+function renderList(){
+  const q = jdrNorm($id('q').value);
+  const show = kws.filter(k => !q || jdrNorm(k.name).includes(q) || jdrNorm(k.text).includes(q));
+  $id('groups').innerHTML = JDR_KEYWORD_CATEGORIES.map(cat => {
+    const l = show.filter(k => k.category === cat);
+    if(!l.length) return '';
+    return `<div class="cat">${jdrEsc(cat)}<span>${l.length}</span></div><ul>${l.map(k =>
+      `<li><button type="button" data-id="${jdrEsc(k.id)}" class="${k.id === savedId ? 'on' : ''}" title="${jdrEsc(k.text)}"><span>${jdrEsc(k.name)}</span><span class="n">${usedBy(k).length || ''}</span></button></li>`).join('')}</ul>`;
+  }).join('') || '<p class="empty">Aucun mot-clé trouvé.</p>';
+}
+$id('q').addEventListener('input', renderList);
+$id('groups').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b) open(b.dataset.id); });
+
+$id('k-cat').replaceChildren(...JDR_KEYWORD_CATEGORIES.map(c => new Option(c, c)));
+$id('k-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name.replace(/\(?\+?X\)?/g, '')); $id('k-id').value = cur.id; } });
+$id('k-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; });
+$id('k-cat').addEventListener('change', e => { cur.category = e.target.value; });
+$id('k-val').addEventListener('change', e => { cur.hasValue = e.target.checked; });
+$id('k-text').addEventListener('input', e => { cur.text = e.target.value; });
+
+function render(){
+  const k = cur || blank();
+  $id('v-cat').textContent = k.category + (k.hasValue ? ' · prend une valeur' : '');
+  $id('v-name').textContent = k.name || 'Nouveau mot-clé';
+  $id('v-text').textContent = k.text || 'Définition à écrire.';
+  $id('v-text').className = 'def' + (k.text ? '' : ' empty');
+  $id('v-used').textContent = savedId ? usedText(k) : '';
+  $id('view').hidden = JDR_IS_EDITOR;
+  $id('form').hidden = !JDR_IS_EDITOR;
+  $id('new').hidden = !JDR_IS_EDITOR;
+  if(JDR_IS_EDITOR){
+    $id('k-name').value = k.name; $id('k-id').value = k.id; $id('k-id').disabled = !!savedId;
+    $id('k-cat').value = k.category; $id('k-val').checked = k.hasValue; $id('k-text').value = k.text;
+    $id('k-used').textContent = savedId ? usedText(k) : '';
+    $id('del').disabled = !savedId;
+  }
+  renderList();
+}
+function open(id){ const k = kws.find(x => x.id === id); if(!k) return; cur = structuredClone(k); savedId = id; render(); status('');
+  try{ history.replaceState(null, '', '?id=' + encodeURIComponent(id)); }catch(e){} }
+function fresh(){ cur = blank(); savedId = null; render(); $id('k-name').focus(); }
+$id('new').addEventListener('click', fresh);
+
+$id('form').addEventListener('submit', async e => {
+  e.preventDefault(); if(!JDR_IS_EDITOR) return;
+  cur.name = cur.name.trim(); cur.text = cur.text.trim();
+  cur.id = (cur.id || jdrSlug(cur.name)).trim();
+  if(!cur.name){ status('Donne un nom au mot-clé.', true); return; }
+  if(!/^[a-z0-9_-]{2,64}$/.test(cur.id)){ status("L'identifiant doit faire 2 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
+  if(!savedId && kws.some(k => k.id === cur.id)){ status('Un mot-clé porte déjà cet identifiant : change-le.', true); return; }
+  if(cur.category === 'Super-type' && !JDR_SUPERTYPES.some(s => jdrNorm(s) === jdrNorm(cur.name)))
+    status("Attention : aucun super-type des cartes ne porte ce nom, la définition ne s'affichera sur aucune carte.", true);
+  const data = { category: cur.category, text: cur.text, hasValue: !!cur.hasValue };
+  const q = savedId ? jdrSb.from('keywords').update({ name: cur.name, data }).eq('id', savedId)
+                    : jdrSb.from('keywords').insert({ id: cur.id, name: cur.name, data });
+  const { error } = await q;
+  if(error){ status(jdrErrorText(error), true); return; }
+  savedId = cur.id; await reload(); open(savedId); status('Mot-clé enregistré');
+});
+let delArmed = false;
+$id('del').addEventListener('click', async () => {
+  if(!savedId) return;
+  const n = usedBy(cur).length;
+  if(!delArmed){ delArmed = true; $id('del').textContent = n ? `Confirmer (${n} carte(s) l'utilisent)` : 'Confirmer la suppression';
+    setTimeout(() => { delArmed = false; $id('del').textContent = 'Supprimer'; }, 3500); return; }
+  delArmed = false; $id('del').textContent = 'Supprimer';
+  const { error } = await jdrSb.from('keywords').delete().eq('id', savedId);
+  if(error){ status(jdrErrorText(error), true); return; }
+  await reload(); fresh(); status('Mot-clé supprimé');
+});
+
+async function reload(){
+  try{ const c = await jdrLoadCards(); cards = c.list; kws = Object.values(JDR_KW).sort((a, b) => a.name.localeCompare(b.name, 'fr')); }
+  catch(err){ status(jdrErrorText(err), true); }
+  renderList();
+}
+(async () => {
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  const me = await jdrPage('motscles', { requireLogin: true }); if(!me) return;
+  await reload();
+  if(!kws.length) status('Liste des mots-clés vide ou non chargée.', true);
+  const wanted = new URLSearchParams(location.search).get('id');
+  if(wanted && kws.some(k => k.id === wanted)) open(wanted);
+  else if(kws.length && !JDR_IS_EDITOR) open(kws[0].id);
+  else fresh();
+})();
+</script>
+</body>
+</html>

@@ -29,6 +29,7 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | `bibliotheque.html` | Toutes les cartes avec filtres |
 | `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur). Type « Créature » : formulaire et fiche paysage dédiés |
 | `editeur-groupes.html` | Tableaux d'action de groupe des créatures, attribués ensuite aux créatures (réservé au compte éditeur) |
+| `mots-cles.html` | Liste des mots-clés (mécaniques, super-types, afflictions, propriétés) avec leur définition. Tout le monde lit ; le compte éditeur ajoute / modifie / supprime. Les mots-clés s'ajoutent aux cartes dans l'éditeur de cartes |
 | `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches et decks des joueurs (lecture seule) |
 | `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |
 | `js/jdr-rules.js` | Règles : modèle de carte, déclencheurs, effets, formules avec les caractéristiques, effets des cartes sur les caractéristiques, règles de deck |

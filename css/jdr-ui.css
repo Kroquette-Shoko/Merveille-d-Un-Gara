@@ -99,6 +99,8 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jcard .art.ph::after{content:"Illustration";position:absolute;inset:0;display:grid;place-items:center;color:#c5ccd3;font-size:4.2cqw;letter-spacing:.12em;text-transform:uppercase}
 .jcard .txt{padding:3.4cqw 4cqw 2.3cqw;font-size:4.1cqw;line-height:1.4;flex:1;min-height:0;overflow:hidden}
 .jcard .txt p{margin:0 0 1.5cqw}
+.jcard .txt p.kw{font-weight:700}
+.jcard .txt p.kw b{cursor:help}
 .jcard .spec{margin:0 2.9cqw 2.9cqw;border:.43cqw solid var(--cc);border-radius:2.3cqw;overflow:hidden;flex:0 0 auto}
 .jcard .spec .st{background:var(--cc);color:var(--ci);font-family:var(--f-display);font-weight:700;font-size:4cqw;padding:.9cqw 2.9cqw}
 .jcard .spec p{margin:0;padding:1.7cqw 2.9cqw 2.3cqw;font-size:3.7cqw;line-height:1.35}

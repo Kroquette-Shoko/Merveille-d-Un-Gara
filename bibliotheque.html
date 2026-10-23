@@ -51,6 +51,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
       <h2 id="dlg-title"></h2>
       <dl id="dlg-info"></dl>
+      <div id="dlg-kw"></div>
       <p id="dlg-allowed" class="status"></p>
       <div class="row"><a id="dlg-edit" href="#" hidden>Modifier dans l'éditeur</a><button type="button" id="dlg-close">Fermer</button></div>
     </div>
@@ -97,6 +98,10 @@ function openDetail(id){
     ['Exemplaires', c.horsDeck ? 'Hors deck (1)' : (c.maxCopies ? c.maxCopies + ' maximum' : 'Illimité')]
   ];
   $id('dlg-info').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${jdrEsc(v)}</dd>`).join('');
+  // Mots-clés de la carte (ajoutés + ceux de ses super-types) avec leur définition
+  const kws = jdrCardKeywords(c);
+  $id('dlg-kw').innerHTML = kws.length ? `<p class="hint" style="margin:6px 0 2px">Mots-clés</p><dl>${kws.map(k =>
+    `<dt><a href="mots-cles.html?id=${encodeURIComponent(k.id)}">${jdrEsc(k.label)}</a></dt><dd>${jdrEsc(k.text) || '<i>Définition à écrire.</i>'}</dd>`).join('')}</dl>` : '';
   const a = sheet ? jdrCardAllowed(c, sheet) : null;
   $id('dlg-allowed').textContent = a ? (a.ok ? `${sheet.name || 'Ce personnage'} peut mettre cette carte dans son deck.` : 'Non jouable : ' + a.reasons.join(' · ')) : '';
   $id('dlg-allowed').className = 'status ' + (a ? (a.ok ? 'good' : 'bad') : '');

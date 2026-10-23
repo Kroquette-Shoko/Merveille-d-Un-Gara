@@ -160,7 +160,8 @@ function jdrBlankCard(){
     value: 1, mana: null, components: { sonore: false, gestuelle: false, materielle: false },
     image_url: '', art: jdrBlankArt(),
     abilities: [], special: jdrBlankSpecial(),
-    persistent: false, horsDeck: false, requirements: [], maxCopies: null, footer: '', text: ''
+    persistent: false, horsDeck: false, requirements: [], maxCopies: null, footer: '', text: '',
+    keywords: []                      // [{ id, name, value }] : mots-clés (voir partie 3 bis)
   };
 }
 // Complète une carte incomplète et convertit l'ancien format (sous-types multiples, access, origin, pa de carte)
@@ -188,7 +189,8 @@ function jdrNormalizeCard(c){
   const oldSub = Array.isArray(c.subtypes) ? c.subtypes : (o.subtype ? [o.subtype] : []);
   oldSub.forEach(x => { const i = stIndex.indexOf(jdrNorm(x)); if(i >= 0 && !o.supertypes.includes(JDR_SUPERTYPES[i])) o.supertypes.push(JDR_SUPERTYPES[i]); });
   if(o.subtype && !jdrSubtypesFor(o.type).includes(o.subtype)) o.subtype = '';
-  ['requirements','abilities'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
+  ['requirements','abilities','keywords'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
+  o.keywords = o.keywords.filter(k => k && k.id).map(k => ({ id: String(k.id), name: String(k.name || ''), value: String(k.value ?? '') }));
   o.abilities = o.abilities.map(ab => Object.assign(jdrBlankAbility(), ab, { effects: Array.isArray(ab.effects) ? ab.effects : [] }));
   o.special = Object.assign(jdrBlankSpecial(), (c.special && typeof c.special === 'object') ? c.special : {});
   // ancien format : capacité cochée « spéciale » → zone spéciale ; pa de la carte → 1re capacité
@@ -338,9 +340,44 @@ function jdrAbilityText(ab){
 }
 function jdrCardText(card){
   const parts = (card.abilities || []).map(jdrAbilityText).filter(Boolean);
+  if(card.keywords && card.keywords.length) parts.unshift(card.keywords.map(jdrKeywordLabel).join(', '));
   if(card.special && card.special.enabled){ const t = jdrAbilityText(card.special); if(t) parts.push(t); }
   if(card.text) parts.push(card.text);
   return parts;
+}
+
+/* ---------- 3 bis. Mots-clés ---------- */
+/*
+  Les mots-clés sont dans la table jdr.keywords (page « Mots-clés »), chargés par jdrLoadKeywords()
+  dans JDR_KW (id → { id, name, category, text, hasValue }).
+  - Sur une carte : card.keywords = [{ id, name, value }]. « name » est une copie du nom au moment
+    de l'ajout : elle sert seulement si la liste n'est pas chargée.
+  - Les mots-clés de catégorie « Super-type » ont le même nom qu'un super-type : leur définition
+    s'affiche pour les cartes qui ont ce super-type (pas besoin de les ajouter à la main).
+  - hasValue : le nom contient « X », remplacé par la valeur de la carte (« Explorer X » → « Explorer 2 »).
+*/
+const JDR_KEYWORD_CATEGORIES = ['Mécanique', 'Super-type', 'Affliction', 'Propriété'];
+let JDR_KW = {};
+function jdrNormalizeKeyword(row){
+  const d = (row && row.data) || {};
+  return { id: row.id, name: row.name || '', category: JDR_KEYWORD_CATEGORIES.includes(d.category) ? d.category : 'Mécanique',
+           text: String(d.text || ''), hasValue: !!d.hasValue };
+}
+// Nom affiché d'un mot-clé de carte, avec sa valeur
+function jdrKeywordLabel(k){
+  const def = JDR_KW[k.id];
+  const name = (def && def.name) || k.name || k.id;
+  const v = String(k.value ?? '').trim();
+  if(/\bX\b/.test(name)) return v ? name.replace(/\bX\b/, v) : name;
+  return v ? `${name} ${v}` : name;
+}
+// Mots-clés d'une carte avec leur définition : ceux ajoutés à la carte, puis ceux de ses super-types
+function jdrCardKeywords(card){
+  const out = (card.keywords || []).map(k => ({ id: k.id, label: jdrKeywordLabel(k), text: (JDR_KW[k.id] || {}).text || '', fromSupertype: false }));
+  const bySt = {};
+  Object.values(JDR_KW).forEach(k => { if(k.category === 'Super-type') bySt[jdrNorm(k.name)] = k; });
+  (card.supertypes || []).forEach(st => { const k = bySt[jdrNorm(st)]; if(k) out.push({ id: k.id, label: k.name, text: k.text, fromSupertype: true }); });
+  return out;
 }
 
 /* ---------- 4. Cartes → caractéristiques ---------- */
