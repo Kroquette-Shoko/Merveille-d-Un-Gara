@@ -63,7 +63,6 @@ function jdrCardHTML(card, opts = {}){
   const c = jdrNormalizeCard(card);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   const col = JDR_CARD_COLORS[jdrCardColorKey(c)];
-  const typeLine = [c.type, c.subtype].filter(Boolean).join(' — ');
   const sup = c.supertypes.join(', ');
   const comps = ['sonore','gestuelle','materielle'].filter(k => c.components[k]);
   const hasMana = c.mana !== null && c.mana !== '' && c.mana !== undefined;
@@ -85,7 +84,7 @@ function jdrCardHTML(card, opts = {}){
     <div class="main">
       <div class="head">
         <div class="name">${esc(c.name || 'Sans nom')}</div>
-        <div class="type">${sup ? `<b>${esc(sup)}</b> · ` : ''}${esc(typeLine)}${c.rank ? ` · Rang ${esc(c.rank)}` : ''}</div>
+        <div class="type"><b>${esc(c.type)}</b>${c.subtype ? ' — ' + esc(c.subtype) : ''}${c.rank ? ` · Rang ${esc(c.rank)}` : ''}${sup ? ` · ${esc(sup)}` : ''}</div>
       </div>
       ${art}
       <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>
