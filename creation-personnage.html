@@ -18,14 +18,16 @@
    Couleurs : celles de la fiche de personnage « parchemin ».
    Sur téléphone : une seule colonne (choix, tableau + navigation, informations).
    ===================================================================== */
-:root{
+:root,
+/* Palette parchemin forcée, même quand l'appareil est en mode sombre :
+   css/jdr-ui.css redéfinit --bg, --ink, --accent… en mode sombre avec des sélecteurs
+   « :root:not([data-theme="light"]) » ; ces sélecteurs (même force, placés après) les remplacent ici. */
+:root:not([data-theme="light"]), :root[data-theme="light"], :root[data-theme="dark"]{
   --bg:#3B2A1C; --bg-ink:#F3E8CF; --bg-muted:#D8C6A3;
   --panel:#F3E8CF; --cell:#E8D9B6; --chip:#DCC89F; --line:#B79E73;
-  --ink:#2B2016; --muted:#7A6548; --accent:#8A5A2B; --accent2:#C9A227; --on-accent:#FFFFFF;
+  --ink:#2B2016; --muted:#7A6548; --accent:#8A5A2B; --accent2:#C9A227; --on-accent:#FFFFFF; --accent-ink:#FFFFFF;
   --sheet:#F3E8CF; --hurt:#B8322A; --ok:#3E7D52; color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:light}}
-:root[data-theme="dark"]{color-scheme:light}
 body{background:var(--bg);color:var(--ink)}
 .wrap{max-width:1500px}
 h1{color:var(--bg-ink)} .sub{color:var(--bg-muted)}
