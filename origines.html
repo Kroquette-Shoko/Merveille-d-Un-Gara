@@ -116,7 +116,7 @@
         </section>
 
         <!-- Capacités : peuple (capacités du peuple) et spécialisation (passif de base) -->
-        <section class="part" data-kind="peuple specialisation">
+        <section class="part" data-kind="peuple classe specialisation passe">
           <h2 id="o-abil-h">Capacités</h2>
           <div id="o-abil" style="display:flex;flex-direction:column;gap:10px"></div>
           <button type="button" id="o-add" style="align-self:start">Ajouter une capacité</button>
@@ -323,17 +323,18 @@ function renderAbilities(){
   if(!cur.abilities.length) box.append(el('span', { class:'hint', text:'Aucune capacité.' }));
   cur.abilities.forEach((a, i) => {
     const inp = (k, attrs) => { const x = el('input', Object.assign({ value: a[k] || '' }, attrs)); x.addEventListener('input', () => { a[k] = x.value; changed(); }); return x; };
-    const sp = el('select', { 'aria-label': 'Vitesse' }, ...JDR_ABILITY_SPEEDS.map(v => new Option(v, v))); sp.value = a.speed;
-    sp.addEventListener('change', () => { a.speed = sp.value; changed(); });
+    // Coût en points d'action : vide = capacité passive
+    const sp = el('input', { type:'number', min:'0', max:'10', step:'1', value: a.pa ?? '', placeholder:'vide = passif', 'aria-label': "Coût en points d'action" });
+    sp.addEventListener('input', () => { a.pa = jdrAbilityPA({ pa: sp.value }); changed(); });
     const tx = el('textarea', { rows: 3, maxlength: 1000, placeholder: 'ex. Lorsque vous faites un test de compétence, la première carte que vous défaussez gagne +1 à sa valeur.', 'aria-label': 'Effet de la capacité' }); tx.value = a.text;
     tx.addEventListener('input', () => { a.text = tx.value; changed(); });
     box.append(el('div', { class:'ab' },
       el('div', { class:'r' },
         el('label', { class:'f' }, document.createTextNode('Nom'), inp('name', { maxlength: 80, placeholder: 'ex. Capacité des humains' })),
-        el('label', { class:'f' }, document.createTextNode('Vitesse'), sp),
+        el('label', { class:'f' }, document.createTextNode('Coût en PA'), sp),
         el('button', { type:'button', class:'ghost', 'aria-label':'Supprimer cette capacité', text:'✕', onclick: () => { cur.abilities.splice(i, 1); renderAbilities(); changed(); } })),
       el('div', { class:'r2' },
-        el('label', { class:'f' }, document.createTextNode('Coût (facultatif)'), inp('cost', { maxlength: 60, placeholder: 'ex. Défausse 1' })),
+        el('label', { class:'f' }, document.createTextNode('Autre coût (facultatif)'), inp('cost', { maxlength: 60, placeholder: 'ex. Défausse 1' })),
         el('label', { class:'f' }, document.createTextNode('Limite (facultatif)'), inp('uses', { maxlength: 60, placeholder: 'ex. 3 fois par jour' }))),
       el('label', { class:'f' }, document.createTextNode('Effet'), tx)));
   });
@@ -349,7 +350,9 @@ function renderForm(){
   if(cur.kind === 'peuple'){ $id('p-fam').value = cur.family; $id('p-size').value = cur.size; }
   if(cur.kind === 'peuple' || cur.kind === 'classe' || cur.kind === 'passe'){ renderStats(); $id('o-stats-h').textContent = cur.kind === 'peuple' ? '— bonus ou malus apportés par le peuple' : cur.kind === 'classe' ? '— valeurs apportées par la classe' : '— valeurs apportées par le passé'; }
   if(cur.kind === 'passe'){ fillCardSelect(); $id('ps-card').value = cardsById[cur.card] ? cur.card : ''; renderEvents(); }
-  if(cur.kind === 'peuple' || cur.kind === 'specialisation'){ renderAbilities(); $id('o-abil-h').textContent = cur.kind === 'peuple' ? 'Capacités du peuple' : 'Passif de base'; $id('o-add').textContent = cur.kind === 'peuple' ? 'Ajouter une capacité' : 'Ajouter un passif'; }
+  renderAbilities();
+  $id('o-abil-h').textContent = ({ peuple: 'Capacités du peuple', classe: 'Capacités de classe', specialisation: 'Passif de base', passe: 'Capacités du passé' })[cur.kind];
+  $id('o-add').textContent = cur.kind === 'specialisation' ? 'Ajouter un passif' : 'Ajouter une capacité';
   if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; renderMechanics(); renderProgression(); }
   if(cur.kind === 'specialisation'){ fillClassSelect(); $id('s-classe').value = cur.classe; $id('s-magic').checked = cur.magic; renderSpecHint(); renderImprovements(); }
   preview(); renderList(); rights();

@@ -13,9 +13,9 @@
      armor        bonus d'armure (nombre)
      wounds       nombre de cases de blessures apportées (nombre) — aussi pour la classe et le passé :
                   le personnage peut prendre peuple + classe + passé cases de blessures
-     abilities    [{ name, speed, cost, text, uses }] : capacités du peuple
-                  speed = 'Passif' | 'Action' | 'Action libre' | 'Réaction' | 'Mouvement'
-                  cost  = coût (ex. « Défausse 1 »), uses = limite (ex. « 3 fois par jour »)
+     abilities    [{ name, pa, cost, text, uses }] : capacités (aussi pour la classe, la spécialisation et le passé)
+                  pa    = coût en points d'action (nombre) ; vide = capacité passive (aucun point d'action)
+                  cost  = autre coût, facultatif (ex. « Défausse 1 »), uses = limite (ex. « 3 fois par jour »)
 
    Classe (étape 4) :
      color        couleur de la classe (contour des cartes de cette classe)
@@ -42,12 +42,13 @@ const JDR_ORIGIN_KINDS = {
   specialisation: { label: 'Spécialisation', plural: 'Spécialisations', color: '#6B4C9A', ready: true },
   passe:          { label: 'Passé',          plural: 'Passés',          color: '#5E6B78', ready: true }
 };
-const JDR_ABILITY_SPEEDS = ['Passif', 'Action', 'Action libre', 'Réaction', 'Mouvement'];
 const JDR_CHAR_SIZES = { P: 'Petite', M: 'Moyenne', G: 'Grande' };
 const JDR_CLASS_MAGIC = { aucune: 'Aucune spécialisation ne lance de sorts', certaines: 'Seulement certaines spécialisations', toutes: 'Toutes les spécialisations' };
 const JDR_MAX_LEVEL = 15;
 
-function jdrBlankOriginAbility(){ return { name: '', speed: 'Passif', cost: '', text: '', uses: '' }; }
+function jdrBlankOriginAbility(){ return { name: '', pa: null, cost: '', text: '', uses: '' }; }
+// Coût en PA d'une capacité : nombre ≥ 0, ou null (capacité passive)
+function jdrAbilityPA(a){ const v = a && a.pa; return (v === null || v === undefined || v === '' || !isFinite(Number(v))) ? null : Math.max(0, Number(v)); }
 function jdrBlankStats(){ return Object.fromEntries(JDR_STATS.map(s => [s.key, 0])); }
 // Taille du deck par défaut : règle actuelle du jeu (JDR_DECK_MAX_BY_LEVEL), modifiable par classe
 function jdrBlankProgression(){
@@ -57,9 +58,9 @@ function jdrBlankOrigin(kind){
   kind = JDR_ORIGIN_KINDS[kind] ? kind : 'peuple';
   const base = { id: '', name: '', kind, description: '', image_url: '', image: { fit: 'cover', x: 50, y: 50 } };
   if(kind === 'peuple') return Object.assign(base, { family: '', size: 'M', stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [jdrBlankOriginAbility()] });
-  if(kind === 'classe') return Object.assign(base, { color: '#8A5A2B', stats: jdrBlankStats(), armor: 0, wounds: 0, magic: 'aucune', mechanics: [{ name: '', text: '' }], progression: jdrBlankProgression() });
+  if(kind === 'classe') return Object.assign(base, { color: '#8A5A2B', stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [], magic: 'aucune', mechanics: [{ name: '', text: '' }], progression: jdrBlankProgression() });
   if(kind === 'specialisation') return Object.assign(base, { classe: '', magic: false, abilities: [jdrBlankOriginAbility()], improvements: [] });
-  if(kind === 'passe') return Object.assign(base, { stats: jdrBlankStats(), armor: 0, wounds: 0, events: ['', '', '', '', '', ''], card: '' });
+  if(kind === 'passe') return Object.assign(base, { stats: jdrBlankStats(), armor: 0, wounds: 0, abilities: [], events: ['', '', '', '', '', ''], card: '' });
   return base;
 }
 function jdrNormalizeOrigin(row){
@@ -78,8 +79,8 @@ function jdrNormalizeOrigin(row){
     o.armor = num(o.armor);
     o.wounds = Math.max(0, num(o.wounds));
   }
-  if(o.kind === 'peuple' || o.kind === 'specialisation')
-    o.abilities = arr(o.abilities).map(a => Object.assign(jdrBlankOriginAbility(), a || {}));
+  // Capacités (tous les types) ; l'ancien champ « speed » (vitesse) n'existe plus
+  o.abilities = arr(o.abilities).map(a => { const x = Object.assign(jdrBlankOriginAbility(), a || {}); x.pa = jdrAbilityPA(x); delete x.speed; return x; });
   if(o.kind === 'peuple' && !JDR_CHAR_SIZES[o.size]) o.size = 'M';
   if(o.kind === 'classe'){
     if(!JDR_CLASS_MAGIC[o.magic]) o.magic = 'aucune';
@@ -115,7 +116,7 @@ function jdrOriginHTML(o, opts = {}){
   const sign = v => (v > 0 ? '+' : '') + v;
   const statsHTML = () => `<div class="ost">${JDR_STATS.map(s => `<div class="${o.stats[s.key] ? '' : 'z'}"><b>${esc(sign(o.stats[s.key]))}</b><span>${esc(s.label)}</span></div>`).join('')}<div class="${o.armor ? '' : 'z'}"><b>${esc(sign(o.armor))}</b><span>Armure</span></div><div class="${o.wounds ? '' : 'z'}"><b>${esc(sign(o.wounds || 0))}</b><span>Cases de blessures</span></div></div>`;
   const abilHTML = (list, empty) => (list || []).filter(a => a.name || a.text).map(a => `<div class="oa">
-      <div class="oah"><b>${esc(a.name || 'Capacité')}</b>${a.speed && a.speed !== 'Passif' ? `<span class="ic">${esc(a.speed)}</span>` : '<span class="osp">Passif</span>'}${a.cost ? `<span class="ic">${esc(a.cost)}</span>` : ''}${a.uses ? `<span class="osp">${esc(a.uses)}</span>` : ''}</div>
+      <div class="oah"><b>${esc(a.name || 'Capacité')}</b>${jdrAbilityPA(a) !== null ? `<span class="ic">${esc(jdrAbilityPA(a))} PA</span>` : '<span class="osp">Passif</span>'}${a.cost ? `<span class="ic">${esc(a.cost)}</span>` : ''}${a.uses ? `<span class="osp">${esc(a.uses)}</span>` : ''}</div>
       ${a.text ? `<p>${esc(a.text)}</p>` : ''}</div>`).join('') || `<p class="ie">${empty}</p>`;
   let body = '';
   if(o.kind === 'peuple'){
@@ -127,6 +128,7 @@ function jdrOriginHTML(o, opts = {}){
     body = `<div class="im">Magie : ${esc(JDR_CLASS_MAGIC[o.magic].toLowerCase())}</div>
       ${statsHTML()}
       ${mech ? `<div class="osec">Mécaniques principales</div>${mech}` : ''}
+      ${o.abilities.some(a => a.name || a.text) ? `<div class="osec">Capacités de classe</div>${abilHTML(o.abilities, '')}` : ''}
       <div class="osec">Évolution du personnage</div>
       <table class="oprog"><thead><tr><th>Niv.</th><th>Deck</th><th>Gain</th></tr></thead><tbody>${rows}</tbody></table>`;
   } else if(o.kind === 'specialisation'){
@@ -140,6 +142,7 @@ function jdrOriginHTML(o, opts = {}){
     const ev = o.events.filter(Boolean);
     const card = o.card ? ((opts.cards && opts.cards[o.card]) || { name: o.card }) : null;
     body = `${statsHTML()}
+      ${o.abilities.some(a => a.name || a.text) ? `<div class="osec">Capacités du passé</div>${abilHTML(o.abilities, '')}` : ''}
       <div class="osec">Carte de passé</div>
       ${card ? `<div class="oa"><div class="oah"><b>${esc(card.name)}</b></div><p>Jouable seulement par les personnages qui ont ce passé.</p></div>` : '<p class="ie">Aucune carte de passé choisie.</p>'}
       <div class="osec">Événements possibles</div>
