@@ -7,7 +7,7 @@
    ctx = { sheet, allowed(card) } : sert au filtre « Uniquement jouables par mon personnage » */
 
 function jdrFilters(container, onChange, opts = {}){
-  const S = { q:'', types:[], subtype:'', classe:'', supertype:'', keyword:'',
+  const S = { q:'', types:[], subtype:'', classe:'', supertype:'', keyword:'', rank:'',
               vMin:'', vMax:'', mMin:'', mMax:'', persistent:false, horsDeck:false, playable:false, sort:'name' };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   const opt = (list, all) => `<option value="">${all}</option>` + list.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
@@ -21,8 +21,9 @@ function jdrFilters(container, onChange, opts = {}){
         <label class="f">Classe<select data-k="classe">${opt(Object.keys(JDR_CLASSES), 'Toutes')}</select></label>
         <label class="f">Super-type<select data-k="supertype">${opt(JDR_SUPERTYPES, 'Tous')}</select></label>
         <label class="f">Mot-clé<select data-k="keyword" data-kw><option value="">Tous</option></select></label>
+        <label class="f">Rang<select data-k="rank"><option value="">Tous</option>${JDR_CARD_RANKS.map(r => `<option value="${r}">Rang ${r}</option>`).join('')}<option value="none">Sans rang</option></select></label>
         <label class="f">Trier par<select data-k="sort">
-          <option value="name">Nom</option><option value="value">Valeur</option><option value="mana">Coût en mana</option><option value="pa">Coût en PA</option><option value="type">Type</option></select></label>
+          <option value="name">Nom</option><option value="rank">Rang</option><option value="value">Valeur</option><option value="mana">Coût en mana</option><option value="pa">Coût en PA</option><option value="type">Type</option></select></label>
       </div>
       <div class="grid4">
         <label class="f">Valeur min<input type="number" data-k="vMin" min="0"></label>
@@ -47,7 +48,7 @@ function jdrFilters(container, onChange, opts = {}){
     if(i.checked) S.types.push(t); else S.types = S.types.filter(x => x !== t); onChange();
   }));
   container.querySelector('[data-reset]').addEventListener('click', () => {
-    Object.assign(S, { q:'', types:[], subtype:'', classe:'', supertype:'', keyword:'', vMin:'', vMax:'', mMin:'', mMax:'', persistent:false, horsDeck:false, playable:false, sort:'name' });
+    Object.assign(S, { q:'', types:[], subtype:'', classe:'', supertype:'', keyword:'', rank:'', vMin:'', vMax:'', mMin:'', mMax:'', persistent:false, horsDeck:false, playable:false, sort:'name' });
     container.querySelectorAll('[data-k]').forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = i.dataset.k === 'sort' ? 'name' : ''; });
     container.querySelectorAll('[data-type]').forEach(i => { i.checked = false; i.closest('.chip').classList.remove('on'); });
     onChange();
@@ -82,6 +83,7 @@ function jdrFilters(container, onChange, opts = {}){
     if(!accessOk(c.classes, S.classe)) return false;
     if(S.supertype && !c.supertypes.map(jdrNorm).includes(jdrNorm(S.supertype))) return false;
     if(S.keyword && !jdrCardKeywords(c).some(k => k.id === S.keyword)) return false;
+    if(S.rank && (S.rank === 'none' ? c.rank : c.rank !== Number(S.rank))) return false;
     if(n(S.vMin) !== null && (Number(c.value) || 0) < n(S.vMin)) return false;
     if(n(S.vMax) !== null && (Number(c.value) || 0) > n(S.vMax)) return false;
     if(n(S.mMin) !== null && (c.mana === null || Number(c.mana) < n(S.mMin))) return false;

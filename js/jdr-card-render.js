@@ -85,7 +85,7 @@ function jdrCardHTML(card, opts = {}){
     <div class="main">
       <div class="head">
         <div class="name">${esc(c.name || 'Sans nom')}</div>
-        <div class="type">${sup ? `<b>${esc(sup)}</b> · ` : ''}${esc(typeLine)}</div>
+        <div class="type">${sup ? `<b>${esc(sup)}</b> · ` : ''}${esc(typeLine)}${c.rank ? ` · Rang ${esc(c.rank)}` : ''}</div>
       </div>
       ${art}
       <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>

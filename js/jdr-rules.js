@@ -52,6 +52,8 @@ const JDR_SUBTYPES_BY_TYPE = {
 const JDR_SUBTYPES = [...JDR_SUBTYPES_COMMON, ...Object.values(JDR_SUBTYPES_BY_TYPE).flat()];
 function jdrSubtypesFor(type){ return [...JDR_SUBTYPES_COMMON, ...(JDR_SUBTYPES_BY_TYPE[type] || [])]; }
 // Super-types : plusieurs possibles
+// Rangs des cartes (sets de rang du livret : rang 1 au niveau 1… rang 5 au niveau 15)
+const JDR_CARD_RANKS = [1, 2, 3, 4, 5];
 const JDR_SUPERTYPES = ['Posture','Malédiction','Aura','Rage','Chanson','Frappe','Piège','Piste','Poison','Arcane','Feu','Air','Eau','Terre','Éclosion','Enchantement','Illusion','Transmutation','Réaction','Évocation','Divination','Invocation'];
 const JDR_DAMAGE_TYPES = ['contondant','perforant','tranchant','feu','froid','foudre','acide','poison','nécrotique','sacré','arcanique','psychique'];
 const JDR_PHYSICAL_DAMAGE = ['contondant','perforant','tranchant'];
@@ -181,7 +183,8 @@ function jdrBlankCard(){
     image_url: '', art: jdrBlankArt(),
     abilities: [], special: jdrBlankSpecial(),
     persistent: false, horsDeck: false, requirements: [], maxCopies: null, footer: '', text: '',
-    keywords: []                      // [{ id, name, value }] : mots-clés (voir partie 3 bis)
+    keywords: [],                     // [{ id, name, value }] : mots-clés (voir partie 3 bis)
+    rank: null                        // rang de la carte (sets de rang 1 à 5), null = sans rang
   };
 }
 // Complète une carte incomplète et convertit l'ancien format (sous-types multiples, access, origin, pa de carte)
@@ -210,6 +213,7 @@ function jdrNormalizeCard(c){
   oldSub.forEach(x => { const i = stIndex.indexOf(jdrNorm(x)); if(i >= 0 && !o.supertypes.includes(JDR_SUPERTYPES[i])) o.supertypes.push(JDR_SUPERTYPES[i]); });
   if(o.subtype && !jdrSubtypesFor(o.type).includes(o.subtype)) o.subtype = '';
   ['requirements','abilities','keywords'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
+  o.rank = JDR_CARD_RANKS.includes(Number(c.rank)) ? Number(c.rank) : null;
   o.keywords = o.keywords.filter(k => k && k.id).map(k => ({ id: String(k.id), name: String(k.name || ''), value: String(k.value ?? '') }));
   o.abilities = o.abilities.map(ab => Object.assign(jdrBlankAbility(), ab, { effects: Array.isArray(ab.effects) ? ab.effects : [] }));
   o.special = Object.assign(jdrBlankSpecial(), (c.special && typeof c.special === 'object') ? c.special : {});
