@@ -6,6 +6,9 @@
      size        taille dans l'inventaire, en cases (0, 1, 2, 3, 6, 9 — voir le mémo des tailles)
      properties  [{ id, name, value }] : mots-clés de catégorie « Propriété » (Légère, Lourde, Bruyant…)
      description texte libre
+     image_url   adresse web de l'image ('' = aucune)
+     image       { fit: 'cover' | 'contain', x, y } : cadrage — cover = remplit le cadre, contain = image entière ;
+                 x, y = point de l'image gardé au centre, en % (50 = milieu)
    Arme :
      category    'Courante' | 'De guerre'
      reach       'Corps à corps' | 'Distance'
@@ -50,9 +53,10 @@ const JDR_ITEM_SIZES = [
 ];
 
 function jdrBlankAttack(){ return { cost: '', text: '' }; }
+function jdrBlankItemImage(){ return { fit: 'cover', x: 50, y: 50 }; }
 function jdrBlankItem(kind){
   kind = JDR_ITEM_KINDS[kind] ? kind : 'arme';
-  const base = { id: '', name: '', kind, size: 1, properties: [], description: '' };
+  const base = { id: '', name: '', kind, size: 1, properties: [], description: '', image_url: '', image: jdrBlankItemImage() };
   if(kind === 'arme') return Object.assign(base, { size: 2, category: 'Courante', reach: 'Corps à corps', range: '', damageType: 'tranchant',
     attacks: { main: { text: '' }, second: jdrBlankAttack(), third: jdrBlankAttack() } });
   if(kind === 'armure') return Object.assign(base, { size: 6, category: 'Légère', armor: 0, armorMagic: 0, resistance: 0 });
@@ -69,6 +73,10 @@ function jdrNormalizeItem(row){
   o.name = row && row.name ? row.name : (o.name || '');
   const num = v => (v === '' || v === null || v === undefined || !isFinite(Number(v))) ? 0 : Number(v);
   o.size = Math.max(0, num(o.size));
+  o.image_url = String(o.image_url || '').trim();
+  o.image = Object.assign(jdrBlankItemImage(), o.image || {});
+  if(!['cover','contain'].includes(o.image.fit)) o.image.fit = 'cover';
+  ['x','y'].forEach(k => { o.image[k] = Math.max(0, Math.min(100, isFinite(Number(o.image[k])) ? Number(o.image[k]) : 50)); });
   o.properties = (Array.isArray(o.properties) ? o.properties : []).filter(k => k && k.id)
     .map(k => ({ id: String(k.id), name: String(k.name || ''), value: String(k.value ?? '') }));
   ['armor','armorMagic','resistance'].forEach(k => { if(k in o) o[k] = num(o[k]); });
@@ -134,6 +142,7 @@ function jdrItemHTML(it, opts = {}){
   }
   return `<div class="jitem" style="--ik:${k.color}${opts.width ? ';width:' + opts.width : ''}">
     <div class="ih"><span class="ik">${esc(k.label)}</span><div class="in">${esc(it.name || 'Sans nom')}</div></div>
+    ${it.image_url ? `<div class="iimg"><img src="${esc(it.image_url)}" alt="" loading="lazy" style="object-fit:${it.image.fit};object-position:${it.image.x}% ${it.image.y}%"></div>` : ''}
     <div class="ib">
       ${body}
       ${props ? `<div class="ips">${props}</div>` : ''}

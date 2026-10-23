@@ -64,6 +64,20 @@
           </div>
         </section>
 
+        <!-- Image : adresse web + cadrage -->
+        <section class="part">
+          <h2>Image</h2>
+          <label class="f">Adresse de l'image (web)<input id="im-url" type="url" placeholder="https://…"></label>
+          <div id="im-tools" hidden style="display:flex;flex-direction:column;gap:8px">
+            <div class="sizes"><button type="button" data-fit="cover">▣ Remplir le cadre</button><button type="button" data-fit="contain">⛶ Image entière</button><button type="button" id="im-center">↺ Recentrer</button></div>
+            <div class="grid2">
+              <label class="f">Horizontal (gauche ↔ droite)<input id="im-x" type="range" min="0" max="100" step="1"></label>
+              <label class="f">Vertical (haut ↔ bas)<input id="im-y" type="range" min="0" max="100" step="1"></label>
+            </div>
+            <p class="hint" style="margin:0">Le cadrage est visible dans l'aperçu à droite. Les curseurs déplacent l'image quand elle remplit le cadre.</p>
+          </div>
+        </section>
+
         <!-- Inventaire : nombre de cases occupées (la poche du sac se choisit sur la fiche du personnage) -->
         <section class="part">
           <h2>Inventaire</h2>
@@ -219,6 +233,18 @@ function switchKind(k){
 const bind = (id, get, set, ev = 'input') => $id(id).addEventListener(ev, e => { set(e.target.value); changed(); });
 bind('i-name', null, v => { cur.name = v; if(!savedId){ cur.id = jdrSlug(v); $id('i-id').value = cur.id; } });
 bind('i-id', null, v => { cur.id = v.toLowerCase().replace(/[^a-z0-9_-]/g, ''); $id('i-id').value = cur.id; });
+// Image
+function renderImage(){
+  $id('im-url').value = cur.image_url || '';
+  $id('im-tools').hidden = !cur.image_url;
+  document.querySelectorAll('#im-tools [data-fit]').forEach(b => b.classList.toggle('on', b.dataset.fit === cur.image.fit));
+  $id('im-x').value = cur.image.x; $id('im-y').value = cur.image.y;
+}
+$id('im-url').addEventListener('input', e => { cur.image_url = e.target.value.trim(); $id('im-tools').hidden = !cur.image_url; changed(); });
+document.querySelectorAll('#im-tools [data-fit]').forEach(b => b.addEventListener('click', () => { cur.image.fit = b.dataset.fit; renderImage(); changed(); }));
+$id('im-center').addEventListener('click', () => { cur.image.x = 50; cur.image.y = 50; renderImage(); changed(); });
+$id('im-x').addEventListener('input', e => { cur.image.x = Number(e.target.value); changed(); });
+$id('im-y').addEventListener('input', e => { cur.image.y = Number(e.target.value); changed(); });
 $id('i-size').addEventListener('input', e => { cur.size = Math.max(0, Math.round(Number(e.target.value) || 0)); renderSize(); changed(); });
 bind('i-desc', null, v => cur.description = v);
 bind('w-cat', null, v => cur.category = v, 'change');
@@ -259,7 +285,7 @@ function renderForm(){
   const ready = JDR_ITEM_KINDS[kind].ready;
   $id('soon').hidden = ready; $id('fields').hidden = !ready;
   document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
-  $id('i-name').value = cur.name; $id('i-id').value = cur.id; renderSize();
+  $id('i-name').value = cur.name; $id('i-id').value = cur.id; renderSize(); renderImage();
   $id('i-desc').value = cur.description || '';
   if(cur.kind === 'arme'){
     $id('w-cat').value = cur.category; $id('w-reach').value = cur.reach; $id('w-dmg').value = cur.damageType; $id('w-range').value = cur.range || '';
