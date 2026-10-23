@@ -10,6 +10,9 @@
                   speed = 'Passif' | 'Action' | 'Action libre' | 'Réaction' | 'Mouvement'
                   cost  = coût (ex. « Défausse 1 »), uses = limite (ex. « 3 fois par jour »)
      description  histoire, apparence, culture
+   Tous les types :
+     image_url    adresse web de l'image ('' = aucune)
+     image        { fit: 'cover' | 'contain', x, y } : cadrage (même principe que l'équipement)
    Classes, spécialisations, passés : étapes 4 et 5.
 */
 
@@ -26,7 +29,7 @@ function jdrBlankOriginAbility(){ return { name: '', speed: 'Passif', cost: '', 
 function jdrBlankStats(){ return Object.fromEntries(JDR_STATS.map(s => [s.key, 0])); }
 function jdrBlankOrigin(kind){
   kind = JDR_ORIGIN_KINDS[kind] ? kind : 'peuple';
-  const base = { id: '', name: '', kind, description: '' };
+  const base = { id: '', name: '', kind, description: '', image_url: '', image: { fit: 'cover', x: 50, y: 50 } };
   if(kind === 'peuple') return Object.assign(base, { family: '', size: 'M', stats: jdrBlankStats(), armor: 0, abilities: [jdrBlankOriginAbility()] });
   return base;
 }
@@ -35,6 +38,10 @@ function jdrNormalizeOrigin(row){
   const o = Object.assign(jdrBlankOrigin(d.kind), d);
   o.id = (row && row.id) || ''; o.name = (row && row.name) || '';
   const num = v => (v === '' || v === null || v === undefined || !isFinite(Number(v))) ? 0 : Number(v);
+  o.image_url = String(o.image_url || '').trim();
+  o.image = Object.assign({ fit: 'cover', x: 50, y: 50 }, o.image || {});
+  if(!['cover','contain'].includes(o.image.fit)) o.image.fit = 'cover';
+  ['x','y'].forEach(k => { o.image[k] = Math.max(0, Math.min(100, isFinite(Number(o.image[k])) ? Number(o.image[k]) : 50)); });
   if(o.kind === 'peuple'){
     o.stats = Object.assign(jdrBlankStats(), o.stats || {});
     Object.keys(o.stats).forEach(k => o.stats[k] = num(o.stats[k]));
@@ -68,6 +75,7 @@ function jdrOriginHTML(o, opts = {}){
   }
   return `<div class="jitem jorig" style="--ik:${k.color}${opts.width ? ';width:' + opts.width : ''}">
     <div class="ih"><span class="ik">${esc(k.label)}</span><div class="in">${esc(o.name || 'Sans nom')}</div></div>
+    ${o.image_url ? `<div class="iimg"><img src="${esc(o.image_url)}" alt="" loading="lazy" style="object-fit:${o.image.fit};object-position:${o.image.x}% ${o.image.y}%"></div>` : ''}
     <div class="ib">${body}${o.description ? `<p class="id">${esc(o.description)}</p>` : ''}</div>
   </div>`;
 }

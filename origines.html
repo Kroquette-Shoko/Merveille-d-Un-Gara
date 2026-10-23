@@ -33,6 +33,9 @@
 @media (max-width:560px){.ab .r,.ab .r2{grid-template-columns:1fr}}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .soon{background:var(--panel);border-radius:10px;padding:14px;color:var(--muted)}
+.sizes{display:flex;flex-wrap:wrap;gap:4px}
+.sizes button{padding:5px 9px;font-size:.85rem;border-radius:999px}
+.sizes button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -58,6 +61,20 @@
           <div class="grid2">
             <label class="f">Nom<input id="o-name" maxlength="80" placeholder="ex. Sirène"></label>
             <label class="f">Identifiant<input id="o-id" maxlength="64" placeholder="rempli depuis le nom"></label>
+          </div>
+        </section>
+
+        <!-- Image : adresse web + cadrage (tous les types) -->
+        <section class="part">
+          <h2>Image</h2>
+          <label class="f">Adresse de l'image (web)<input id="im-url" type="url" placeholder="https://…"></label>
+          <div id="im-tools" hidden style="display:flex;flex-direction:column;gap:8px">
+            <div class="sizes"><button type="button" data-fit="cover">▣ Remplir le cadre</button><button type="button" data-fit="contain">⛶ Image entière</button><button type="button" id="im-center">↺ Recentrer</button></div>
+            <div class="grid2">
+              <label class="f">Horizontal (gauche ↔ droite)<input id="im-x" type="range" min="0" max="100" step="1"></label>
+              <label class="f">Vertical (haut ↔ bas)<input id="im-y" type="range" min="0" max="100" step="1"></label>
+            </div>
+            <p class="hint" style="margin:0">Le cadrage est visible dans l'aperçu à droite. Les curseurs déplacent l'image quand elle remplit le cadre.</p>
           </div>
         </section>
 
@@ -135,6 +152,19 @@ $id('o-desc').addEventListener('input', e => { cur.description = e.target.value;
 $id('p-fam').addEventListener('input', e => { cur.family = e.target.value; changed(); });
 $id('p-size').addEventListener('change', e => { cur.size = e.target.value; changed(); });
 
+// Image
+function renderImage(){
+  $id('im-url').value = cur.image_url || '';
+  $id('im-tools').hidden = !cur.image_url;
+  document.querySelectorAll('#im-tools [data-fit]').forEach(b => b.classList.toggle('on', b.dataset.fit === cur.image.fit));
+  $id('im-x').value = cur.image.x; $id('im-y').value = cur.image.y;
+}
+$id('im-url').addEventListener('input', e => { cur.image_url = e.target.value.trim(); $id('im-tools').hidden = !cur.image_url; changed(); });
+document.querySelectorAll('#im-tools [data-fit]').forEach(b => b.addEventListener('click', () => { cur.image.fit = b.dataset.fit; renderImage(); changed(); }));
+$id('im-center').addEventListener('click', () => { cur.image.x = 50; cur.image.y = 50; renderImage(); changed(); });
+$id('im-x').addEventListener('input', e => { cur.image.x = Number(e.target.value); changed(); });
+$id('im-y').addEventListener('input', e => { cur.image.y = Number(e.target.value); changed(); });
+
 function renderStats(){
   const box = $id('p-stats'); box.replaceChildren();
   const field = (label, get, set) => { const i = el('input', { type:'number', min:'-5', max:'10', value: get(), 'aria-label': label });
@@ -169,7 +199,7 @@ function renderForm(){
   const ready = JDR_ORIGIN_KINDS[kind].ready;
   $id('soon').hidden = ready; $id('fields').hidden = !ready;
   document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
-  $id('o-name').value = cur.name; $id('o-id').value = cur.id; $id('o-desc').value = cur.description || '';
+  $id('o-name').value = cur.name; $id('o-id').value = cur.id; $id('o-desc').value = cur.description || ''; renderImage();
   if(cur.kind === 'peuple'){ $id('p-fam').value = cur.family; $id('p-size').value = cur.size; renderStats(); renderAbilities(); }
   preview(); renderList(); rights();
 }
