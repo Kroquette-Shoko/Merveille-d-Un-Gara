@@ -4,151 +4,241 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fiche Un'Gara</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
-/* Layout : fiche en bandes empilées, portrait central entouré des caractéristiques (comme la fiche papier), une seule colonne sur téléphone */
+/* =====================================================================
+   Fiche de personnage — modèle « F · parchemin » validé sur le canevas.
+   Organisation reprise de la fiche papier :
+   1. Haut : identité (en haut à gauche), portrait rond au centre,
+      Corps / Esprit / Charme à gauche, Opportunisme / Anticipation /
+      Résistance / Points d'action à droite.
+   2. Blessures + armures | Ressources (section à part)
+   3. Armes | Armure et bouclier
+   4. Inventaire (la charge est dans l'en-tête de l'inventaire)
+   Sur téléphone, tout passe sur une seule colonne.
+   ===================================================================== */
 :root{
-  --bg:#e9ecee; --sheet:#fbfcfc; --panel:#eef1f2; --ink:#16202a; --muted:#5b6872;
-  --line:#c5ced4; --accent:#0f6b72; --accent-ink:#ffffff; --brass:#a5761d;
-  --hurt:#b3372f; --ok:#2f7d4f;
+  --bg:#3B2A1C; --bg-ink:#F3E8CF; --bg-muted:#D8C6A3;
+  --panel:#F3E8CF; --cell:#E8D9B6; --chip:#DCC89F; --line:#B79E73;
+  --ink:#2B2016; --muted:#7A6548;
+  --accent:#8A5A2B; --accent2:#C9A227; --on-accent:#FFFFFF; --medal:#FBF5E6;
+  --hurt:#B8322A; --hurt-line:#9A2F27; --ok:#3E7D52;
+  --armor:#5E6B78; --armag:#A5761D; --mana:#2F5BD0;
   --f-display:"Alegreya SC", Georgia, "Times New Roman", serif;
   --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0c1216; --sheet:#141c22; --panel:#1b252c; --ink:#e6ecef; --muted:#93a2ab;
-  --line:#2d3a43; --accent:#3fb0b8; --accent-ink:#06191b; --brass:#d6a54a;
-  --hurt:#e2665c; --ok:#5cbf86; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0c1216; --sheet:#141c22; --panel:#1b252c; --ink:#e6ecef; --muted:#93a2ab;
-  --line:#2d3a43; --accent:#3fb0b8; --accent-ink:#06191b; --brass:#d6a54a;
-  --hurt:#e2665c; --ok:#5cbf86; color-scheme:dark}
+/* Même palette en mode sombre : le fond est déjà sombre, les panneaux restent en parchemin */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:light}}
+:root[data-theme="dark"]{color-scheme:light}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 img{max-width:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
-.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;font-weight:700}
-h1{font-size:clamp(1.6rem,4vw,2.3rem);letter-spacing:.01em}
-h2{font-size:1.25rem;letter-spacing:.02em}
-.sub{color:var(--muted);margin:2px 0 0}
+.wrap{max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:700;text-wrap:balance}
+h1{font-size:clamp(1.6rem,4vw,2.3rem);color:var(--bg-ink)}
+h2{font-size:1.55rem;letter-spacing:.02em}
+h3{font-size:1.15rem}
+.sub{color:var(--bg-muted);margin:2px 0 0}
+.hint{font-size:.85rem;color:var(--muted)}
 .topbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
-button{font:inherit;font-weight:500;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:7px 12px}
-button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:4px 8px}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-input,select,textarea{font:inherit;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--line);padding:4px 2px;width:100%;min-width:0}
-textarea{border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical}
-select{border:1px solid var(--line);border-radius:6px;background:var(--sheet)}
-label.f{display:flex;flex-direction:column;gap:2px;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
-label.f input,label.f select{font-size:1.05rem;text-transform:none;letter-spacing:0;color:var(--ink)}
 
-.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
-.sheet-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.hint{font-size:.85rem;color:var(--muted)}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px}
+button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:3px 7px;font-weight:500}
+button:disabled{cursor:default;opacity:.6}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:3px 2px;width:100%;min-width:0}
+textarea{border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical;background:var(--medal)}
+select{border:1px solid var(--line);border-radius:6px;background:var(--medal)}
+input[type=number]{font-variant-numeric:tabular-nums}
+label.f{display:flex;flex-direction:column;gap:2px;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
+label.f input,label.f select{font-size:1.02rem;text-transform:none;letter-spacing:0;color:var(--ink)}
 
-/* Identité */
-.identity{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 18px}
-@media (max-width:760px){.identity{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
-/* Portrait + caractéristiques */
-.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:center}
-.stat-col{display:flex;flex-direction:column;gap:14px}
-.portrait{aspect-ratio:1/1;max-width:100%;border-radius:50%;border:3px solid var(--ink);background:var(--panel);overflow:hidden;position:relative;display:grid;place-items:center;cursor:pointer}
-.portrait img{width:100%;height:100%;object-fit:cover}
-.portrait .ph{color:var(--muted);text-align:center;padding:20px;font-size:.95rem}
-.stat{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
-.medal{width:76px;height:76px;border-radius:50%;border:2px solid var(--ink);background:var(--sheet);display:grid;place-items:center;position:relative}
-.medal input{width:58px;text-align:center;border:0;font-family:var(--f-display);font-weight:800;font-size:2.1rem;padding:0;font-variant-numeric:tabular-nums}
-.stat .name{font-family:var(--f-display);font-weight:700;font-size:1.1rem;line-height:1.1}
-.stat .what{font-size:.82rem;color:var(--muted);line-height:1.3}
-@media (max-width:760px){
-  .hero{grid-template-columns:1fr}
-  .portrait{max-width:260px;margin:0 auto;width:100%}
-  .stat-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-  .stat-col.left{order:2}.stat-col.right{order:3}
-  .medal{width:60px;height:60px}.medal input{font-size:1.6rem;width:46px}
-}
-
-/* Pistes de cases */
-.grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
-@media (max-width:860px){.grid2{grid-template-columns:1fr}}
-.box{background:var(--panel);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.box h3{font-size:1rem}
-.hearts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.heart{display:flex;flex-direction:column;gap:4px;align-items:stretch}
-.heart .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:4px;border:1.5px solid var(--ink);border-radius:8px;background:var(--sheet)}
-.cell{aspect-ratio:1/1;border:1px dashed var(--line);border-radius:4px;background:transparent;padding:0;min-width:0}
-.cell.on{background:var(--hurt);border-style:solid;border-color:var(--hurt)}
-.heart .lbl{font-size:.75rem;text-align:center;color:var(--muted);min-height:1.1em}
-.heart .lbl.hit{color:var(--hurt);font-weight:700}
-.track-row{display:grid;grid-template-columns:8.5rem minmax(0,1fr) auto;gap:10px;align-items:center}
-.track-row .tn{font-weight:700}
-.track-row input.tn{font-weight:700;border-bottom:1px dashed var(--line)}
-.track{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:3px}
-.track .cell{aspect-ratio:auto;height:22px;border-style:solid}
-.track .cell.on{background:var(--accent);border-color:var(--accent)}
-.track.mag .cell.on{background:var(--brass);border-color:var(--brass)}
-.count{font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--muted);min-width:3.2rem;text-align:right}
-@media (max-width:520px){.track-row{grid-template-columns:1fr auto}.track-row .track{grid-column:1/-1}}
-.legend{font-size:.8rem;color:var(--muted)}
-
-/* Tableaux */
-.tablewrap{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:720px}
-th{font-family:var(--f-body);font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:6px 6px;border-bottom:1px solid var(--line)}
-td{padding:2px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
-td input{border-bottom:0;padding:6px 0}
-td.del{width:34px}
-
-/* Inventaire */
-.inv{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px}
-@media (max-width:860px){.inv{grid-template-columns:1fr}}
-.cont{display:flex;flex-direction:column;gap:6px}
-.cont-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.cont-head b{font-family:var(--f-display);font-size:1.02rem}
-.slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:3px}
-.slot{aspect-ratio:1/1;border:1px solid var(--line);border-radius:4px;background:var(--sheet);font-size:.62rem;line-height:1.05;overflow:hidden;padding:2px;color:var(--accent-ink);word-break:break-word}
-.slot.used{border-color:transparent}
-.slot.over{background:var(--hurt);border-color:var(--hurt)}
+/* Panneaux parchemin */
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:16px 20px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.panel-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
 .status{font-size:.88rem;font-variant-numeric:tabular-nums}
 .status.bad{color:var(--hurt);font-weight:700}
 .status.good{color:var(--ok)}
-.items td input[type=number]{width:4.5rem}
-.memo{font-size:.85rem;color:var(--muted);display:grid;gap:4px;padding-left:1.1rem;margin:0}
+.warn{color:var(--accent);font-size:.88rem;margin:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid-id{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 18px}
+@media (max-width:760px){.grid-id{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.add-tile{border:2px dashed var(--line);border-radius:10px;background:transparent;color:var(--muted);font-weight:700;padding:12px;min-height:56px}
 
-/* Résumé du tour */
-.turn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:760px){.turn{grid-template-columns:1fr}}
-.turn ol,.turn ul{margin:6px 0 0;padding-left:1.2rem;display:grid;gap:3px}
+/* ---------- 1. Haut : identité, portrait, caractéristiques ---------- */
+.hero{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr) 240px;gap:18px;align-items:start}
+.hero-left{display:flex;flex-direction:column;gap:12px}
+.stats-col{display:flex;flex-direction:column;align-items:center;gap:8px}
+.hero-right .stats-col{gap:18px;padding-top:10px}
 
-/* Assistant + export */
-details{background:var(--panel);border-radius:10px;padding:10px 12px}
+.idplate{background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:12px 16px;box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px}
+.idplate .name{font-family:var(--f-display);font-weight:800;font-size:2.4rem;line-height:1;border-bottom-style:dashed;padding:0}
+.idplate .player{display:flex;gap:6px;align-items:baseline;font-size:.9rem;color:var(--muted)}
+.idplate .player input{font-weight:700;color:var(--ink);font-size:.95rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:baseline;gap:5px;padding:3px 10px;border-radius:999px;background:var(--chip);font-size:.9rem;min-width:0}
+.chip span{color:var(--muted);white-space:nowrap}
+.chip input{border:0;font-weight:700;padding:0;width:auto;field-sizing:content;min-width:4ch;max-width:20ch}
+.idplate .tp{display:flex;gap:6px;align-items:baseline;font-size:.85rem;color:var(--muted);white-space:nowrap}
+
+.stat{display:flex;flex-direction:column;align-items:center;width:220px}
+.medal{width:104px;height:104px;border-radius:50%;background:var(--accent);padding:5px;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.medal-in{width:100%;height:100%;border-radius:50%;background:var(--medal);display:grid;place-items:center}
+.stat.pa .medal-in{background:var(--accent)}
+.medal input{width:76px;text-align:center;border:0;font-family:var(--f-display);font-weight:800;font-size:3.2rem;line-height:1;padding:0;color:var(--ink);-moz-appearance:textfield;appearance:textfield}
+.stat.pa .medal input{color:var(--on-accent)}
+.medal input::-webkit-outer-spin-button,.medal input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.ribbon{margin-top:-16px;min-width:190px;padding:6px 26px;background:var(--panel);border-top:2px solid var(--accent);text-align:center;font-family:var(--f-display);font-weight:700;font-size:1.25rem;
+  clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%)}
+.stat .what{font-size:.8rem;color:var(--bg-muted);margin-top:2px}
+.stat .mod{font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums;min-height:1.1em;color:var(--bg-ink)}
+.stat .mod.up{color:#9BD8A8}.stat .mod.down{color:#F0A097}
+
+.portrait-wrap{position:relative;width:100%;max-width:640px;margin:0 auto}
+.ring{aspect-ratio:1/1;border-radius:50%;padding:12px;background:conic-gradient(from 0deg,var(--accent),var(--accent2),var(--accent),var(--accent2),var(--accent))}
+.portrait{width:100%;height:100%;border-radius:50%;overflow:hidden;position:relative;background:#22313A;box-shadow:inset 0 0 0 6px var(--bg);display:grid;place-items:center;cursor:pointer;border:0;padding:0;color:var(--bg-muted)}
+.portrait img{width:100%;height:100%;object-fit:cover;display:block}
+.portrait .ph{padding:24px;text-align:center;font-size:1rem}
+.level{position:absolute;left:6%;top:0;width:78px;height:92px;background:var(--accent);color:var(--on-accent);
+  clip-path:polygon(50% 0,100% 14%,100% 62%,50% 100%,0 62%,0 14%);display:flex;flex-direction:column;align-items:center;padding-top:10px}
+.level span{font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.level input{width:56px;text-align:center;border:0;color:var(--on-accent);font-family:var(--f-display);font-weight:800;font-size:2.4rem;line-height:1;padding:0;-moz-appearance:textfield;appearance:textfield}
+.level input::-webkit-outer-spin-button,.level input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.portrait-tools{display:flex;justify-content:center;margin-top:6px}
+.portrait-tools .ghost{color:var(--bg-muted)}
+
+details{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:10px 14px}
 summary{cursor:pointer;font-weight:700}
 .calc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
-@media (max-width:640px){.calc{grid-template-columns:1fr}}
 .sumtable{margin-top:10px;overflow-x:auto}
-.sumtable table{min-width:560px}
-.sumtable td,.sumtable th{text-align:center;font-variant-numeric:tabular-nums}
+.sumtable table{border-collapse:collapse;width:100%;min-width:560px}
+.sumtable td,.sumtable th{text-align:center;font-variant-numeric:tabular-nums;padding:4px 6px;border-bottom:1px solid var(--line)}
+.sumtable th{font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .sumtable td:first-child,.sumtable th:first-child{text-align:left}
 .sumtable tr.total td{font-weight:700;border-top:2px solid var(--ink)}
-.warn{color:var(--brass);font-size:.88rem;margin:8px 0 0}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);padding:8px 14px;border-radius:999px;font-size:.9rem}
-@media (prefers-reduced-motion:no-preference){.cell,.slot{transition:background-color .12s}}
-/* Barre de navigation commune (mêmes règles que css/jdr-ui.css) */
-.jdr-nav{max-width:1100px;margin:-20px auto 18px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;padding-block:10px;border-bottom:1px solid var(--line)}
-.jdr-nav .brand{font-family:var(--f-display);font-weight:800;font-size:1.1rem;color:var(--ink);text-decoration:none}
+
+@media (max-width:1080px){
+  .hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .hero-left{grid-column:1}.hero-center{grid-column:2;grid-row:1}.hero-right{grid-column:1/-1}
+  .hero-right .stats-col{flex-direction:row;flex-wrap:wrap;justify-content:center;padding-top:0}
+}
+@media (max-width:700px){
+  .hero{grid-template-columns:1fr}
+  .hero-left,.hero-center,.hero-right{grid-column:1;grid-row:auto}
+  .hero-center{order:-1}
+  .portrait-wrap{max-width:320px}
+  .stats-col{flex-direction:row!important;flex-wrap:wrap;justify-content:center}
+  .stat{width:160px}.ribbon{min-width:150px;font-size:1.05rem;padding:5px 18px}
+  .medal{width:84px;height:84px}.medal input{font-size:2.5rem}
+  .calc{grid-template-columns:1fr}
+}
+
+/* ---------- 2. Blessures, armures | Ressources ---------- */
+.row2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:20px}
+.row3{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px}
+@media (max-width:1000px){.row2,.row3{grid-template-columns:1fr}}
+.count-big{font-family:var(--f-body);font-size:1rem;color:var(--muted);font-weight:500}
+.wbtns{display:flex;flex-wrap:wrap;gap:6px}
+.wbtn{background:var(--hurt-line);border-color:var(--hurt-line);color:#fff;font-size:.88rem;padding:5px 10px}
+.wbtn.heal{background:transparent;color:var(--ok);border:2px solid var(--ok)}
+.paliers{display:flex;flex-wrap:wrap;gap:14px}
+.palier{display:flex;flex-direction:column;align-items:center;gap:3px}
+.palier .cells{display:grid;grid-template-columns:repeat(6,22px);gap:3px;padding:4px;border-radius:8px;background:var(--cell);border:2px solid var(--line)}
+.palier.full .cells{border-color:var(--hurt-line)}
+.palier .lbl{font-size:.75rem;color:var(--muted)}
+.wcell{height:28px;padding:0;border-radius:4px;border:0;background:var(--panel);box-shadow:inset 0 0 0 2px var(--hurt-line)}
+.wcell.on{background:var(--hurt)}
+.legend{font-size:.82rem;color:var(--muted)}
+.trk{display:grid;grid-template-columns:150px minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.trk b{font-family:var(--f-display);font-size:1.12rem}
+.pips{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:4px}
+.pip{height:26px;padding:0;border:0;border-radius:5px;background:transparent;box-shadow:inset 0 0 0 2px var(--c)}
+.pip.on{background:var(--c)}
+.pip.off{opacity:.3}
+.trk .num{font-family:var(--f-display);font-weight:800;font-size:1.15rem;min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.trk{grid-template-columns:1fr auto auto}.trk .pips{grid-column:1/-1;grid-row:2}}
+@media (max-width:560px){.palier .cells{grid-template-columns:repeat(6,18px)}.paliers{gap:10px}.icard .top{flex-wrap:wrap}.icard .dmg{text-align:left}}
+
+.res{background:var(--cell);border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:6px}
+.res-head{display:flex;align-items:center;gap:8px}
+.res-head input.rn{font-family:var(--f-display);font-weight:700;font-size:1.15rem;border:0;padding:0;flex:1}
+.res-head .num{font-family:var(--f-display);font-weight:800;font-size:1.1rem;white-space:nowrap;display:flex;align-items:baseline;gap:3px}
+.res-head .num input{width:2.6em;text-align:center;border:0;border-bottom:1px dashed var(--line);padding:0;font-weight:800}
+.gems{display:flex;flex-wrap:wrap;gap:5px}
+.gem{width:30px;height:30px;padding:0;border:0;background:var(--chip);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.gem.on{background:var(--mana)}
+
+/* ---------- 3. Armes | Armure et bouclier ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.cards.prot{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.icard{background:var(--cell);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;position:relative}
+.icard.weapon{border-left:6px solid var(--accent)}
+.icard .top{display:flex;gap:8px;align-items:baseline}
+.icard .nm{font-weight:800;font-size:1.25rem;border:0;padding:0;flex:1}
+.icard .dmg{width:9em;text-align:right;font-size:.88rem;color:var(--muted);border:0;padding:0}
+.icard .kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;align-items:baseline;font-size:.95rem}
+.icard .kv span{color:var(--muted)}
+.icard .prop{font-size:.88rem;background:var(--chip);border-radius:999px;padding:3px 10px;border:0}
+.icard .kind{width:auto;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border:0;background:transparent;padding:0}
+.icard .vals{display:flex;flex-wrap:wrap;gap:5px}
+.icard .vals label{display:flex;gap:4px;align-items:baseline;background:var(--chip);border-radius:6px;padding:2px 8px;font-size:.85rem}
+.icard .vals input{width:2.2em;border:0;padding:0;font-weight:800;text-align:center}
+.icard{padding-right:38px}
+.icard .del{position:absolute;right:4px;top:6px}
+
+/* ---------- 4. Inventaire ---------- */
+.charge{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.charge b.t{font-family:var(--f-display);font-size:1.15rem}
+.sizes{display:flex;gap:4px}
+.sizes button{width:36px;padding:4px 0;background:var(--chip);border-color:transparent}
+.sizes button.on{background:var(--accent);color:var(--on-accent)}
+.bar{width:180px;height:10px;border-radius:999px;background:var(--chip);overflow:hidden}
+.bar>div{height:100%;background:var(--accent)}
+.bar.over>div{background:var(--hurt)}
+.charge .tot{font-family:var(--f-display);font-weight:800;font-size:1.5rem;font-variant-numeric:tabular-nums}
+.charge .tot small{font-size:1rem;color:var(--muted)}
+.inv{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px}
+@media (max-width:1000px){.inv{grid-template-columns:1fr}}
+.cont-title{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:clamp(40px,6.4vw,92px);grid-auto-flow:row dense;gap:6px;padding:8px;border-radius:12px;background:var(--cell)}
+.free{border-radius:9px;border:2px dashed var(--line)}
+.item{border:0;border-radius:9px;color:#fff;padding:6px 8px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-weight:700;font-size:.92rem;line-height:1.1}
+.item small{font-weight:500;font-size:.74rem;opacity:.9}
+.item.over{outline:3px solid var(--hurt);outline-offset:-3px}
+.purse{background:var(--cell);border-radius:12px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+.purse input{font-family:var(--f-display);font-weight:800;font-size:2.4rem;color:var(--accent);text-align:center;border:0;width:5ch;padding:0;-moz-appearance:textfield;appearance:textfield}
+.purse input::-webkit-outer-spin-button,.purse input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.side2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:520px){.side2{grid-template-columns:1fr}}
+.tiny{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.tiny span{background:var(--chip);border-radius:999px;padding:2px 8px;font-size:.8rem}
+.memo{display:flex;flex-direction:column;gap:6px}
+.memo div{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:center;background:var(--cell);border-radius:8px;padding:6px 10px;font-size:.9rem;line-height:1.2}
+.memo div>span:first-child{height:30px;border-radius:6px;color:#fff;font-weight:800;display:grid;place-items:center}
+.objs{display:flex;flex-direction:column;gap:6px}
+.obj{display:grid;grid-template-columns:14px minmax(0,1fr) 6.5rem 8.5rem 32px;gap:8px;align-items:center;background:var(--cell);border-radius:8px;padding:4px 8px}
+.obj .sw{width:14px;height:14px;border-radius:4px}
+.obj.focus{outline:2px solid var(--accent2)}
+@media (max-width:560px){.obj{grid-template-columns:14px minmax(0,1fr) 32px}.obj select{grid-column:2}}
+
+/* Divers */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:999px;font-size:.9rem}
+@media (prefers-reduced-motion:no-preference){.wcell,.pip,.gem{transition:background-color .12s}}
+/* Barre de navigation commune (mêmes règles que css/jdr-ui.css, couleurs adaptées au fond sombre) */
+.jdr-nav{max-width:1400px;margin:-20px auto 18px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;padding-block:10px;border-bottom:1px solid rgba(243,232,207,.25)}
+.jdr-nav .brand{font-family:var(--f-display);font-weight:800;font-size:1.1rem;color:var(--bg-ink);text-decoration:none}
 .jdr-nav nav{display:flex;flex-wrap:wrap;gap:4px}
-.jdr-nav nav a{padding:5px 10px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:500}
+.jdr-nav nav a{padding:5px 10px;border-radius:999px;text-decoration:none;color:var(--bg-muted);font-weight:500}
 .jdr-nav nav a.on{background:var(--panel);color:var(--ink)}
-.jdr-nav .who{display:flex;gap:8px;align-items:center;font-size:.92rem;color:var(--muted)}
-.stat .mod{font-size:.8rem;font-variant-numeric:tabular-nums;font-weight:700}
-.stat .mod.up{color:var(--ok)} .stat .mod.down{color:var(--hurt)}
+.jdr-nav .who{display:flex;gap:8px;align-items:center;font-size:.92rem;color:var(--bg-muted)}
+.jdr-nav .who button{color:var(--bg-muted)}
 </style>
 </head>
 <body>
@@ -157,7 +247,7 @@ summary{cursor:pointer;font-weight:700}
   <div class="topbar">
     <div>
       <h1>Fiche de personnage</h1>
-      <p class="sub">Un'Gara · Les aventuriers de Rimd'Orël</p>
+      <p class="sub">Un'Gara · Merveille d'Un'Gara</p>
     </div>
     <div class="actions">
       <button id="btn-export" type="button">Exporter</button>
@@ -167,17 +257,17 @@ summary{cursor:pointer;font-weight:700}
   </div>
 
   <!-- Compte et sauvegarde en ligne -->
-  <section class="sheet" id="online" aria-labelledby="t-online">
-    <div class="sheet-head"><h2 id="t-online">Compte</h2><span class="status" id="on-status"></span></div>
+  <section class="panel" id="online" aria-labelledby="t-online">
+    <div class="panel-head"><h2 id="t-online" style="font-size:1.25rem">Compte</h2><span class="status" id="on-status"></span></div>
     <div id="on-offline" hidden><p class="hint" style="margin:0">Mode hors ligne : la fiche est gardée dans ce navigateur uniquement. Pour l'enregistrer en ligne, ouvre la page depuis le site du jeu.</p></div>
-    <form id="on-login" hidden class="identity" autocomplete="on">
+    <form id="on-login" hidden class="grid-id" autocomplete="on">
       <label class="f">E-mail<input id="on-email" type="email" autocomplete="username" required></label>
       <label class="f">Mot de passe<input id="on-pass" type="password" autocomplete="current-password" required></label>
       <div style="display:flex;align-items:end;gap:8px"><button class="primary" type="submit">Se connecter</button></div>
       <p class="hint" style="margin:0;align-self:end">Même compte que Rimd'Orël.</p>
     </form>
     <div id="on-logged" hidden style="display:flex;flex-direction:column;gap:10px">
-      <div class="identity">
+      <div class="grid-id">
         <label class="f">Mes personnages<select id="on-list"></select></label>
         <div style="display:flex;align-items:end;gap:8px;flex-wrap:wrap">
           <button id="on-upload" type="button">Mettre la fiche actuelle en ligne</button>
@@ -190,152 +280,159 @@ summary{cursor:pointer;font-weight:700}
         </div>
       </div>
       <p class="hint" id="on-campaign" style="margin:0"></p>
-      <div class="row" id="on-deckrow" hidden style="align-items:center">
-        <a class="primary" id="on-deck" href="deck.html" style="text-decoration:none;padding:7px 12px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:500">Construire le deck</a>
+      <div class="row" id="on-deckrow" hidden>
+        <a id="on-deck" href="deck.html" style="text-decoration:none;padding:7px 12px;border-radius:8px;background:var(--accent);color:var(--on-accent);font-weight:700">Construire le deck</a>
         <span class="hint" id="on-decksum"></span>
       </div>
     </div>
-    <p class="warn" id="on-readonly" hidden style="margin:0">Lecture seule : cette fiche appartient à un joueur de ta campagne.</p>
+    <p class="warn" id="on-readonly" hidden>Lecture seule : cette fiche appartient à un joueur de ta campagne.</p>
   </section>
 
-  <!-- Identité + caractéristiques -->
-  <section class="sheet" aria-labelledby="t-id">
-    <div class="sheet-head"><h2 id="t-id">Identité</h2><span class="hint">Les données sont gardées dans ce navigateur uniquement.</span></div>
-    <div class="identity">
-      <label class="f">Joueur·euse<input id="player" data-k="player"></label>
-      <label class="f">Nom<input id="name" data-k="name"></label>
-      <label class="f">Niveau<input id="level" data-k="level" type="number" min="1" max="15"></label>
-      <label class="f">Genre<input id="genre" data-k="genre"></label>
-      <label class="f">Peuple<input id="peuple" data-k="peuple" list="dl-peuples"></label>
-      <label class="f">Classe<input id="classe" data-k="classe" list="dl-classes"></label>
-      <label class="f">Spécialisation<input id="specialisation" data-k="specialisation" list="dl-specs"></label>
-      <label class="f">Passé<input id="passe" data-k="passe" list="dl-passes"></label>
-      <label class="f">Taille et poids<input id="taillepoids" data-k="taillepoids"></label>
-    </div>
-    <datalist id="dl-peuples"></datalist><datalist id="dl-classes"></datalist><datalist id="dl-passes"></datalist>
-    <datalist id="dl-specs"><option value="Gardien"><option value="Druide"><option value="Prêtre"><option value="Berserker"><option value="Guerrier"><option value="Moine"><option value="Barde"><option value="Chasseur"><option value="Voleur"><option value="Arcaniste"><option value="Mage"><option value="Sorcier"></datalist>
-
-    <div class="hero">
-      <div class="stat-col left" id="stats-left"></div>
-      <div>
-        <div class="portrait" id="portrait" role="button" tabindex="0" aria-label="Changer le portrait">
-          <div class="ph" id="portrait-ph">Touchez pour ajouter un portrait</div>
-          <img id="portrait-img" alt="Portrait du personnage" hidden>
+  <!-- ===== 1. Identité, portrait, caractéristiques ===== -->
+  <section class="hero" aria-label="Identité et caractéristiques">
+    <div class="hero-left">
+      <div class="idplate">
+        <input class="name" id="name" data-k="name" placeholder="Nom du personnage" aria-label="Nom du personnage">
+        <label class="player">Joueur·euse <input id="player" data-k="player" aria-label="Joueur ou joueuse"></label>
+        <div class="chips">
+          <label class="chip"><span>Peuple</span><input id="peuple" data-k="peuple" list="dl-peuples"></label>
+          <label class="chip"><span>Classe</span><input id="classe" data-k="classe" list="dl-classes"></label>
+          <label class="chip"><span>Spécialisation</span><input id="specialisation" data-k="specialisation" list="dl-specs"></label>
+          <label class="chip"><span>Passé</span><input id="passe" data-k="passe" list="dl-passes"></label>
+          <label class="chip"><span>Genre</span><input id="genre" data-k="genre"></label>
         </div>
-        <input type="file" id="portrait-file" accept="image/*" hidden>
-        <div class="row" style="justify-content:center"><button class="ghost" id="portrait-clear" type="button">Retirer le portrait</button></div>
+        <label class="tp">Taille et poids <input id="taillepoids" data-k="taillepoids"></label>
       </div>
-      <div class="stat-col right" id="stats-right"></div>
+      <div class="stats-col" id="stats-left"></div>
     </div>
 
-    <details>
-      <summary>Calculer les caractéristiques depuis le manuel V1 (ancien système)</summary>
-      <p class="hint">Additionne les valeurs du peuple, de la classe et du passé selon le manuel V1. La fiche est plus à jour que le manuel : ces totaux sont indicatifs.</p>
-      <div class="calc">
-        <label class="f">Peuple<select id="c-peuple"></select></label>
-        <label class="f">Classe<select id="c-classe"></select></label>
-        <label class="f">Passé<select id="c-passe"></select></label>
+    <div class="hero-center">
+      <div class="portrait-wrap">
+        <div class="ring">
+          <button class="portrait" id="portrait" type="button" aria-label="Changer le portrait">
+            <span class="ph" id="portrait-ph">Touchez pour ajouter un portrait</span>
+            <img id="portrait-img" alt="Portrait du personnage" hidden>
+          </button>
+        </div>
+        <label class="level" title="Niveau"><span>Niv.</span><input id="level" data-k="level" type="number" min="1" max="15" aria-label="Niveau"></label>
       </div>
-      <div class="sumtable" id="sumtable"></div>
-      <p class="warn">Le manuel V1 ne contient ni Point d'action, ni Sirène, ni Pirate : ces valeurs restent à saisir à la main.</p>
-      <div class="row"><button class="primary" id="c-apply" type="button">Reporter sur la fiche</button></div>
-    </details>
-  </section>
+      <input type="file" id="portrait-file" accept="image/*" hidden>
+      <div class="portrait-tools"><button class="ghost" id="portrait-clear" type="button">Retirer le portrait</button></div>
+    </div>
 
-  <!-- Santé + ressources -->
-  <section class="sheet" aria-labelledby="t-hp">
-    <div class="sheet-head"><h2 id="t-hp">Blessures, armure et ressources</h2></div>
-    <div class="grid2">
-      <div class="box">
-        <h3>Blessures</h3>
-        <div class="hearts" id="hearts"></div>
-        <div class="legend">1 case = blessure légère · 3 cases = blessure · 6 cases = blessure grave</div>
-        <div class="track-row"><span class="tn">Armure</span><div class="track" id="tr-armor" style="--n:18"></div><span class="count" id="ct-armor"></span></div>
-        <div class="track-row"><span class="tn">Armure magique</span><div class="track mag" id="tr-armag" style="--n:18"></div><span class="count" id="ct-armag"></span></div>
-        <div class="legend">L'armure absorbe les dégâts physiques, l'armure magique les dégâts magiques. Les deux sont restaurées après chaque combat.</div>
-      </div>
-      <div class="box">
-        <h3>Ressources</h3>
-        <div id="resources" style="display:flex;flex-direction:column;gap:10px"></div>
-        <div class="row"><button id="res-add" type="button">Ajouter une ressource</button></div>
-        <div class="legend">Exemples : Mana, Énergie, Surcharge, Ki. Touchez une case pour régler la valeur.</div>
-      </div>
+    <div class="hero-right">
+      <div class="stats-col" id="stats-right"></div>
     </div>
   </section>
 
-  <!-- Équipement -->
-  <section class="sheet" aria-labelledby="t-eq">
-    <div class="sheet-head"><h2 id="t-eq">Armes</h2></div>
-    <div class="tablewrap"><table>
-      <thead><tr><th>Nom de l'arme</th><th>Attaque principale</th><th>Attaque secondaire</th><th>Attaque tertiaire</th><th>Type de dégât</th><th>Propriété</th><th></th></tr></thead>
-      <tbody id="weapons"></tbody>
-    </table></div>
-    <div class="row"><button id="w-add" type="button">Ajouter une arme</button></div>
+  <datalist id="dl-peuples"></datalist><datalist id="dl-classes"></datalist><datalist id="dl-passes"></datalist>
+  <datalist id="dl-specs"><option value="Gardien"><option value="Druide"><option value="Prêtre"><option value="Berserker"><option value="Guerrier"><option value="Moine"><option value="Barde"><option value="Chasseur"><option value="Voleur"><option value="Arcaniste"><option value="Mage"><option value="Sorcier"></datalist>
 
-    <div class="sheet-head"><h2>Armure et bouclier</h2></div>
-    <div class="tablewrap"><table>
-      <thead><tr><th>Type</th><th>Nom</th><th>Attaque principale</th><th>Point d'armure</th><th>Point d'armure magique</th><th>Résistance</th><th>Propriété</th><th></th></tr></thead>
-      <tbody id="armors"></tbody>
-    </table></div>
-    <div class="row"><button id="a-add" type="button">Ajouter une armure ou un bouclier</button></div>
-  </section>
+  <details>
+    <summary>Calculer les caractéristiques depuis le manuel V1 (ancien système)</summary>
+    <p class="hint">Additionne les valeurs du peuple, de la classe et du passé selon le manuel V1. La fiche est plus à jour que le manuel : ces totaux sont indicatifs.</p>
+    <div class="calc">
+      <label class="f">Peuple<select id="c-peuple"></select></label>
+      <label class="f">Classe<select id="c-classe"></select></label>
+      <label class="f">Passé<select id="c-passe"></select></label>
+    </div>
+    <div class="sumtable" id="sumtable"></div>
+    <p class="warn" style="margin-top:8px">Le manuel V1 ne contient ni Point d'action, ni Sirène, ni Pirate : ces valeurs restent à saisir à la main.</p>
+    <div class="row" style="margin-top:8px"><button class="primary" id="c-apply" type="button">Reporter sur la fiche</button></div>
+  </details>
 
-  <!-- Inventaire -->
-  <section class="sheet" aria-labelledby="t-inv">
-    <div class="sheet-head"><h2 id="t-inv">Inventaire</h2>
-      <label class="f" style="flex-direction:row;align-items:center;gap:8px">Taille du perso
-        <select id="taille" style="width:auto"><option value="P">P (20 + Corps)</option><option value="M">M (25 + Corps)</option><option value="G">G (30 + Corps)</option></select>
-      </label>
+  <!-- ===== 2. Blessures + armures | Ressources ===== -->
+  <div class="row2">
+    <section class="panel" aria-labelledby="t-hp">
+      <div class="panel-head">
+        <h2 id="t-hp">Blessures <span class="count-big" id="w-count"></span></h2>
+        <div class="wbtns">
+          <button class="wbtn" type="button" data-add="1">+ Légère</button>
+          <button class="wbtn" type="button" data-add="3">+ Blessure</button>
+          <button class="wbtn" type="button" data-add="6">+ Grave</button>
+          <button class="wbtn heal" type="button" id="w-heal">Soigner</button>
+        </div>
+      </div>
+      <div class="paliers" id="paliers"></div>
+      <div class="legend">Blessure légère = 1 case · Blessure = 3 cases · Blessure grave = 6 cases. Touchez une case pour corriger.</div>
+      <div class="trk"><b>Armure</b><div class="pips" id="tr-armor" style="--n:18;--c:var(--armor)"></div><span class="num" id="ct-armor"></span><button class="ghost" type="button" id="rs-armor" title="Remettre l'armure au maximum">Restaurer</button></div>
+      <div class="trk"><b>Armure magique</b><div class="pips" id="tr-armag" style="--n:18;--c:var(--armag)"></div><span class="num" id="ct-armag"></span><button class="ghost" type="button" id="rs-armag" title="Remettre l'armure magique au maximum">Restaurer</button></div>
+      <div class="legend">Le maximum vient de la section « Armure et bouclier ». Les armures sont restaurées après chaque combat.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="t-res">
+      <h2 id="t-res">Ressources</h2>
+      <div id="resources" style="display:flex;flex-direction:column;gap:10px"></div>
+      <button class="add-tile" id="res-add" type="button">+ Ressource (énergie, surcharge…)</button>
+    </section>
+  </div>
+
+  <!-- ===== 3. Armes | Armure et bouclier ===== -->
+  <div class="row3">
+    <section class="panel" aria-labelledby="t-w">
+      <h2 id="t-w">Armes</h2>
+      <div class="cards" id="weapons"></div>
+    </section>
+    <section class="panel" aria-labelledby="t-a">
+      <h2 id="t-a">Armure et bouclier</h2>
+      <div class="cards prot" id="armors"></div>
+    </section>
+  </div>
+
+  <!-- ===== 4. Inventaire (avec la charge) ===== -->
+  <section class="panel" aria-labelledby="t-inv">
+    <div class="panel-head">
+      <h2 id="t-inv" style="font-size:1.9rem">Inventaire</h2>
+      <div class="charge">
+        <b class="t">Charge</b>
+        <div class="sizes" id="sizes" role="group" aria-label="Taille du personnage"></div>
+        <span class="hint" id="ch-base"></span>
+        <div class="bar" id="ch-bar"><div></div></div>
+        <span class="tot" id="ch-tot"></span>
+      </div>
     </div>
     <div class="inv">
-      <div class="cont">
-        <div class="cont-head"><b>Sac à dos</b><span class="status" id="st-sac"></span></div>
-        <div class="slots" id="sl-sac" style="--cols:8"></div>
+      <div>
+        <div class="cont-title">Sac à dos <span class="status" id="st-sac"></span></div>
+        <div class="slots" id="sl-sac" style="--cols:7"></div>
+        <div class="tiny" id="tiny"></div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="cont">
-          <div class="cont-head"><b>Bourse</b><span class="status" id="st-bourse"></span></div>
-          <div class="slots" id="sl-bourse" style="--cols:4"></div>
-          <label class="f" style="flex-direction:row;align-items:center;gap:8px">Pièces<input type="number" id="coins" min="0" style="width:7rem"></label>
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+        <div class="side2">
+          <div>
+            <div class="cont-title">Bourse</div>
+            <div class="purse">
+              <input type="number" id="coins" min="0" aria-label="Nombre de pièces">
+              <div>pièces</div>
+              <div class="hint" id="coin-cases"></div>
+            </div>
+            <div class="tiny" id="purse-items"></div>
+          </div>
+          <div>
+            <div class="cont-title">Ceinture <span class="status" id="st-ceinture"></span></div>
+            <div class="slots" id="sl-ceinture" style="--cols:3;grid-auto-rows:52px"></div>
+          </div>
         </div>
-        <div class="cont">
-          <div class="cont-head"><b>Ceinture</b><span class="status" id="st-ceinture"></span></div>
-          <div class="slots" id="sl-ceinture" style="--cols:5"></div>
+        <div>
+          <div class="cont-title">Mémo des tailles</div>
+          <div class="memo" id="memo"></div>
         </div>
       </div>
     </div>
-    <div class="tablewrap items"><table>
-      <thead><tr><th>Objet</th><th>Cases</th><th>Rangé dans</th><th></th></tr></thead>
-      <tbody id="items"></tbody>
-    </table></div>
-    <div class="row"><button id="i-add" type="button">Ajouter un objet</button></div>
-    <details>
-      <summary>Mémo des tailles</summary>
-      <ul class="memo">
-        <li><b>0 case</b> (minuscule) : bague, clé, gemme.</li>
-        <li><b>1 case</b> (petit, jusqu'à 1 kg) : dague, potion.</li>
-        <li><b>2 cases</b> (moyen, jusqu'à 3 kg) : épée longue, bouclier.</li>
-        <li><b>3 cases</b> (large, jusqu'à 5 kg) : arc, lance.</li>
-        <li><b>6 cases</b> (volumineux, jusqu'à 15 kg) : armure intermédiaire, tonneau.</li>
-        <li><b>9 cases</b> (massif, jusqu'à 35 kg) : armure lourde, grand coffre.</li>
-        <li><b>100 pièces = 1 case</b> (comptées dans la bourse).</li>
-      </ul>
-    </details>
-  </section>
-
-  <!-- Résumé du tour -->
-  <section class="sheet" aria-labelledby="t-turn">
-    <div class="sheet-head"><h2 id="t-turn">Résumé d'un tour</h2></div>
-    <div class="turn">
-      <div class="box"><h3>Début du tour</h3><ol><li>Piochez (autant que votre Opportunisme).</li><li>Résolvez les cartes Risque piochées.</li><li>Convertissez un sort en mana (facultatif).</li></ol></div>
-      <div class="box"><h3>Phase d'action</h3><ul><li>Jouez vos cartes.</li><li>Utilisez une action spontanée.</li><li>Déplacez-vous.</li></ul><p class="hint" style="margin:0">Dans l'ordre de votre choix.</p></div>
-      <div class="box"><h3>Fin du tour</h3><ul><li>Défaussez les cartes en trop (gardez au plus votre Anticipation).</li><li>Fin des effets temporaires.</li></ul></div>
+    <div>
+      <div class="cont-title">Objets</div>
+      <div class="objs" id="items"></div>
+      <div class="row" style="margin-top:8px"><button id="i-add" type="button">+ Objet</button></div>
     </div>
-    <label class="f">Notes<textarea id="notes" data-k="notes" rows="3"></textarea></label>
   </section>
 
-  <section class="sheet" id="io" hidden aria-labelledby="t-io">
-    <div class="sheet-head"><h2 id="t-io">Export / import</h2><button class="ghost" id="io-close" type="button">Fermer</button></div>
+  <section class="panel" aria-labelledby="t-notes">
+    <h2 id="t-notes">Notes</h2>
+    <textarea id="notes" data-k="notes" rows="4" aria-labelledby="t-notes"></textarea>
+  </section>
+
+  <section class="panel" id="io" hidden aria-labelledby="t-io">
+    <div class="panel-head"><h2 id="t-io">Export / import</h2><button class="ghost" id="io-close" type="button">Fermer</button></div>
     <p class="hint" id="io-help"></p>
     <textarea id="io-text" rows="8" spellcheck="false"></textarea>
     <div class="row"><button class="primary" id="io-action" type="button"></button></div>
@@ -355,29 +452,51 @@ const CLASSES = {"Acolyte":[1,2,1,0,1,10,1,0],"Combattant":[2,-1,2,0,0,12,1,1],"
 const PASSES = {"Artiste":[2,1,1,0,1,6,0,0],"Brute":[2,0,2,0,0,8,0,0],"Voyageur":[1,1,1,1,1,8,0,0],"Roublard":[2,2,1,1,0,6,-1,0],"Religieux":[1,2,0,0,1,6,0,0],"Cultiste":[2,1,0,1,0,6,0,0],"Artisan":[2,2,0,1,0,6,0,0],"Étudiant":[1,2,0,2,0,6,4,0],"Explorateur":[3,1,1,0,-1,8,-1,0],"Héros":[2,1,1,0,0,10,0,0],"Noble":[1,2,0,1,1,6,0,0],"Orphelin":[3,0,0,1,-1,10,0,0],"Soldat":[2,1,1,0,0,10,1,0]};
 const COLS = ["Opportunisme","Anticipation","Corps","Esprit","Charme","Points de vie","Résistance","Armure"];
 
+// Caractéristiques : side = colonne (gauche / droite du portrait), h = rappel court, w = explication (infobulle)
 const STATS = [
-  {k:"corps",n:"Corps",w:"Force, agilité, endurance. Ajouté aux tests physiques.",side:"left"},
-  {k:"esprit",n:"Esprit",w:"Mémoire, raisonnement, perception. Ajouté aux tests mentaux.",side:"left"},
-  {k:"charme",n:"Charme",w:"Influence, éloquence. Ajouté aux tests sociaux.",side:"left"},
-  {k:"opp",n:"Opportunisme",w:"Cartes piochées au début de chaque tour.",side:"right"},
-  {k:"ant",n:"Anticipation",w:"Cartes gardées en main à la fin du tour.",side:"right"},
-  {k:"res",n:"Résistance",w:"Défense contre les sorts ciblés et les états altérés.",side:"right"},
-  {k:"pa",n:"Point d'action",w:"Points disponibles pour agir pendant le tour.",side:"right"}
+  {k:"corps",n:"Corps",h:"tests physiques",w:"Force, agilité, endurance. Ajouté aux tests physiques.",side:"left"},
+  {k:"esprit",n:"Esprit",h:"tests mentaux",w:"Mémoire, raisonnement, perception. Ajouté aux tests mentaux.",side:"left"},
+  {k:"charme",n:"Charme",h:"tests sociaux",w:"Influence, éloquence. Ajouté aux tests sociaux.",side:"left"},
+  {k:"opp",n:"Opportunisme",h:"cartes piochées",w:"Cartes piochées au début de chaque tour.",side:"right"},
+  {k:"ant",n:"Anticipation",h:"cartes gardées",w:"Cartes gardées en main à la fin du tour.",side:"right"},
+  {k:"res",n:"Résistance",h:"sorts et états",w:"Défense contre les sorts ciblés et les états altérés.",side:"right"},
+  {k:"pa",n:"Points d'action",h:"par tour",w:"Points disponibles pour agir pendant le tour.",side:"right"}
 ];
+
+// Tailles d'objets (mémo) et couleur de chaque taille dans l'inventaire
+const SIZES = [
+  {n:0,t:"Minuscule",d:"bague, clé, gemme",col:"#6B7280"},
+  {n:1,t:"Petit · 1 kg",d:"dague, potion",col:"#3A7D8C"},
+  {n:2,t:"Moyen · 3 kg",d:"épée longue, bouclier",col:"#5B6FB8"},
+  {n:3,t:"Large · 5 kg",d:"arc, lance",col:"#8A5AA8"},
+  {n:6,t:"Volumineux · 15 kg",d:"armure intermédiaire, tonneau",col:"#B0603A"},
+  {n:9,t:"Massif · 35 kg",d:"armure lourde, grand coffre",col:"#9A2F27"}
+];
+function sizeColor(n){ let c=SIZES[0].col; SIZES.forEach(s=>{ if(n>=s.n) c=s.col; }); return c; }
+// Forme d'un objet dans la grille (largeur × hauteur en cases)
+function sizeShape(n, cols){
+  if(n===6) return [3,2];
+  if(n===9) return [3,3];
+  if(n<=cols) return [n,1];
+  return [cols, Math.ceil(n/cols)];
+}
+const BAG_SLOTS = 42;      // 7 × 6 cases, comme la fiche papier
+const BELT_SLOTS = 6;      // 3 × 2 cases
+const BASE = {P:20,M:25,G:30};
 
 // ---------- État ----------
 const KEY = "ungara-fiche-v1";
 const SAMPLE = {
-  player:"Kroquette",name:"Calypso",level:1,genre:"Femme",peuple:"Sirène",classe:"Acolyte / Éclaireur",passe:"Pirate",taillepoids:"",
+  player:"Kroquette",name:"Calypso",level:1,genre:"Femme",peuple:"Sirène",classe:"Acolyte / Éclaireur",specialisation:"",passe:"Pirate",taillepoids:"",
   portrait:"",stats:{corps:4,esprit:1,charme:3,opp:4,ant:1,res:0,pa:4},
   wounds:Array(30).fill(false),armor:0,armag:0,
-  resources:[{name:"Mana",max:10,val:0},{name:"",max:10,val:0}],
+  resources:[{name:"Mana",max:10,val:0}],
   weapons:[{name:"Pistolet à silex",a1:"1 blessure",a2:"1 blessure légère et désarme",a3:"",type:"Perforant",prop:"Portée : distance moyenne / Munition"}],
   armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""},{kind:"Bouclier",name:"",att:"",pa:"",pam:"",res:"",prop:""}],
   items:[{name:"Munitions",cases:1,where:"ceinture"},{name:"Corde (15 m)",cases:2,where:"sac"}],
   coins:150,taille:"M",notes:""
 };
-const BLANK = ()=>({player:"",name:"",level:1,genre:"",peuple:"",classe:"",passe:"",taillepoids:"",portrait:"",stats:{corps:0,esprit:0,charme:0,opp:0,ant:0,res:0,pa:0},wounds:Array(30).fill(false),armor:0,armag:0,resources:[{name:"Mana",max:10,val:0}],weapons:[{name:"",a1:"",a2:"",a3:"",type:"",prop:""}],armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""}],items:[],coins:0,taille:"M",notes:""});
+const BLANK = ()=>({player:"",name:"",level:1,genre:"",peuple:"",classe:"",specialisation:"",passe:"",taillepoids:"",portrait:"",stats:{corps:0,esprit:0,charme:0,opp:0,ant:0,res:0,pa:0},wounds:Array(30).fill(false),armor:0,armag:0,resources:[{name:"Mana",max:10,val:0}],weapons:[{name:"",a1:"",a2:"",a3:"",type:"",prop:""}],armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""}],items:[],coins:0,taille:"M",notes:""});
 
 let S;
 try{ const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : structuredClone(SAMPLE); }catch(e){ S = structuredClone(SAMPLE); }
@@ -393,8 +512,9 @@ function save(){
   clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} },250);
 }
 const $ = id=>document.getElementById(id);
-function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[a,v] of Object.entries(attrs)){if(a==="class")e.className=v;else if(a.startsWith("on"))e.addEventListener(a.slice(2),v);else if(a==="text")e.textContent=v;else e.setAttribute(a,v);}kids.forEach(k=>e.append(k));return e;}
+function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[a,v] of Object.entries(attrs)){if(a==="class")e.className=v;else if(a.startsWith("on"))e.addEventListener(a.slice(2),v);else if(a==="text")e.textContent=v;else if(a==="style")e.style.cssText=v;else e.setAttribute(a,v);}kids.forEach(k=>e.append(k));return e;}
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,1800);}
+const num = v => Number(v)||0;
 
 // ---------- Identité ----------
 function fillDatalists(){
@@ -402,43 +522,45 @@ function fillDatalists(){
   $("dl-classes").replaceChildren(...Object.keys(CLASSES).map(v=>el("option",{value:v})));
   $("dl-passes").replaceChildren(...[...Object.keys(PASSES),"Pirate"].map(v=>el("option",{value:v})));
 }
-function renderIdentity(){
-  document.querySelectorAll("[data-k]").forEach(i=>{ i.value = S[i.dataset.k] ?? ""; });
-}
+function renderIdentity(){ document.querySelectorAll("[data-k]").forEach(i=>{ i.value = S[i.dataset.k] ?? ""; }); }
 document.querySelectorAll("[data-k]").forEach(i=>i.addEventListener("input",()=>{ S[i.dataset.k] = i.type==="number" ? Number(i.value) : i.value; save(); }));
 
-// ---------- Caractéristiques ----------
+// ---------- Caractéristiques (médaillons) ----------
 function renderStats(){
   const L=$("stats-left"),R=$("stats-right"); L.replaceChildren(); R.replaceChildren();
   STATS.forEach(s=>{
     const inp = el("input",{type:"number",id:"st-"+s.k,"aria-label":s.n,value:S.stats[s.k]});
-    inp.addEventListener("input",()=>{ S.stats[s.k]=Number(inp.value)||0; save(); if(s.k==="corps") renderInventory(); renderDeckMods(); });
-    const box = el("div",{class:"stat"}, el("div",{class:"medal"},inp), el("div",{}, el("div",{class:"name",text:s.n}), el("div",{class:"what",text:s.w}), el("div",{class:"mod",id:"mod-"+s.k})));
+    inp.addEventListener("input",()=>{ S.stats[s.k]=num(inp.value); save(); if(s.k==="corps") renderInventory(); renderDeckMods(); });
+    const box = el("div",{class:"stat"+(s.k==="pa"?" pa":""),title:s.w},
+      el("div",{class:"medal"},el("div",{class:"medal-in"},inp)),
+      el("div",{class:"ribbon",text:s.n}),
+      el("div",{class:"what",text:s.h}),
+      el("div",{class:"mod",id:"mod-"+s.k}));
     (s.side==="left"?L:R).append(box);
   });
   renderDeckMods();
 }
 // Modifications apportées par le deck (cartes « Tant que cette carte est dans votre deck »)
 let deckInfo = null; // { mods, sources, count, valid } quand un personnage en ligne est ouvert
+function deckMod(k){ return deckInfo ? (deckInfo.mods[k]||0) : 0; }
 function renderDeckMods(){
   STATS.forEach(s=>{
     const m = document.getElementById("mod-"+s.k); if(!m) return;
-    const v = deckInfo ? deckInfo.mods[s.k] : 0;
+    const v = deckMod(s.k);
     m.className = "mod" + (v>0?" up":v<0?" down":"");
-    m.textContent = v ? `Deck ${v>0?"+":""}${v} → ${(Number(S.stats[s.k])||0)+v}` : "";
-    m.title = deckInfo && deckInfo.sources[s.k].length ? deckInfo.sources[s.k].map(x=>`${x.card} ${x.value>0?"+":""}${x.value}`).join(", ") : "";
+    m.textContent = v ? `Deck ${v>0?"+":""}${v} → ${num(S.stats[s.k])+v}` : "";
+    m.title = deckInfo && deckInfo.sources[s.k] && deckInfo.sources[s.k].length ? deckInfo.sources[s.k].map(x=>`${x.card} ${x.value>0?"+":""}${x.value}`).join(", ") : "";
   });
 }
 
 // ---------- Portrait ----------
 function renderPortrait(){ const img=$("portrait-img"); if(S.portrait){img.src=S.portrait;img.hidden=false;$("portrait-ph").hidden=true;} else {img.hidden=true;img.removeAttribute("src");$("portrait-ph").hidden=false;} }
 $("portrait").addEventListener("click",()=>$("portrait-file").click());
-$("portrait").addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();$("portrait-file").click();} });
 $("portrait-file").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader(); r.onload=()=>{
     const im=new Image(); im.onload=()=>{ // réduit l'image pour la garder légère
-      const c=document.createElement("canvas"),m=480,sc=Math.min(1,m/Math.max(im.width,im.height));
+      const c=document.createElement("canvas"),m=640,sc=Math.min(1,m/Math.max(im.width,im.height));
       c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
       S.portrait=c.toDataURL("image/jpeg",.85); save(); renderPortrait();
     }; im.src=r.result;
@@ -446,92 +568,167 @@ $("portrait-file").addEventListener("change",e=>{
 });
 $("portrait-clear").addEventListener("click",()=>{ S.portrait=""; save(); renderPortrait(); });
 
-// ---------- Blessures ----------
-function woundLabel(n){ if(n===0)return ""; if(n>=6)return "Grave"; if(n>=3)return "Blessure"; return "Légère"; }
-function renderHearts(){
-  const H=$("hearts"); H.replaceChildren();
+// ---------- Blessures : 5 paliers de 6 cases ----------
+function woundCount(){ return S.wounds.filter(Boolean).length; }
+function renderWounds(){
+  const P=$("paliers"); P.replaceChildren();
   for(let h=0;h<5;h++){
     const cells=el("div",{class:"cells"}); let n=0;
-    for(let c=0;c<6;c++){ const i=h*6+c; if(S.wounds[i])n++;
-      cells.append(el("button",{type:"button",class:"cell"+(S.wounds[i]?" on":""),"aria-label":`Cœur ${h+1}, case ${c+1}`,"aria-pressed":S.wounds[i]?"true":"false",onclick:()=>{S.wounds[i]=!S.wounds[i];save();renderHearts();}}));
+    for(let c=0;c<6;c++){ const i=h*6+c; if(S.wounds[i]) n++;
+      cells.append(el("button",{type:"button",class:"wcell"+(S.wounds[i]?" on":""),"aria-label":`Palier ${h+1}, case ${c+1}`,"aria-pressed":S.wounds[i]?"true":"false",
+        onclick:()=>{ S.wounds[i]=!S.wounds[i]; save(); renderWounds(); }}));
     }
-    H.append(el("div",{class:"heart"},cells,el("div",{class:"lbl"+(n?" hit":""),text:woundLabel(n)||"—"})));
+    P.append(el("div",{class:"palier"+(n===6?" full":"")},cells,el("span",{class:"lbl",text:"Palier "+(h+1)})));
   }
+  $("w-count").textContent = woundCount()+" / 30";
 }
+// Ajoute n blessures dans les premières cases libres
+document.querySelectorAll(".wbtn[data-add]").forEach(b=>b.addEventListener("click",()=>{
+  let n=Number(b.dataset.add);
+  for(let i=0;i<30 && n>0;i++){ if(!S.wounds[i]){ S.wounds[i]=true; n--; } }
+  if(n>0) toast("Toutes les cases de blessure sont remplies");
+  save(); renderWounds();
+}));
+$("w-heal").addEventListener("click",()=>{ S.wounds=Array(30).fill(false); save(); renderWounds(); });
 
-// ---------- Pistes (armure, ressources) ----------
-function track(container,max,val,onSet){
-  container.style.setProperty("--n",max); container.replaceChildren();
-  for(let i=0;i<max;i++){
-    container.append(el("button",{type:"button",class:"cell"+(i<val?" on":""),"aria-label":`Valeur ${i+1}`,onclick:()=>onSet(val===i+1?i:i+1)}));
+// ---------- Armures : maximum calculé depuis « Armure et bouclier » ----------
+function armorMax(field){ return S.armors.reduce((a,x)=>a+num(x[field]),0); }
+function pips(container,count,val,max,onSet){
+  container.style.setProperty("--n",count); container.replaceChildren();
+  for(let i=0;i<count;i++){
+    container.append(el("button",{type:"button",class:"pip"+(i<val?" on":"")+(i>=max&&i>=val?" off":""),"aria-label":`Valeur ${i+1}`,onclick:()=>onSet(val===i+1?i:i+1)}));
   }
 }
 function renderArmor(){
-  track($("tr-armor"),18,S.armor,v=>{S.armor=v;save();renderArmor();}); $("ct-armor").textContent=S.armor+" / 18";
-  track($("tr-armag"),18,S.armag,v=>{S.armag=v;save();renderArmor();}); $("ct-armag").textContent=S.armag+" / 18";
+  const mA=armorMax("pa"), mM=armorMax("pam");
+  pips($("tr-armor"),18,S.armor,mA,v=>{S.armor=v;save();renderArmor();}); $("ct-armor").textContent=S.armor+" / "+mA;
+  pips($("tr-armag"),18,S.armag,mM,v=>{S.armag=v;save();renderArmor();}); $("ct-armag").textContent=S.armag+" / "+mM;
 }
+$("rs-armor").addEventListener("click",()=>{ S.armor=Math.min(18,armorMax("pa")); save(); renderArmor(); });
+$("rs-armag").addEventListener("click",()=>{ S.armag=Math.min(18,armorMax("pam")); save(); renderArmor(); });
+
+// ---------- Ressources (section à part) ----------
 function renderResources(){
   const R=$("resources"); R.replaceChildren();
   S.resources.forEach((r,idx)=>{
-    const name=el("input",{class:"tn",value:r.name,placeholder:"Ressource","aria-label":"Nom de la ressource"});
+    const name=el("input",{class:"rn",value:r.name,placeholder:"Nom de la ressource","aria-label":"Nom de la ressource"});
     name.addEventListener("input",()=>{r.name=name.value;save();});
-    const tr=el("div",{class:"track"});
-    track(tr,r.max,r.val,v=>{r.val=v;save();renderResources();});
+    const max=el("input",{type:"number",min:"1",max:"30",value:r.max,"aria-label":"Maximum"});
+    max.addEventListener("change",()=>{ r.max=Math.max(1,Math.min(30,num(max.value)||1)); r.val=Math.min(r.val,r.max); save(); renderResources(); });
+    const gems=el("div",{class:"gems"});
+    for(let i=0;i<r.max;i++) gems.append(el("button",{type:"button",class:"gem"+(i<r.val?" on":""),"aria-label":`${r.name||"Ressource"} ${i+1}`,onclick:()=>{ r.val = r.val===i+1 ? i : i+1; save(); renderResources(); }}));
     const del=el("button",{type:"button",class:"ghost","aria-label":"Supprimer cette ressource",text:"✕",onclick:()=>{S.resources.splice(idx,1);save();renderResources();}});
-    R.append(el("div",{class:"track-row"},name,tr,el("span",{class:"count"},document.createTextNode(r.val+" / "+r.max+" "),del)));
+    R.append(el("div",{class:"res"},el("div",{class:"res-head"},name,el("span",{class:"num"},document.createTextNode(r.val+" /"),max),del),gems));
   });
 }
 $("res-add").addEventListener("click",()=>{S.resources.push({name:"",max:10,val:0});save();renderResources();});
 
-// ---------- Tableaux génériques ----------
-function renderTable(tbodyId,list,fields,blank){
-  const tb=$(tbodyId); tb.replaceChildren();
-  list.forEach((row,idx)=>{
-    const tr=el("tr");
-    fields.forEach(f=>{
-      let inp;
-      if(f.opts){ inp=el("select",{"aria-label":f.label}); f.opts.forEach(o=>inp.append(el("option",{value:o,text:o}))); inp.value=row[f.k]; inp.addEventListener("change",()=>{row[f.k]=inp.value;save();}); }
-      else { inp=el("input",{value:row[f.k]??"","aria-label":f.label}); inp.addEventListener("input",()=>{row[f.k]=inp.value;save();}); }
-      tr.append(el("td",{},inp));
-    });
-    tr.append(el("td",{class:"del"},el("button",{type:"button",class:"ghost","aria-label":"Supprimer la ligne",text:"✕",onclick:()=>{list.splice(idx,1);save();renderTable(tbodyId,list,fields,blank);}})));
-    tb.append(tr);
+// ---------- Armes (une fiche par arme) ----------
+function field(obj,k,attrs,after){ const i=el("input",Object.assign({value:obj[k]??""},attrs)); i.addEventListener("input",()=>{obj[k]=i.value;save(); if(after) after();}); return i; }
+function renderWeapons(){
+  const W=$("weapons"); W.replaceChildren();
+  S.weapons.forEach((w,idx)=>{
+    W.append(el("div",{class:"icard weapon"},
+      el("div",{class:"top"},field(w,"name",{class:"nm",placeholder:"Nom de l'arme","aria-label":"Nom de l'arme"}),field(w,"type",{class:"dmg",placeholder:"Type de dégât","aria-label":"Type de dégât"})),
+      el("div",{class:"kv"},
+        el("span",{text:"Principale"}),field(w,"a1",{"aria-label":"Attaque principale"}),
+        el("span",{text:"Secondaire"}),field(w,"a2",{"aria-label":"Attaque secondaire"}),
+        el("span",{text:"Tertiaire"}),field(w,"a3",{"aria-label":"Attaque tertiaire"})),
+      field(w,"prop",{class:"prop",placeholder:"Propriétés (portée, munition…)","aria-label":"Propriétés"}),
+      el("button",{type:"button",class:"ghost del","aria-label":"Supprimer l'arme",text:"✕",onclick:()=>{S.weapons.splice(idx,1);save();renderWeapons();applyReadOnly();}})));
   });
+  W.append(el("button",{type:"button",class:"add-tile",text:"+ Arme",onclick:()=>{S.weapons.push({name:"",a1:"",a2:"",a3:"",type:"",prop:""});save();renderWeapons();}}));
 }
-const W_FIELDS=[{k:"name",label:"Nom"},{k:"a1",label:"Attaque principale"},{k:"a2",label:"Attaque secondaire"},{k:"a3",label:"Attaque tertiaire"},{k:"type",label:"Type de dégât"},{k:"prop",label:"Propriété"}];
-const A_FIELDS=[{k:"kind",label:"Type",opts:["Armure","Bouclier"]},{k:"name",label:"Nom"},{k:"att",label:"Attaque principale"},{k:"pa",label:"Point d'armure"},{k:"pam",label:"Point d'armure magique"},{k:"res",label:"Résistance"},{k:"prop",label:"Propriété"}];
-$("w-add").addEventListener("click",()=>{S.weapons.push({name:"",a1:"",a2:"",a3:"",type:"",prop:""});save();renderTable("weapons",S.weapons,W_FIELDS);});
-$("a-add").addEventListener("click",()=>{S.armors.push({kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""});save();renderTable("armors",S.armors,A_FIELDS);});
+
+// ---------- Armure et bouclier ----------
+function renderArmors(){
+  const A=$("armors"); A.replaceChildren();
+  S.armors.forEach((a,idx)=>{
+    const kind=el("select",{class:"kind","aria-label":"Type de protection"},...["Armure","Bouclier"].map(o=>el("option",{value:o,text:o})));
+    kind.value=a.kind; kind.addEventListener("change",()=>{a.kind=kind.value;save();});
+    const v=(k,label)=>el("label",{},document.createTextNode(label),field(a,k,{type:"number",min:"0","aria-label":label},renderArmor));
+    A.append(el("div",{class:"icard"},kind,
+      field(a,"name",{class:"nm",placeholder:a.kind==="Bouclier"?"Nom du bouclier":"Nom de l'armure","aria-label":"Nom"}),
+      el("div",{class:"vals"},v("pa","Armure"),v("pam","Arm. mag."),v("res","Résistance")),
+      el("div",{class:"kv"},el("span",{text:"Attaque"}),field(a,"att",{"aria-label":"Attaque principale"})),
+      field(a,"prop",{class:"prop",placeholder:"Propriétés","aria-label":"Propriétés"}),
+      el("button",{type:"button",class:"ghost del","aria-label":"Supprimer",text:"✕",onclick:()=>{S.armors.splice(idx,1);save();renderArmors();renderArmor();applyReadOnly();}})));
+  });
+  A.append(el("button",{type:"button",class:"add-tile",text:"+ Armure ou bouclier",onclick:()=>{S.armors.push({kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""});save();renderArmors();}}));
+}
 
 // ---------- Inventaire ----------
-const BASE={P:20,M:25,G:30};
-const PALETTE=["#0f6b72","#a5761d","#6b4c9a","#2f7d4f","#b3372f","#3d5f8f","#8a5a2b","#4f7a7f"];
-function renderInventory(){
-  $("taille").value=S.taille; $("coins").value=S.coins;
-  const cap={sac:BASE[S.taille]+(Number(S.stats.corps)||0),bourse:12,ceinture:5};
-  const used={sac:[],bourse:[],ceinture:[]};
-  S.items.forEach((it,idx)=>{ const n=Math.max(0,Number(it.cases)||0); for(let i=0;i<n;i++) used[it.where].push({name:it.name,first:i===0,color:PALETTE[idx%PALETTE.length]}); });
-  const coinCases=Math.ceil((Number(S.coins)||0)/100);
-  for(let i=0;i<coinCases;i++) used.bourse.unshift({name:"Pièces",first:i===0,color:"#a5761d"});
-  for(const c of ["sac","bourse","ceinture"]){
-    const box=$("sl-"+c); box.replaceChildren();
-    const total=Math.max(cap[c],used[c].length);
-    for(let i=0;i<total;i++){
-      const u=used[c][i]; const s=el("div",{class:"slot"+(u?" used":"")+(i>=cap[c]?" over":"")});
-      if(u){ s.style.background=i>=cap[c]?"":u.color; if(u.first) s.textContent=u.name; s.title=u.name; }
-      box.append(s);
-    }
-    const st=$("st-"+c), over=used[c].length>cap[c];
-    st.textContent=`${used[c].length} / ${cap[c]} cases`+(over?" · surchargé":"");
-    st.className="status "+(over?"bad":"good");
-  }
-  renderTable("items",S.items,[{k:"name",label:"Objet"},{k:"cases",label:"Cases"},{k:"where",label:"Rangé dans",opts:["sac","bourse","ceinture"]}]);
-  // les changements dans le tableau d'objets doivent mettre la grille à jour
-  $("items").querySelectorAll("input,select").forEach(i=>i.addEventListener("change",()=>renderInventory()));
+function renderSizes(){
+  $("sizes").replaceChildren(...["P","M","G"].map(id=>el("button",{type:"button",class:id===S.taille?"on":"","aria-pressed":id===S.taille?"true":"false",title:`Taille ${id} : ${BASE[id]} cases + Corps`,text:id,
+    onclick:()=>{S.taille=id;save();renderInventory();}})));
 }
-$("taille").addEventListener("change",e=>{S.taille=e.target.value;save();renderInventory();});
-$("coins").addEventListener("input",e=>{S.coins=Number(e.target.value)||0;save();renderInventory();});
-$("i-add").addEventListener("click",()=>{S.items.push({name:"",cases:1,where:"sac"});save();renderInventory();});
+function focusItem(idx){
+  const row=document.querySelector(`.obj[data-i="${idx}"]`); if(!row) return;
+  document.querySelectorAll(".obj.focus").forEach(r=>r.classList.remove("focus"));
+  row.classList.add("focus"); row.scrollIntoView({behavior:"smooth",block:"center"}); row.querySelector("input").focus({preventScroll:true});
+}
+function fillSlots(box,list,slots,cols){
+  box.replaceChildren(); let used=0;
+  list.forEach(({it,idx})=>{
+    const n=Math.max(0,num(it.cases)); if(n===0) return;
+    const [w,h]=sizeShape(n,cols); const over=used+n>slots; used+=n;
+    box.append(el("button",{type:"button",class:"item"+(over?" over":""),title:`${it.name||"Objet"} · ${n} case${n>1?"s":""}`,
+      style:`grid-column:span ${w};grid-row:span ${h};background:${sizeColor(n)}`,onclick:()=>focusItem(idx)},
+      document.createTextNode(it.name||"Objet"),el("small",{text:n+" case"+(n>1?"s":"")})));
+  });
+  for(let i=used;i<slots;i++) box.append(el("div",{class:"free"}));
+  return used;
+}
+function renderInventory(){
+  renderSizes();
+  $("coins").value=S.coins;
+  const corps=num(S.stats.corps)+deckMod("corps");
+  const cap=BASE[S.taille]+corps;
+  const by={sac:[],bourse:[],ceinture:[]};
+  S.items.forEach((it,idx)=>{ (by[it.where]||by.sac).push({it,idx}); });
+  // Sac à dos et ceinture : grilles de cases
+  const usedSac=fillSlots($("sl-sac"),by.sac,BAG_SLOTS,7);
+  const usedBelt=fillSlots($("sl-ceinture"),by.ceinture,BELT_SLOTS,3);
+  $("st-sac").textContent=usedSac+" / "+BAG_SLOTS; $("st-sac").className="status"+(usedSac>BAG_SLOTS?" bad":"");
+  $("st-ceinture").textContent=usedBelt+" / "+BELT_SLOTS; $("st-ceinture").className="status"+(usedBelt>BELT_SLOTS?" bad":"");
+  // Objets sans poids (0 case)
+  const tiny=S.items.filter(it=>num(it.cases)===0 && it.where!=="bourse");
+  $("tiny").replaceChildren(...(tiny.length?[el("span",{class:"hint",style:"background:none;padding:0",text:"Sans poids :"}),...tiny.map(it=>el("span",{text:it.name||"Objet"}))]:[]));
+  // Bourse : pièces (100 = 1 case) + petits objets
+  const coinCases=Math.ceil(num(S.coins)/100);
+  $("coin-cases").textContent=`= ${coinCases} case${coinCases>1?"s":""} (100 pièces = 1 case)`;
+  $("purse-items").replaceChildren(...by.bourse.map(({it})=>el("span",{text:(it.name||"Objet")+(num(it.cases)?` · ${num(it.cases)}`:"")})));
+  const usedPurse=by.bourse.reduce((a,{it})=>a+Math.max(0,num(it.cases)),0);
+  // Charge totale = toutes les cases + pièces, comparée à la taille + Corps
+  const total=S.items.reduce((a,it)=>a+Math.max(0,num(it.cases)),0)+coinCases;
+  const over=total>cap;
+  $("ch-base").textContent=`Taille ${S.taille} : ${BASE[S.taille]} cases + Corps (${corps})`;
+  $("ch-bar").className="bar"+(over?" over":""); $("ch-bar").firstElementChild.style.width=Math.min(100,cap?Math.round(total/cap*100):100)+"%";
+  $("ch-tot").replaceChildren(document.createTextNode(total+" "),el("small",{text:`/ ${cap} cases`+(over?" · surchargé":"")}));
+  $("ch-tot").style.color=over?"var(--hurt)":"";
+  void usedPurse;
+  renderItems();
+}
+function renderItems(){
+  const L=$("items"); L.replaceChildren();
+  if(!S.items.length) L.append(el("p",{class:"hint",style:"margin:0",text:"Aucun objet. Ajoutez-en avec « + Objet »."}));
+  S.items.forEach((it,idx)=>{
+    const name=el("input",{value:it.name??"",placeholder:"Nom de l'objet","aria-label":"Nom de l'objet"});
+    name.addEventListener("input",()=>{it.name=name.value;save();});
+    name.addEventListener("change",()=>renderInventory());
+    const size=el("select",{"aria-label":"Taille (cases)"},...SIZES.map(s=>el("option",{value:s.n,text:`${s.n} case${s.n>1?"s":""}`})));
+    if(!SIZES.some(s=>s.n===num(it.cases))) size.append(el("option",{value:num(it.cases),text:`${num(it.cases)} cases`}));
+    size.value=num(it.cases); size.addEventListener("change",()=>{it.cases=Number(size.value);save();renderInventory();});
+    const where=el("select",{"aria-label":"Rangé dans"},...[["sac","Sac à dos"],["ceinture","Ceinture"],["bourse","Bourse"]].map(([v,t])=>el("option",{value:v,text:t})));
+    where.value=it.where||"sac"; where.addEventListener("change",()=>{it.where=where.value;save();renderInventory();});
+    L.append(el("div",{class:"obj","data-i":idx},el("span",{class:"sw",style:"background:"+sizeColor(num(it.cases))}),name,size,where,
+      el("button",{type:"button",class:"ghost","aria-label":"Supprimer l'objet",text:"✕",onclick:()=>{S.items.splice(idx,1);save();renderInventory();applyReadOnly();}})));
+  });
+}
+$("coins").addEventListener("input",e=>{S.coins=num(e.target.value);save();renderInventory();});
+$("i-add").addEventListener("click",()=>{S.items.push({name:"",cases:1,where:"sac"});save();renderInventory();focusItem(S.items.length-1);});
+$("memo").replaceChildren(...SIZES.map(s=>el("div",{},el("span",{style:"background:"+s.col,text:s.n}),el("span",{},el("b",{text:s.t}),document.createTextNode(" · "+s.d)))),
+  el("div",{},el("span",{style:"background:var(--accent)",text:"€"}),el("span",{},el("b",{text:"100 pièces = 1 case"}),document.createTextNode(" · comptées dans la charge"))));
 
 // ---------- Assistant manuel ----------
 function fillSelect(id,obj){ const s=$(id); s.replaceChildren(el("option",{value:"",text:"—"}),...Object.keys(obj).map(k=>el("option",{value:k,text:k}))); }
@@ -571,7 +768,7 @@ $("io-action").addEventListener("click",()=>{
     navigator.clipboard?.writeText($("io-text").value).then(()=>toast("Fiche copiée"),()=>{ $("io-text").select(); toast("Sélectionné : copiez avec Ctrl+C"); })
       ?? ($("io-text").select(), toast("Sélectionné : copiez avec Ctrl+C"));
   } else {
-    try{ const d=JSON.parse($("io-text").value); S=Object.assign(BLANK(),d); S.stats=Object.assign(BLANK().stats,d.stats||{}); save(); renderAll(); $("io").hidden=true; toast("Fiche importée"); }
+    try{ const d=JSON.parse($("io-text").value); S=normalize(d); save(); renderAll(); $("io").hidden=true; toast("Fiche importée"); }
     catch(e){ toast("Texte invalide : collez une fiche exportée complète"); }
   }
 });
@@ -579,22 +776,32 @@ let confirmNew=false;
 $("btn-new").addEventListener("click",e=>{
   if(!confirmNew){ confirmNew=true; e.target.textContent="Confirmer : tout effacer"; setTimeout(()=>{confirmNew=false;e.target.textContent="Nouvelle fiche";},3000); return; }
   confirmNew=false; e.target.textContent="Nouvelle fiche";
-  if(currentId){ currentId=null; readOnly=false; deckInfo=null; $id("on-deckrow").hidden=true; renderCharList(); $("on-campaign").textContent=""; onlineStatus("Fiche locale (navigateur)"); } // ne jamais vider un perso en ligne
+  if(currentId){ currentId=null; readOnly=false; deckInfo=null; $("on-deckrow").hidden=true; renderCharList(); $("on-campaign").textContent=""; onlineStatus("Fiche locale (navigateur)"); } // ne jamais vider un perso en ligne
   S=BLANK(); save(); renderAll(); toast("Fiche vierge créée");
 });
 
-function renderAll(){ renderIdentity(); renderStats(); renderPortrait(); renderHearts(); renderArmor(); renderResources();
-  renderTable("weapons",S.weapons,W_FIELDS); renderTable("armors",S.armors,A_FIELDS); renderInventory(); applyReadOnly(); }
+function renderAll(){ renderIdentity(); renderStats(); renderPortrait(); renderWounds(); renderResources();
+  renderWeapons(); renderArmors(); renderArmor(); renderInventory(); applyReadOnly(); }
 
-// Lecture seule : bloque tous les champs et boutons de la fiche, sauf la zone Compte
+// Lecture seule : bloque tous les champs et boutons de la fiche, sauf la zone Compte et l'export
 function applyReadOnly(){
   $("on-readonly").hidden = !readOnly;
   document.querySelectorAll(".wrap input, .wrap select, .wrap textarea, .wrap button").forEach(e=>{
-    if(e.closest("#online")) return;
+    if(e.closest("#online") || e.closest("#io") || e.id==="btn-export") return;
+    if(e.classList.contains("item")) return; // les blocs d'objets servent seulement à repérer la ligne
     e.disabled = readOnly;
   });
-  $("portrait").style.pointerEvents = readOnly ? "none" : "";
 }
+
+// Complète une fiche venant d'une ancienne version ou d'un import
+function normalize(d){
+  const s=Object.assign(BLANK(), d||{}); s.stats=Object.assign(BLANK().stats,(d&&d.stats)||{});
+  if(!Array.isArray(s.wounds) || s.wounds.length!==30) s.wounds=Array.from({length:30},(_,i)=>!!(s.wounds&&s.wounds[i]));
+  ["resources","weapons","armors","items"].forEach(k=>{ if(!Array.isArray(s[k])) s[k]=BLANK()[k]; });
+  if(!BASE[s.taille]) s.taille="M";
+  return s;
+}
+S = normalize(S);
 
 fillDatalists(); fillSelect("c-peuple",PEUPLES); fillSelect("c-classe",CLASSES); fillSelect("c-passe",PASSES); calcSum(); renderAll();
 
@@ -603,7 +810,6 @@ let me = null;
 let myChars = [];
 
 function onlineStatus(t, bad){ const s=$("on-status"); s.textContent=t||""; s.className="status"+(bad?" bad":t?" good":""); }
-function normalize(d){ const s=Object.assign(BLANK(), d||{}); s.stats=Object.assign(BLANK().stats,(d&&d.stats)||{}); return s; }
 
 async function saveOnline(){
   if(!currentId || readOnly || !jdrSb) return;
@@ -650,19 +856,19 @@ async function showCampaign(campaignId){
 let cardsCache = null;
 async function loadDeckInfo(deck){
   deck = Array.isArray(deck) ? deck : [];
-  $id("on-deckrow").hidden = !currentId;
-  $id("on-deck").href = "deck.html?character=" + encodeURIComponent(currentId || "");
-  if(!deck.length){ deckInfo = null; $id("on-decksum").textContent = "Deck vide"; return; }
+  $("on-deckrow").hidden = !currentId;
+  $("on-deck").href = "deck.html?character=" + encodeURIComponent(currentId || "");
+  if(!deck.length){ deckInfo = null; $("on-decksum").textContent = "Deck vide"; return; }
   try{ if(!cardsCache) cardsCache = await jdrLoadCards(); }
-  catch(err){ deckInfo = null; $id("on-decksum").textContent = jdrErrorText(err); return; }
+  catch(err){ deckInfo = null; $("on-decksum").textContent = jdrErrorText(err); return; }
   const { mods, sources } = jdrDeckStatModifiers(deck, cardsCache.byId, S);
   const v = jdrValidateDeck(deck, cardsCache.byId, S);
   deckInfo = { mods, sources, count: v.count, valid: v.valid };
-  $id("on-decksum").textContent = `Deck : ${v.count} carte${v.count>1?"s":""} / ${v.limits.max} max · ${v.valid ? "valide" : "incomplet ou invalide"}`;
+  $("on-decksum").textContent = `Deck : ${v.count} carte${v.count>1?"s":""} / ${v.limits.max} max · ${v.valid ? "valide" : "incomplet ou invalide"}`;
 }
 
 function closeCharacter(){
-  currentId=null; readOnly=false; deckInfo=null; $id("on-deckrow").hidden=true;
+  currentId=null; readOnly=false; deckInfo=null; $("on-deckrow").hidden=true;
   try{ const raw=localStorage.getItem(KEY); S = raw ? normalize(JSON.parse(raw)) : structuredClone(SAMPLE); }catch(e){ S=structuredClone(SAMPLE); }
   renderAll(); renderCharList(); $("on-campaign").textContent=""; onlineStatus("Fiche locale (navigateur)");
 }

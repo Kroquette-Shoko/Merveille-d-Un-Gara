@@ -24,7 +24,7 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 |---|---|
 | `index.html` | Page d'accueil |
 | `connexion.html` | Connexion (compte commun avec Rimd'Orël) |
-| `fiche-personnage.html` | Fiche de personnage : sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne ; lien vers le deck ; affiche les effets du deck sur les caractéristiques |
+| `fiche-personnage.html` | Fiche de personnage (modèle « parchemin ») : portrait entouré des caractéristiques, blessures en 5 paliers de 6 cases, armures, ressources, armes, armure et bouclier, inventaire avec charge. Sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne ; lien vers le deck ; affiche les effets du deck sur les caractéristiques |
 | `deck.html` | Construction du deck d'un personnage (cartes autorisées selon classe, spécialisation, passé, peuple, prérequis ; taille selon le niveau) |
 | `bibliotheque.html` | Toutes les cartes avec filtres |
 | `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur). Type « Créature » : formulaire et fiche paysage dédiés |
