@@ -41,6 +41,7 @@ button{font:inherit;font-weight:500;cursor:pointer;border-radius:8px;border:1px 
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.danger{color:var(--hurt);border-color:var(--hurt)}
 button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:4px 8px}
+button.bullet-btn{padding:4px 10px;font-size:.85rem;align-self:start}
 button:disabled{opacity:.5;cursor:not-allowed}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
@@ -101,12 +102,15 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
   width:max(100cqw, calc(100cqh * var(--r)));height:max(100cqh, calc(100cqw / var(--r)));transform:translate(-50%,-50%)}
 .jcard .art.ph::after{content:"Illustration";position:absolute;inset:0;display:grid;place-items:center;color:#c5ccd3;font-size:4.2cqw;letter-spacing:.12em;text-transform:uppercase}
 .jcard .txt{padding:3.4cqw 4cqw 2.3cqw;font-size:4.1cqw;line-height:1.4;flex:1;min-height:0;overflow:hidden}
-.jcard .txt p{margin:0 0 1.5cqw;white-space:pre-line}
+.jcard .txt p,.jcard .txt .p{margin:0 0 1.5cqw}
+/* listes à puces dans les capacités (lignes commençant par « - » ou « • ») */
+.jcard ul.pts{margin:.3em 0 0;padding-left:1.15em}
+.jcard ul.pts li{margin:0 0 .15em}
 .jcard .txt p.kw{font-weight:700}
 .jcard .txt p.kw b{cursor:help}
 .jcard .spec{margin:0 2.9cqw 2.9cqw;border:.43cqw solid var(--cc);border-radius:2.3cqw;overflow:hidden;flex:0 0 auto}
 .jcard .spec .st{background:var(--cc);color:var(--ci);font-family:var(--f-display);font-weight:700;font-size:4cqw;padding:.9cqw 2.9cqw}
-.jcard .spec p{margin:0;padding:1.7cqw 2.9cqw 2.3cqw;font-size:3.7cqw;line-height:1.35;white-space:pre-line}
+.jcard .spec p,.jcard .spec .p{margin:0;padding:1.7cqw 2.9cqw 2.3cqw;font-size:3.7cqw;line-height:1.35}
 .jcard .foot{font-size:3.4cqw;color:#7a5d17;font-weight:700;text-align:center;padding:0 3cqw 2.3cqw}
 .jcard.small{--w:150px}
 .jcard.locked{filter:grayscale(.85);opacity:.6}
@@ -203,7 +207,8 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jorig .oa{background:#E8D9B6;border-radius:8px;padding:6px 10px}
 .jorig .oah{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
 .jorig .osp{font-size:.78rem;color:#7A6548}
-.jorig .oa p{margin:3px 0 0;font-size:.92rem;line-height:1.4;white-space:pre-line}
+.jorig .oa p,.jorig .oa .p{margin:3px 0 0;font-size:.92rem;line-height:1.4}
+.jorig ul.pts{margin:.25em 0 0;padding-left:1.2em}
 .jorig .osec{font-family:var(--f-display);font-weight:700;font-size:1rem;border-bottom:1px solid #B79E73;margin-top:2px}
 .jorig .oprog{width:100%;border-collapse:collapse;font-size:.85rem}
 .jorig .oprog th{font-weight:500;color:#7A6548;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;padding:2px 4px}

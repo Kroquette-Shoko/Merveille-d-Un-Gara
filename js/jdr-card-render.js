@@ -89,8 +89,8 @@ function jdrCardHTML(card, opts = {}){
         <div class="type"><b>${esc(c.type)}</b>${c.subtype ? ' — ' + esc(c.subtype) : ''}${sup ? ` · ${esc(sup)}` : ''}</div>
       </div>
       ${art}
-      <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p${l.ab !== null ? ` class="abl" data-ab="${l.ab}"` : ''}>${esc(l.text)}</p>`).join('')}</div>
-      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<p${l.rule ? ' class="rule"' : ' class="abl" data-ab="special"'}>${esc(l.text)}</p>`).join('')}</div>` : ''}
+      <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<div class="p${l.ab !== null ? ' abl" data-ab="' + l.ab : ''}">${jdrRichText(l.text)}</div>`).join('')}</div>
+      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<div class="p${l.rule ? ' rule"' : ' abl" data-ab="special"'}>${jdrRichText(l.text)}</div>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>
   </div>`;

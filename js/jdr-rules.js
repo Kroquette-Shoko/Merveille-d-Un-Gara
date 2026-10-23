@@ -113,6 +113,46 @@ function jdrApplyOrigins(list){
 function jdrNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
 function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.trim()).filter(Boolean); }
 
+/* ---------- Texte avec listes à puces ----------
+  Dans un texte de capacité, une ligne qui commence par « - », « • » ou « * » devient un point de liste.
+  Les lignes qui se suivent forment une liste ; les autres lignes restent du texte normal.
+  jdrRichText(texte) → HTML prêt à afficher (le texte est protégé : pas de HTML possible dedans).
+*/
+const JDR_BULLET_RE = /^\s*[-•*]\s+(.*)$/;
+function jdrRichText(text){
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+  const out = []; let list = null, para = [];
+  const flushPara = () => { if(para.length){ out.push(para.join('<br>')); para = []; } };
+  const flushList = () => { if(list){ out.push(`<ul class="pts">${list.join('')}</ul>`); list = null; } };
+  String(text ?? '').replace(/\s+$/, '').split('\n').forEach(line => {
+    const m = line.match(JDR_BULLET_RE);
+    if(m){ flushPara(); (list = list || []).push(`<li>${esc(m[1])}</li>`); }
+    else { flushList(); para.push(esc(line)); }
+  });
+  flushPara(); flushList();
+  return out.join('');
+}
+// Bouton « • Liste » pour un champ de texte : ajoute (ou retire) « • » au début des lignes sélectionnées
+function jdrBulletButton(textarea, onChange){
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'bullet-btn'; b.textContent = '• Liste à puces';
+  b.title = 'Transforme les lignes sélectionnées en points de liste (ou les remet en texte normal)';
+  b.addEventListener('mousedown', e => e.preventDefault());   // garde la sélection dans le champ
+  b.addEventListener('click', () => {
+    const v = textarea.value, s0 = textarea.selectionStart ?? v.length, s1 = textarea.selectionEnd ?? v.length;
+    const start = v.lastIndexOf('\n', s0 - 1) + 1;
+    let end = v.indexOf('\n', Math.max(s1 - (s1 > s0 && v[s1 - 1] === '\n' ? 1 : 0), s0)); if(end < 0) end = v.length;
+    const lines = v.slice(start, end).split('\n');
+    const allBul = lines.every(l => JDR_BULLET_RE.test(l) || !l.trim());
+    const nl = lines.map(l => allBul ? l.replace(/^\s*[-•*]\s+/, '') : (JDR_BULLET_RE.test(l) || !l.trim() && lines.length > 1 ? l : '• ' + l)).join('\n');
+    textarea.value = v.slice(0, start) + nl + v.slice(end);
+    textarea.focus(); textarea.setSelectionRange(start, start + nl.length);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    if(onChange) onChange();
+  });
+  return b;
+}
+
 /* ---------- 2. Modèle d'une carte ---------- */
 /*
   {

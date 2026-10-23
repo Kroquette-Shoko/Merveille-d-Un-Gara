@@ -41,7 +41,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 @media (max-width:560px){.eff{grid-template-columns:1fr}}
 .modes{display:inline-flex;align-self:start;border:1px solid var(--line);border-radius:999px;overflow:hidden}
 .modes .mode{border:0;border-radius:0;background:transparent;color:var(--ink);padding:5px 14px;font-weight:600}
-.modes .mode.on{background:var(--accent);color:var(--on-accent)}
+.modes .mode.on{background:var(--accent);color:#fff}
 .gen{font-size:.88rem;color:var(--muted);font-style:italic;margin:0}
 /* Créature : l'aperçu (fiche paysage) prend la plus grande part de la largeur */
 .ed.crea{grid-template-columns:240px minmax(480px,1fr) minmax(0,1.5fr)}
@@ -498,9 +498,12 @@ function abilityBlock(ab, title, mainCost, onRemove, rerender, isSpecial){
 
   let body;
   if(ab.mode === 'text'){
-    const t = el('textarea', { rows: 3, placeholder: 'ex. Piochez 2 cartes.' }); t.value = ab.text || '';
+    const t = el('textarea', { rows: 4, placeholder: 'ex. Piochez 2 cartes.' }); t.value = ab.text || '';
     t.addEventListener('input', () => { ab.text = t.value; changed(); });
-    body = el('label', { class:'f' }, document.createTextNode('Texte de la capacité'), t);
+    body = el('div', { style:'display:flex;flex-direction:column;gap:4px' },
+      el('label', { class:'f' }, document.createTextNode('Texte de la capacité'), t),
+      el('div', { class:'row', style:'align-items:center;gap:8px' }, jdrBulletButton(t),
+        el('span', { class:'hint', text:'ou commence une ligne par « - » : elle devient un point de liste.' })));
   } else {
     const effs = el('div', { style:'display:flex;flex-direction:column;gap:6px' });
     ab.effects.forEach((e, ei) => {

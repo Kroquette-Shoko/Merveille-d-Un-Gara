@@ -378,7 +378,9 @@ function renderAbilities(){
       el('div', { class:'r2' },
         el('label', { class:'f' }, document.createTextNode('Autre coût (facultatif)'), inp('cost', { maxlength: 60, placeholder: 'ex. Défausse 1' })),
         el('label', { class:'f' }, document.createTextNode('Limite (facultatif)'), inp('uses', { maxlength: 60, placeholder: 'ex. 3 fois par jour' }))),
-      el('label', { class:'f' }, document.createTextNode('Effet'), tx)));
+      el('label', { class:'f' }, document.createTextNode('Effet'), tx),
+      el('div', { style:'display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, jdrBulletButton(tx),
+        el('span', { class:'hint', text:'ou commence une ligne par « - » : elle devient un point de liste.' }))));
   });
   rights();
 }

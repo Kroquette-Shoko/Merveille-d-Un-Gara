@@ -132,7 +132,7 @@ function jdrOriginHTML(o, opts = {}){
   const statsHTML = () => `<div class="ost">${JDR_STATS.map(s => `<div class="${o.stats[s.key] ? '' : 'z'}"><b>${esc(sign(o.stats[s.key]))}</b><span>${esc(s.label)}</span></div>`).join('')}<div class="${o.armor ? '' : 'z'}"><b>${esc(sign(o.armor))}</b><span>Armure</span></div><div class="${o.wounds ? '' : 'z'}"><b>${esc(sign(o.wounds || 0))}</b><span>Points de vie</span></div></div>`;
   const abilHTML = (list, empty) => (list || []).filter(a => a.name || a.text).map(a => `<div class="oa">
       <div class="oah"><b>${esc(a.name || 'Capacité')}</b>${jdrAbilityPA(a) !== null ? `<span class="ic">${esc(jdrAbilityPA(a))} PA</span>` : '<span class="osp">Passif</span>'}${a.cost ? `<span class="ic">${esc(a.cost)}</span>` : ''}${a.uses ? `<span class="osp">${esc(a.uses)}</span>` : ''}</div>
-      ${a.text ? `<p>${esc(a.text)}</p>` : ''}</div>`).join('') || `<p class="ie">${empty}</p>`;
+      ${a.text ? `<div class="p">${jdrRichText(a.text)}</div>` : ''}</div>`).join('') || `<p class="ie">${empty}</p>`;
   let body = '';
   if(o.kind === 'peuple'){
     body = `<div class="im">${esc([o.family, 'Taille ' + (JDR_CHAR_SIZES[o.size] || '').toLowerCase()].filter(Boolean).join(' · '))}</div>
