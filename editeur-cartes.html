@@ -265,7 +265,8 @@ function fillListFilters(){
   const opts = (id, all, list, labels) => { const s = $id(id); const v = LF[id.slice(3)] ?? ''; s.replaceChildren(new Option(all, ''), ...list.map((x, i) => new Option(labels ? labels[i] : x, String(x)))); s.value = v; };
   opts('lf-type', 'Tous les types', JDR_CARD_TYPES);
   opts('lf-rank', 'Tous les rangs', [...JDR_CARD_RANKS, 'none'], [...JDR_CARD_RANKS.map(r => 'Rang ' + r), 'Sans rang']);
-  opts('lf-classe', 'Toutes les classes', [...Object.keys(JDR_CLASSES), 'none'], [...Object.keys(JDR_CLASSES), 'Sans classe']);
+  const cls = existing('classe', [...new Set(cards.flatMap(c => c.classes))]);
+  opts('lf-classe', 'Toutes les classes', [...cls, 'none'], [...cls, 'Sans classe']);
   opts('lf-st', 'Tous les super-types', JDR_SUPERTYPES);
   $id('lf-sort').value = LF.sort;
 }
@@ -313,6 +314,22 @@ function confirmLeave(){ // pas de confirm() dans certains navigateurs intégré
 $id('new').addEventListener('click', () => { if(dirty && JDR_IS_EDITOR && !confirmLeave()) return; newCard(); });
 
 /* ================= 1. Identité ================= */
+// Listes « Qui peut jouer cette carte » : seulement ce qui existe dans la page Origines,
+// plus les valeurs déjà cochées sur la carte (pour pouvoir les décocher). Sans la page Origines : listes du livret.
+let originList = null;
+// Coché sur la carte mais absent de la page Origines : en italique, à décocher si besoin
+function markMissing(box, kind){
+  if(!originList) return;
+  const names = originList.filter(o => o.kind === kind).map(o => jdrNorm(o.name));
+  box.querySelectorAll('label.chip').forEach(l => { if(!names.includes(jdrNorm(l.textContent))){ l.style.fontStyle = 'italic'; l.style.borderStyle = 'dashed'; l.title = 'N’existe pas dans la page Origines : décoche-le si besoin'; } });
+}
+function existing(kind, selected){
+  const fallback = { classe: Object.keys(JDR_CLASSES), specialisation: JDR_RESTRICT_GROUPS['Spécialisations'], passe: JDR_RESTRICT_GROUPS['Passés'], peuple: JDR_RESTRICT_GROUPS['Peuples'] }[kind];
+  const base = originList ? originList.filter(o => o.kind === kind).map(o => o.name).sort((a, b) => a.localeCompare(b, 'fr')) : fallback.slice();
+  const inGroup = kind === 'classe' ? null : fallback.map(jdrNorm);    // pour ne garder que les cochés de ce groupe
+  (selected || []).forEach(v => { if(!base.some(b => jdrNorm(b) === jdrNorm(v)) && (!inGroup || inGroup.includes(jdrNorm(v)) || kind === 'classe')) base.push(v); });
+  return base;
+}
 function chipGroup(box, options, selected, onToggle){
   box.replaceChildren();
   options.forEach(o => {
@@ -330,9 +347,11 @@ function renderSupertypes(){
 }
 function renderRestrict(){
   const box = $id('f-restrict'); box.replaceChildren();
-  Object.entries(JDR_RESTRICT_GROUPS).forEach(([g, list]) => {
+  [['Spécialisations','specialisation'],['Passés','passe'],['Peuples','peuple']].map(([g, kind]) => [g, existing(kind, cur.restrict), kind]).forEach(([g, list, kind]) => {
+    if(!list.length) return;
     const chips = el('div', { class:'chips' });
     chipGroup(chips, list, cur.restrict, (v, on) => toggleIn(cur.restrict, v, on));
+    markMissing(chips, kind);
     box.append(el('div', {}, el('p', { class:'hint', style:'margin:0 0 3px', text: g }), chips));
   });
 }
@@ -600,7 +619,7 @@ function renderForm(){
   $id('f-type').value = cur.type; renderSubtypes();
   $id('f-value').value = cur.value ?? ''; $id('f-mana').value = cur.mana ?? ''; $id('f-rank').value = cur.rank ? String(cur.rank) : '';
   ['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).checked = !!cur.components[k]);
-  chipGroup($id('f-classes'), Object.keys(JDR_CLASSES), cur.classes, (v, on) => toggleIn(cur.classes, v, on));
+  chipGroup($id('f-classes'), existing('classe', cur.classes), cur.classes, (v, on) => toggleIn(cur.classes, v, on)); markMissing($id('f-classes'), 'classe');
   renderSupertypes(); renderRestrict();
   $id('f-image').value = cur.image_url;
   $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
@@ -657,7 +676,8 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
 window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
 
 async function reload(){
-  try{ const [c, g] = await Promise.all([jdrLoadCards(), jdrLoadGroups(), jdrLoadOrigins().catch(err => console.warn('[jdr] origines non chargées :', err))]); cards = c.list; groups = g; } catch(err){ status(jdrErrorText(err), true); cards = []; }
+  try{ const [c, g, o] = await Promise.all([jdrLoadCards(), jdrLoadGroups(), jdrLoadOrigins().catch(err => { console.warn('[jdr] origines non chargées :', err); return null; })]);
+    cards = c.list; groups = g; originList = o ? o.list : null; } catch(err){ status(jdrErrorText(err), true); cards = []; }
   fillGroupSelect(); fillKeywordPicker(); fillListFilters();
   renderList();
 }
