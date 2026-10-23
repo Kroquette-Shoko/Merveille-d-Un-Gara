@@ -79,10 +79,11 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
       <!-- Filtres de la liste (gardés d'une visite à l'autre dans ce navigateur) -->
       <div class="lf" id="lf">
         <select id="lf-type" aria-label="Filtrer par type"></select>
+        <select id="lf-sub" aria-label="Filtrer par sous-type"></select>
         <select id="lf-rank" aria-label="Filtrer par rang"></select>
         <select id="lf-classe" aria-label="Filtrer par classe"></select>
         <select id="lf-st" aria-label="Filtrer par super-type"></select>
-        <select id="lf-sort" aria-label="Ranger par"><option value="rank">Ranger par rang</option><option value="type">Ranger par type</option><option value="classe">Ranger par classe</option><option value="name">Ranger par nom</option></select>
+        <select id="lf-sort" aria-label="Ranger par"><option value="sub">Ranger par sous-type</option><option value="rank">Ranger par rang</option><option value="type">Ranger par type</option><option value="classe">Ranger par classe</option><option value="name">Ranger par nom</option></select>
         <button type="button" class="ghost" id="lf-reset">Tout afficher</button>
       </div>
       <p class="hint" id="lf-count" style="margin:4px 0"></p>
@@ -275,34 +276,40 @@ function changed(){ dirty = true; renderPreview(); }
 const num = v => v === '' ? null : Number(v);
 
 /* ================= Liste (filtres + rangement) ================= */
-const LF_KEY = 'jdr-editeur-filtres';
-const LF = { type:'', rank:'', classe:'', st:'', sort:'rank' };
+// v2 (24/10/2026) : rangement par sous-type par défaut (l'ancien réglage « par rang » enregistré n'est pas repris)
+const LF_KEY = 'jdr-editeur-filtres-v2';
+const LF = { type:'', sub:'', rank:'', classe:'', st:'', sort:'sub' };
 try{ Object.assign(LF, JSON.parse(localStorage.getItem(LF_KEY) || '{}')); }catch(e){}
 function fillListFilters(){
   const opts = (id, all, list, labels) => { const s = $id(id); const v = LF[id.slice(3)] ?? ''; s.replaceChildren(new Option(all, ''), ...list.map((x, i) => new Option(labels ? labels[i] : x, String(x)))); s.value = v; };
   opts('lf-type', 'Tous les types', JDR_CARD_TYPES);
+  const subs = JDR_SUBTYPES.filter(x => cards.some(c => c.subtype === x));   // seulement les sous-types utilisés
+  opts('lf-sub', 'Tous les sous-types', [...subs, 'none'], [...subs, 'Sans sous-type']);
   opts('lf-rank', 'Tous les rangs', [...JDR_CARD_RANKS, 'none'], [...JDR_CARD_RANKS.map(r => 'Rang ' + r), 'Sans rang']);
   const cls = existing('classe', [...new Set(cards.flatMap(c => c.classes))]);
   opts('lf-classe', 'Toutes les classes', [...cls, 'none'], [...cls, 'Sans classe']);
   opts('lf-st', 'Tous les super-types', JDR_SUPERTYPES);
   $id('lf-sort').value = LF.sort;
 }
-[['lf-type','type'],['lf-rank','rank'],['lf-classe','classe'],['lf-st','st'],['lf-sort','sort']].forEach(([id, k]) =>
+[['lf-type','type'],['lf-sub','sub'],['lf-rank','rank'],['lf-classe','classe'],['lf-st','st'],['lf-sort','sort']].forEach(([id, k]) =>
   $id(id).addEventListener('change', e => { LF[k] = e.target.value; try{ localStorage.setItem(LF_KEY, JSON.stringify(LF)); }catch(err){} renderList(); }));
-$id('lf-reset').addEventListener('click', () => { Object.assign(LF, { type:'', rank:'', classe:'', st:'' }); $id('search').value = ''; try{ localStorage.setItem(LF_KEY, JSON.stringify(LF)); }catch(e){} fillListFilters(); renderList(); });
+$id('lf-reset').addEventListener('click', () => { Object.assign(LF, { type:'', sub:'', rank:'', classe:'', st:'' }); $id('search').value = ''; try{ localStorage.setItem(LF_KEY, JSON.stringify(LF)); }catch(e){} fillListFilters(); renderList(); });
 function renderList(){
   const q = jdrNorm($id('search').value);
   const ul = $id('cards'); ul.replaceChildren();
   const list = cards.filter(c =>
     (!q || jdrNorm(c.name).includes(q) || c.id.includes(q) || jdrNorm(jdrCardText(c).join(' ')).includes(q)) &&
     (!LF.type || c.type === LF.type) &&
+    (!LF.sub || (LF.sub === 'none' ? !c.subtype : c.subtype === LF.sub)) &&
     (!LF.rank || (LF.rank === 'none' ? !c.rank : c.rank === Number(LF.rank))) &&
     (!LF.classe || (LF.classe === 'none' ? !c.classes.length : c.classes.includes(LF.classe))) &&
     (!LF.st || c.supertypes.includes(LF.st)));
-  // Rangement : groupes (rang, type ou classe) puis ordre alphabétique
-  const groupOf = c => LF.sort === 'rank' ? (c.rank ? 'Rang ' + c.rank : 'Sans rang')
+  // Rangement : groupes (sous-type, rang, type ou classe) puis ordre alphabétique
+  const groupOf = c => LF.sort === 'sub' ? (c.subtype || 'Sans sous-type') : LF.sort === 'rank' ? (c.rank ? 'Rang ' + c.rank : 'Sans rang')
     : LF.sort === 'type' ? c.type : LF.sort === 'classe' ? (c.classes.length === 1 ? c.classes[0] : c.classes.length ? 'Plusieurs classes' : 'Sans classe') : '';
-  const gkey = c => LF.sort === 'rank' ? (c.rank || 99) : groupOf(c);
+  // sous-types dans l'ordre de la liste officielle (Offensif, Défensif, Utilitaire…), « Sans sous-type » à la fin
+  const subIdx = c => { const i = JDR_SUBTYPES.indexOf(c.subtype); return i < 0 ? 999 : i; };
+  const gkey = c => LF.sort === 'rank' ? (c.rank || 99) : LF.sort === 'sub' ? subIdx(c) : groupOf(c);
   list.sort((a, b) => { const ga = gkey(a), gb = gkey(b); return (ga < gb ? -1 : ga > gb ? 1 : 0) || a.name.localeCompare(b.name, 'fr'); });
   let g = null;
   list.forEach(c => {
