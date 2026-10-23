@@ -64,6 +64,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-filters.js"></script>
+<script src="js/jdr-origins.js"></script>
 <script>
 let all = [], chars = [], sheet = null, groups = {};
 const F = jdrFilters($id('filters'), render, { showPlayable: true });
@@ -125,7 +126,8 @@ $id('char').addEventListener('change', e => {
     const [cardsRes, charsRes, groupsRes] = await Promise.all([
       jdrLoadCards(),
       jdrSb.from('characters').select('id,name,data').eq('owner_id', me.id).order('updated_at', { ascending: false }),
-      jdrLoadGroups()
+      jdrLoadGroups(),
+      jdrLoadOrigins().catch(err => console.warn('[jdr] origines non chargées (magie selon le manuel V1) :', err))
     ]);
     groups = groupsRes.byId;
     all = cardsRes.list;

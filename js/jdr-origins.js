@@ -150,7 +150,7 @@ function jdrOriginHTML(o, opts = {}){
     const c = jdrSpecClass(o, opts.byId);
     const voie = o.voie ? ((opts.cards && opts.cards[o.voie]) || { name: o.voie }) : null;
     const imp = o.improvements.filter(m => m.text).map(m => `<div class="oa"><div class="oah"><b>Niveau ${esc(m.level)}</b></div><p>${esc(m.text)}</p></div>`).join('');
-    body = `<div class="im">${c ? 'Classe : ' + esc(c.name) : 'Classe non choisie'} · ${o.magic ? 'peut lancer des sorts' : 'ne lance pas de sorts'}</div>
+    body = `<div class="im">${c ? 'Classe : ' + esc(c.name) : 'Classe non choisie'} · ${o.magic ? 'peut utiliser la magie (Sortilège)' : 'pas de magie (Sortilège)'}</div>
       <div class="osec">Voie</div>
       ${voie ? (typeof jdrCardHTML === 'function' && opts.cards && opts.cards[o.voie] ? `<div class="ovoie">${jdrCardHTML(voie, { width: '210px' })}</div>` : `<div class="oa"><div class="oah"><b>${esc(voie.name)}</b></div></div>`) : '<p class="ie">Aucune voie désignée.</p>'}
       <div class="osec">Passif de base</div>${abilHTML(o.abilities, 'Aucun passif renseigné.')}

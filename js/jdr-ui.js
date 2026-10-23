@@ -101,7 +101,10 @@ async function jdrLoadOrigins(){
   const { data, error } = await jdrSb.from('origins').select('id,name,data,updated_at').order('name');
   if(error) throw error;
   const list = data.map(r => Object.assign(jdrNormalizeOrigin(r), { updated_at: r.updated_at }));
-  return { list, byId: Object.fromEntries(list.map(o => [o.id, o])) };
+  const byId = Object.fromEntries(list.map(o => [o.id, o]));
+  // Magie des spécialisations (utilisée par jdrCanCastSpells : cartes Sortilège autorisées ou non)
+  JDR_SPEC_MAGIC = Object.fromEntries(list.filter(o => o.kind === 'specialisation').map(o => [jdrNorm(o.name), !!o.magic]));
+  return { list, byId };
 }
 
 // Charge les tableaux d'action de groupe : renvoie { list, byId }

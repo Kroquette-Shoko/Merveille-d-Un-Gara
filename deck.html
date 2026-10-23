@@ -85,6 +85,7 @@
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-filters.js"></script>
+<script src="js/jdr-origins.js"></script>
 <script>
 let me = null, cards = [], byId = {}, chars = [], groups = {};
 let ch = null;        // personnage ouvert { id, owner_id, name, data, deck }
@@ -217,7 +218,8 @@ window.addEventListener('beforeunload', e => { if(saveTimer && !readOnly){ saveD
   try{
     const [c, r, g] = await Promise.all([ jdrLoadCards(),
       jdrSb.from('characters').select('id,name').eq('owner_id', me.id).order('updated_at', { ascending: false }),
-      jdrLoadGroups() ]);
+      jdrLoadGroups(),
+      jdrLoadOrigins().catch(err => console.warn('[jdr] origines non chargées (magie selon le manuel V1) :', err)) ]);
     cards = c.list; byId = c.byId; chars = r.data || []; groups = g.byId;
   }catch(err){ status(jdrErrorText(err), true); return; }
   chars.forEach(x => $id('char').append(new Option(x.name || 'Sans nom', x.id)));

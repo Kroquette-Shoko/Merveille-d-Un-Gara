@@ -439,9 +439,14 @@ function jdrEvalFormula(expr, sheet, extraStats){
 function jdrFormulaUsesStats(expr){ return /[a-z]/i.test(String(expr || '')); }
 
 // Le personnage peut-il lancer des sorts ?
+// Accès à la magie (cartes Sortilège) par spécialisation, rempli par jdrLoadOrigins() depuis la page Origines :
+// nom de spécialisation (normalisé) → vrai / faux. null = page Origines pas chargée → listes du manuel V1 ci-dessus.
+let JDR_SPEC_MAGIC = null;
 function jdrCanCastSpells(sheet){
   const classes = jdrSplitList(sheet && sheet.classe).map(jdrNorm);
   const specs = jdrSplitList(sheet && sheet.specialisation).map(jdrNorm);
+  const known = JDR_SPEC_MAGIC ? specs.filter(sp => sp in JDR_SPEC_MAGIC) : [];
+  if(known.length) return known.some(sp => JDR_SPEC_MAGIC[sp]);   // case « Peut utiliser la magie » de la spécialisation
   return classes.some(c => JDR_SPELL_CLASSES.map(jdrNorm).includes(c)) ||
          specs.some(s => JDR_SPELL_SPECS.map(jdrNorm).includes(s));
 }
