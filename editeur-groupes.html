@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Actions de groupe Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Layout : liste des tableaux à gauche, formulaire des 6 résultats au centre, aperçu à droite */
+.ed{display:grid;grid-template-columns:230px minmax(0,1fr) 380px;gap:16px;align-items:start}
+@media (max-width:1100px){.ed{grid-template-columns:minmax(0,1fr) 340px}.ed .list{grid-column:1/-1}}
+@media (max-width:760px){.ed{grid-template-columns:1fr}}
+.list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.list li button{width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:8px}
+.list li button.on{background:var(--panel);font-weight:700}
+.list li .ty{color:var(--muted);font-size:.8rem;font-weight:400}
+.rows{display:flex;flex-direction:column;gap:8px}
+.rw{display:grid;grid-template-columns:36px minmax(0,1.4fr) minmax(0,1fr);gap:8px;align-items:center}
+.rw .d{width:30px;height:30px;border-radius:6px;border:2px solid var(--ink);display:grid;place-items:center;font-weight:700;background:var(--sheet)}
+.rw.head{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.pv{position:sticky;top:12px}
+.pv .bx{border:2px solid #5B4636;border-radius:10px;overflow:hidden;background:#FBFAF6;color:#1D1A16}
+.pv .bt{background:#5B4636;color:#fff;font-family:var(--f-display);font-weight:700;padding:5px 12px}
+.pv .gr{display:grid;grid-template-columns:30px minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center;padding:5px 10px;border-top:1px solid #E4DED2}
+.pv .gr i{font-style:normal;width:22px;height:22px;border-radius:5px;border:1.5px solid #1D232A;display:grid;place-items:center;font-weight:700;font-size:12px}
+.pv .gr em{font-style:normal;color:#9A2F27;font-weight:700}
+.used{font-size:.9rem}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><h1>Actions de groupe</h1><p class="sub">Les tableaux du dé de groupe, préparés ici puis attribués aux créatures dans l'éditeur de cartes.</p></div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+  <p class="status bad" id="ro" hidden>Lecture seule : seul le compte éditeur peut modifier les tableaux.</p>
+
+  <div class="ed">
+    <aside class="sheet list">
+      <button class="primary" id="new" type="button">Nouveau tableau</button>
+      <ul id="groups"></ul>
+    </aside>
+
+    <main class="sheet" id="form">
+      <div class="grid2">
+        <label class="f">Nom du groupe<input id="g-name" maxlength="80" placeholder="ex. Araignées"></label>
+        <label class="f">Identifiant<input id="g-id" maxlength="64" placeholder="rempli depuis le nom"></label>
+      </div>
+      <div class="rows" id="rows">
+        <div class="rw head"><span>Dé</span><span>Effet</span><span>Effet bonus</span></div>
+      </div>
+      <p class="hint">Les résultats au-delà du dé de la créature sont grisés sur sa fiche (ex. une créature D4 ne peut pas obtenir 5 ou 6, sauf si une créature du groupe a un dé plus grand).</p>
+      <p class="used" id="used"></p>
+      <div class="actions">
+        <button class="primary" id="save" type="button">Enregistrer</button>
+        <button class="danger" id="del" type="button">Supprimer</button>
+      </div>
+    </main>
+
+    <aside class="pv"><div id="preview"></div><p class="hint">Aperçu (tel qu'affiché sur la fiche, sans grisé)</p></aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script>
+let groups = [], cards = [], cur = jdrBlankGroup(), savedId = null;
+function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
+
+function renderList(){
+  $id('groups').innerHTML = groups.length
+    ? groups.map(g => `<li><button type="button" data-id="${jdrEsc(g.id)}" class="${g.id === savedId ? 'on' : ''}"><span>${jdrEsc(g.name)}</span><span class="ty">${usedBy(g.id).length}</span></button></li>`).join('')
+    : '<li class="empty">Aucun tableau pour l’instant</li>';
+}
+$id('groups').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b) open(b.dataset.id); });
+function usedBy(id){ return cards.filter(c => c.type === 'Créature' && c.creature && c.creature.group === id); }
+
+const inputs = [];
+for(let i = 0; i < 6; i++){
+  const row = document.createElement('div'); row.className = 'rw';
+  row.innerHTML = `<span class="d">${i + 1}</span><input aria-label="Effet du résultat ${i + 1}" placeholder="ex. 3 dégâts contondants"><input aria-label="Effet bonus du résultat ${i + 1}" placeholder="ex. OpRes : Entrave">`;
+  const [eff, bon] = row.querySelectorAll('input');
+  eff.addEventListener('input', () => { cur.rows[i].effect = eff.value; preview(); });
+  bon.addEventListener('input', () => { cur.rows[i].bonus = bon.value; preview(); });
+  inputs.push([eff, bon]); $id('rows').append(row);
+}
+$id('g-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('g-id').value = cur.id; } preview(); });
+$id('g-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; });
+
+function render(){
+  $id('g-name').value = cur.name; $id('g-id').value = cur.id; $id('g-id').disabled = !!savedId || !JDR_IS_EDITOR;
+  cur.rows.forEach((r, i) => { inputs[i][0].value = r.effect; inputs[i][1].value = r.bonus; });
+  const u = savedId ? usedBy(savedId) : [];
+  $id('used').textContent = savedId ? (u.length ? 'Utilisé par : ' + u.map(c => c.name).join(', ') : 'Utilisé par aucune créature pour l’instant.') : '';
+  preview(); renderList(); rights();
+}
+function preview(){
+  $id('preview').innerHTML = `<div class="bx"><div class="bt">Action de groupe · ${jdrEsc(cur.name || 'Sans nom')}</div>${cur.rows.map((r, i) =>
+    `<div class="gr"><i>${i + 1}</i><span>${jdrEsc(r.effect) || '—'}</span><em>${jdrEsc(r.bonus)}</em></div>`).join('')}</div>`;
+}
+function rights(){
+  $id('ro').hidden = JDR_IS_EDITOR;
+  document.querySelectorAll('#form input, #form button, #new').forEach(e => e.disabled = !JDR_IS_EDITOR);
+  if(JDR_IS_EDITOR){ $id('g-id').disabled = !!savedId; $id('del').disabled = !savedId; }
+}
+function open(id){ const g = groups.find(x => x.id === id); if(!g) return; cur = jdrNormalizeGroup(structuredClone(g)); savedId = id; render(); status(''); }
+function fresh(){ cur = jdrBlankGroup(); savedId = null; render(); $id('g-name').focus(); }
+$id('new').addEventListener('click', fresh);
+
+$id('save').addEventListener('click', async () => {
+  cur.name = cur.name.trim(); cur.id = (cur.id || jdrSlug(cur.name)).trim();
+  if(!cur.name){ status('Donne un nom au tableau.', true); return; }
+  if(!/^[a-z0-9_-]{3,64}$/.test(cur.id)){ status("L'identifiant doit faire 3 à 64 caractères (minuscules, chiffres, _ ou -).", true); return; }
+  if(!savedId && groups.some(g => g.id === cur.id)){ status('Un tableau porte déjà cet identifiant : change-le.', true); return; }
+  const data = { rows: cur.rows };
+  const q = savedId ? jdrSb.from('creature_groups').update({ name: cur.name, data }).eq('id', savedId)
+                    : jdrSb.from('creature_groups').insert({ id: cur.id, name: cur.name, data });
+  const { error } = await q;
+  if(error){ status(jdrErrorText(error), true); return; }
+  savedId = cur.id; await reload(); open(savedId); status('Tableau enregistré');
+});
+let delArmed = false;
+$id('del').addEventListener('click', async () => {
+  if(!savedId) return;
+  const u = usedBy(savedId);
+  if(!delArmed){ delArmed = true; $id('del').textContent = u.length ? `Confirmer (${u.length} créature(s) le perdront)` : 'Confirmer la suppression';
+    setTimeout(() => { delArmed = false; $id('del').textContent = 'Supprimer'; }, 3500); return; }
+  delArmed = false; $id('del').textContent = 'Supprimer';
+  const { error } = await jdrSb.from('creature_groups').delete().eq('id', savedId);
+  if(error){ status(jdrErrorText(error), true); return; }
+  await reload(); fresh(); status('Tableau supprimé');
+});
+
+async function reload(){
+  try{ const [g, c] = await Promise.all([jdrLoadGroups(), jdrLoadCards()]); groups = g.list; cards = c.list; }
+  catch(err){ status(jdrErrorText(err), true); }
+  renderList();
+}
+(async () => {
+  if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
+  const me = await jdrPage('groupes', { requireLogin: true }); if(!me) return;
+  await reload();
+  const wanted = new URLSearchParams(location.search).get('id');
+  if(wanted && groups.some(g => g.id === wanted)) open(wanted); else fresh();
+})();
+</script>
+</body>
+</html>

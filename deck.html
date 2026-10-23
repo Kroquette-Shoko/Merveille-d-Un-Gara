@@ -20,6 +20,7 @@
 @media (max-width:980px){.main{grid-template-columns:1fr}}
 .pool{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;justify-items:center}
 .pool .jcard{--w:190px}
+.pool .cardbtn:has(.jcrea){grid-column:1/-1}
 .pool button.cardbtn{border:0;padding:0;background:none;border-radius:10px;position:relative;cursor:pointer}
 .pool button.cardbtn:disabled{cursor:not-allowed}
 .pool .qty{position:absolute;top:-6px;right:-6px;background:var(--accent);color:var(--accent-ink);border-radius:999px;min-width:26px;height:26px;display:grid;place-items:center;font-weight:700;font-size:.9rem;box-shadow:0 1px 3px rgba(0,0,0,.3)}
@@ -85,7 +86,7 @@
 <script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-filters.js"></script>
 <script>
-let me = null, cards = [], byId = {}, chars = [];
+let me = null, cards = [], byId = {}, chars = [], groups = {};
 let ch = null;        // personnage ouvert { id, owner_id, name, data, deck }
 let deck = [];        // [{card, qty}]
 let readOnly = false, saveTimer = null;
@@ -140,7 +141,7 @@ function renderPool(){
   if(!list.length){ $id('pool').innerHTML = '<p class="empty">Aucune carte jouable ne correspond.</p>'; return; }
   $id('pool').innerHTML = list.map(({ c, ok }) => {
     const q = qtyOf(c.id);
-    return `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" ${!ok || readOnly ? 'disabled' : ''} aria-label="Ajouter ${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet: sh, locked: !ok })}${q ? `<span class="qty">${q}</span>` : ''}</button>`;
+    return `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" ${!ok || readOnly ? 'disabled' : ''} aria-label="Ajouter ${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet: sh, locked: !ok, groups, width: 'min(400px, calc(100vw - 64px))' })}${q ? `<span class="qty">${q}</span>` : ''}</button>`;
   }).join('');
 }
 $id('pool').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b && !b.disabled) setQty(b.dataset.id, qtyOf(b.dataset.id) + 1); });
@@ -214,9 +215,10 @@ window.addEventListener('beforeunload', e => { if(saveTimer && !readOnly){ saveD
   me = await jdrPage('deck', { requireLogin: true }); if(!me) return;
   if(matchMedia('(min-width:981px)').matches) $id('fdet').open = true;
   try{
-    const [c, r] = await Promise.all([ jdrLoadCards(),
-      jdrSb.from('characters').select('id,name').eq('owner_id', me.id).order('updated_at', { ascending: false }) ]);
-    cards = c.list; byId = c.byId; chars = r.data || [];
+    const [c, r, g] = await Promise.all([ jdrLoadCards(),
+      jdrSb.from('characters').select('id,name').eq('owner_id', me.id).order('updated_at', { ascending: false }),
+      jdrLoadGroups() ]);
+    cards = c.list; byId = c.byId; chars = r.data || []; groups = g.byId;
   }catch(err){ status(jdrErrorText(err), true); return; }
   chars.forEach(x => $id('char').append(new Option(x.name || 'Sans nom', x.id)));
   const wanted = new URLSearchParams(location.search).get('character');

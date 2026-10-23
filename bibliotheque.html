@@ -17,6 +17,10 @@
 .cards .jcard{--w:210px;cursor:pointer;transition:transform .12s}
 .cards .jcard:hover{transform:translateY(-3px)}
 .cards button.cardbtn{border:0;padding:0;background:none;border-radius:12px}
+@media (min-width:560px){.cards .cardbtn:has(.jcrea){grid-column:span 2}}
+.cards .jcrea{cursor:pointer}
+dialog.wide{max-width:min(1100px,96vw)}
+dialog.wide .detail{grid-template-columns:1fr}
 .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--sheet);color:var(--ink);max-width:min(720px,94vw);padding:18px}
 dialog::backdrop{background:rgba(0,0,0,.55)}
@@ -60,7 +64,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 <script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-filters.js"></script>
 <script>
-let all = [], chars = [], sheet = null;
+let all = [], chars = [], sheet = null, groups = {};
 const F = jdrFilters($id('filters'), render, { showPlayable: true });
 if(matchMedia('(max-width:820px)').matches) $id('fdet').open = false;
 
@@ -72,13 +76,15 @@ function render(){
   const g = $id('grid');
   if(!all.length){ g.innerHTML = `<p class="empty">Aucune carte n'a encore été créée.${JDR_IS_EDITOR ? ' <a href="editeur-cartes.html">Créer la première</a>' : ''}</p>`; return; }
   if(!list.length){ g.innerHTML = '<p class="empty">Aucune carte ne correspond aux filtres.</p>'; return; }
-  g.innerHTML = list.map(c => `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" aria-label="${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet, locked: !allowed(c) })}</button>`).join('');
+  g.innerHTML = list.map(c => `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" aria-label="${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet, locked: !allowed(c), groups, width: 'min(434px, calc(100vw - 48px))' })}</button>`).join('');
 }
 $id('grid').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b) openDetail(b.dataset.id); });
 
 function openDetail(id){
   const c = all.find(x => x.id === id); if(!c) return;
-  $id('dlg-card').innerHTML = jdrCardHTML(c, { sheet });
+  const isC = c.type === 'Créature';
+  $id('dlg').classList.toggle('wide', isC);
+  $id('dlg-card').innerHTML = jdrCardHTML(c, { sheet, groups, width: 'min(1040px, calc(96vw - 40px))' });
   $id('dlg-title').textContent = c.name;
   const acc = (l, all) => l.length ? l.join(', ') : all;
   const rows = [
@@ -111,10 +117,12 @@ $id('char').addEventListener('change', e => {
   if(!jdrSb){ $id('status').textContent = 'Connexion au serveur impossible.'; return; }
   const me = await jdrPage('bibliotheque', { requireLogin: true }); if(!me) return;
   try{
-    const [cardsRes, charsRes] = await Promise.all([
+    const [cardsRes, charsRes, groupsRes] = await Promise.all([
       jdrLoadCards(),
-      jdrSb.from('characters').select('id,name,data').eq('owner_id', me.id).order('updated_at', { ascending: false })
+      jdrSb.from('characters').select('id,name,data').eq('owner_id', me.id).order('updated_at', { ascending: false }),
+      jdrLoadGroups()
     ]);
+    groups = groupsRes.byId;
     all = cardsRes.list;
     chars = charsRes.data || [];
     chars.forEach(c => $id('char').append(new Option(c.name || 'Sans nom', c.id)));

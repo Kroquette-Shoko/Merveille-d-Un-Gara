@@ -27,7 +27,8 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | `fiche-personnage.html` | Fiche de personnage : sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne ; lien vers le deck ; affiche les effets du deck sur les caractéristiques |
 | `deck.html` | Construction du deck d'un personnage (cartes autorisées selon classe, spécialisation, passé, peuple, prérequis ; taille selon le niveau) |
 | `bibliotheque.html` | Toutes les cartes avec filtres |
-| `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur) |
+| `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur). Type « Créature » : formulaire et fiche paysage dédiés |
+| `editeur-groupes.html` | Tableaux d'action de groupe des créatures, attribués ensuite aux créatures (réservé au compte éditeur) |
 | `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches et decks des joueurs (lecture seule) |
 | `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |
 | `js/jdr-rules.js` | Règles : modèle de carte, déclencheurs, effets, formules avec les caractéristiques, effets des cartes sur les caractéristiques, règles de deck |

@@ -33,6 +33,10 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 .eff .fields>*{flex:1 1 120px}
 @media (max-width:560px){.eff{grid-template-columns:1fr}}
 .gen{font-size:.88rem;color:var(--muted);font-style:italic;margin:0}
+.ed.crea{grid-template-columns:230px minmax(0,1fr) 470px}
+@media (max-width:1300px){.ed.crea{grid-template-columns:minmax(0,1fr) 440px}.ed.crea .list{grid-column:1/-1}}
+@media (max-width:900px){.ed.crea{grid-template-columns:1fr}.ed.crea .preview{order:-1;position:static}}
+.capr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;background:var(--panel);border-radius:8px;padding:8px}
 .actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line);z-index:2}
 .ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px;margin:0}
 /* Studio d'illustration (cadrage libre, repris de Rimd'Orël) */
@@ -75,20 +79,20 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
           <label class="f">Type de carte<select id="f-type"></select></label>
           <label class="f">Sous-type<select id="f-subtype"></select></label>
         </div>
-        <div>
+        <div data-classic>
           <p class="sub-h">Super-types (plusieurs possibles)</p>
           <div class="chips" id="f-supertypes"></div>
         </div>
-        <div>
+        <div data-classic>
           <p class="sub-h">Classes (qui peut jouer cette carte — vide = toutes)</p>
           <div class="chips" id="f-classes"></div>
           <p class="hint" style="margin-top:4px">Une seule classe = la couleur de cette classe. Aucune ou plusieurs = gris neutre.</p>
         </div>
-        <div class="grid2">
+        <div class="grid2" data-classic>
           <label class="f">Valeur<input id="f-value" type="number" min="0" max="20"></label>
           <label class="f">Coût de mana (vide = aucun)<input id="f-mana" type="number" min="0" max="30"></label>
         </div>
-        <div>
+        <div data-classic>
           <p class="sub-h">Composantes (s'il y en a)</p>
           <div class="row"><label class="chk"><input type="checkbox" id="f-c-sonore"> Sonore</label><label class="chk"><input type="checkbox" id="f-c-gestuelle"> Gestuelle</label><label class="chk"><input type="checkbox" id="f-c-materielle"> Matérielle</label></div>
         </div>
@@ -110,8 +114,55 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
         </div>
       </section>
 
+      <!-- FICHE DE CRÉATURE (type « Créature ») -->
+      <section class="part" id="crea" hidden>
+        <h2><span class="num">3</span>Fiche de créature</h2>
+        <div class="grid4">
+          <label class="f">Catégorie<input data-cr="category" list="dl-crcat" placeholder="ex. Bête"></label>
+          <label class="f">Famille<input data-cr="family" placeholder="ex. Araignée"></label>
+          <label class="f">Niveau<input data-cr="level" data-num type="number" min="0" max="30"></label>
+          <label class="f">Dé de groupe<select data-cr="groupDie" id="cr-die"></select></label>
+        </div>
+        <div class="row">
+          <label class="f" style="flex:1 1 240px">Tableau d'action de groupe<select data-cr="group" id="cr-group"></select></label>
+          <a href="editeur-groupes.html" target="_blank" rel="noopener">Gérer les tableaux</a>
+        </div>
+        <p class="sub-h" style="margin-top:4px">Défense</p>
+        <div class="grid4">
+          <label class="f">Cœurs de blessure (1 à 3)<input data-cr="hearts" data-num type="number" min="1" max="3"></label>
+          <label class="f">Armure<input data-cr="armor" data-num type="number" min="0" max="18"></label>
+          <label class="f">Armure magique<input data-cr="armorMagic" data-num type="number" min="0" max="18"></label>
+          <label class="f">Résistance<input data-cr="res" data-num type="number" min="-5" max="20"></label>
+        </div>
+        <div class="grid4">
+          <label class="f">OpRes<select data-cr="opres" id="cr-opres"></select></label>
+          <label class="f">Corps<input data-cr="corps" data-num type="number" min="-5" max="20"></label>
+          <label class="f">Esprit<input data-cr="esprit" data-num type="number" min="-5" max="20"></label>
+          <label class="f">Charme<input data-cr="charme" data-num type="number" min="-5" max="20"></label>
+        </div>
+        <div class="grid2">
+          <label class="f">Déplacement<input data-cr="movement" placeholder="ex. marche · sol, mur, plafond"></label>
+          <label class="f">Vitesse<input data-cr="speed" placeholder="ex. proche (9 m)"></label>
+        </div>
+        <p class="sub-h" style="margin-top:4px">Attaques</p>
+        <div class="grid3">
+          <label class="f">Principale<input data-cr="attacks.primary" placeholder="ex. 2 dégâts perforants · contact"></label>
+          <label class="f">Secondaire<input data-cr="attacks.secondary" placeholder="vide = aucune"></label>
+          <label class="f">Tertiaire<input data-cr="attacks.tertiary" placeholder="vide = aucune"></label>
+        </div>
+        <p class="sub-h" style="margin-top:4px">Résistances</p>
+        <div class="grid3">
+          <label class="f">Immunité aux afflictions<input data-cr="immuneAfflictions" placeholder="vide = aucune"></label>
+          <label class="f">Immunité aux dégâts<input data-cr="immuneDamage" placeholder="vide = aucune"></label>
+          <label class="f">Faiblesse aux dégâts<input data-cr="weakDamage" placeholder="vide = aucune"></label>
+        </div>
+        <p class="sub-h" style="margin-top:4px">Capacités de monstre</p>
+        <div id="cr-abil" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button type="button" id="cr-abil-add" style="align-self:start">Ajouter une capacité</button>
+      </section>
+
       <!-- 3. CAPACITÉS -->
-      <section class="part">
+      <section class="part" data-classic>
         <h2><span class="num">3</span>Capacités</h2>
         <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>.</p>
         <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
@@ -119,13 +170,13 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
       </section>
 
       <!-- 4. CAPACITÉ SPÉCIALE (facultative) -->
-      <section class="part">
+      <section class="part" data-classic>
         <h2><span class="num">4</span>Capacité spéciale <span class="hint" style="font-family:var(--f-body);font-weight:400">— facultative, encadré en bas de la carte</span></h2>
         <label class="chk"><input type="checkbox" id="sp-on"> Cette carte a une capacité spéciale</label>
         <div id="special"></div>
       </section>
 
-      <details class="box">
+      <details class="box" data-classic>
         <summary style="cursor:pointer;font-weight:700">Options de deck</summary>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
           <div class="row">
@@ -157,6 +208,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
   </div>
 </div>
 
+<datalist id="dl-crcat"><option value="Bête"><option value="Humanoïde"><option value="Mort-vivant"><option value="Élémentaire"><option value="Démon"><option value="Céleste"><option value="Créature artificielle"><option value="Plante"><option value="Monstruosité"></datalist>
 <datalist id="dl-resources"><option value="Mana"><option value="Énergie"><option value="Surcharge"><option value="Ki"><option value="Points d'action"></datalist>
 <datalist id="dl-afflictions"><option value="Empoisonné"><option value="Étourdi"><option value="Ralenti"><option value="Entravé"><option value="Saignement"><option value="Hémorragie"><option value="Brisé"><option value="Déconcentré"><option value="Paralysé"><option value="Immobilisé"><option value="Effrayé"><option value="Endormi"><option value="Invisible"><option value="Enragé"></datalist>
 
@@ -237,7 +289,7 @@ function renderSubtypes(){
 $id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
 $id('f-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); });
 $id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
-$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); changed(); });
+$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); renderCreature(); changed(); artLayout(); });
 $id('f-subtype').addEventListener('change', e => { cur.subtype = e.target.value; changed(); });
 $id('f-value').addEventListener('input', e => { cur.value = num(e.target.value); changed(); });
 $id('f-mana').addEventListener('input', e => { cur.mana = num(e.target.value); changed(); });
@@ -380,6 +432,45 @@ $id('sp-on').addEventListener('change', e => {
   renderSpecial(); changed();
 });
 
+/* ================= Fiche de créature ================= */
+let groups = { list: [], byId: {} };
+function crGet(path){ return path.split('.').reduce((o, k) => (o ? o[k] : undefined), cur.creature); }
+function crSet(path, v){ const ks = path.split('.'); let o = cur.creature; ks.slice(0, -1).forEach(k => { o = o[k] = o[k] || {}; }); o[ks[ks.length - 1]] = v; }
+$id('cr-die').replaceChildren(...JDR_DICE.map(d => el('option', { value: d, text: d })));
+$id('cr-opres').replaceChildren(...JDR_DICE.map(d => el('option', { value: d, text: d })));
+function fillGroupSelect(){
+  $id('cr-group').replaceChildren(el('option', { value: '', text: '— aucun —' }), ...groups.list.map(g => el('option', { value: g.id, text: g.name })));
+}
+document.querySelectorAll('[data-cr]').forEach(inp => {
+  const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
+  inp.addEventListener(ev, () => {
+    let v = inp.value;
+    if(inp.hasAttribute('data-num')) v = v === '' ? 0 : Number(v);
+    if(inp.dataset.cr === 'hearts') v = Math.max(1, Math.min(JDR_CREATURE_MAX_HEARTS, v || 1));
+    crSet(inp.dataset.cr, v); changed();
+  });
+});
+function renderCreature(){
+  const isC = cur.type === 'Créature';
+  document.querySelector('.ed').classList.toggle('crea', isC);
+  $id('crea').hidden = !isC;
+  document.querySelectorAll('[data-classic]').forEach(e => e.hidden = isC);
+  if(!isC) return;
+  cur.creature = jdrNormalizeCreature(cur.creature);
+  document.querySelectorAll('[data-cr]').forEach(inp => { const v = crGet(inp.dataset.cr); inp.value = v ?? ''; });
+  const box = $id('cr-abil'); box.replaceChildren();
+  cur.creature.abilities.forEach((a, i) => {
+    const nm = el('input', { value: a.name || '', placeholder: 'Nom (ex. Morsure empoisonnée)', 'aria-label': 'Nom de la capacité' });
+    nm.addEventListener('input', () => { a.name = nm.value; changed(); });
+    const tx = el('textarea', { rows: 3, placeholder: 'Effet de la capacité', 'aria-label': 'Effet de la capacité' }); tx.value = a.text || '';
+    tx.addEventListener('input', () => { a.text = tx.value; changed(); });
+    box.append(el('div', { class:'capr' }, el('div', { style:'display:flex;flex-direction:column;gap:6px' }, nm, tx),
+      el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { cur.creature.abilities.splice(i, 1); renderCreature(); changed(); } })));
+  });
+  applyRights();
+}
+$id('cr-abil-add').addEventListener('click', () => { cur.creature.abilities.push({ name: '', text: '' }); renderCreature(); changed(); });
+
 /* ================= Options de deck ================= */
 function renderReqs(){
   const box = $id('reqs'); box.replaceChildren();
@@ -409,14 +500,15 @@ function renderForm(){
   $id('f-image').value = cur.image_url;
   $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
   $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';
-  renderReqs(); renderAbilities(); renderSpecial(); renderPreview(); artLayout(); applyRights();
+  renderReqs(); renderAbilities(); renderSpecial(); renderCreature(); renderPreview(); artLayout(); applyRights();
 }
 function renderGen(){
   document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(ajoute un effet)'; });
   const sp = document.querySelector('#special [data-gen]'); if(sp) sp.textContent = jdrAbilityText(cur.special) || '(ajoute un effet)';
 }
 function renderPreview(){
-  $id('preview').innerHTML = jdrCardHTML(cur);
+  const isC = cur.type === 'Créature';
+  $id('preview').innerHTML = jdrCardHTML(cur, isC ? { groups: groups.byId, width: Math.min(460, $id('preview').parentElement.clientWidth || 460) + 'px' } : {});
   const col = JDR_CARD_COLORS[jdrCardColorKey(cur)];
   $id('ident').style.setProperty('--cc', col.color); $id('ident').style.setProperty('--ci', col.ink);
   renderGen();
@@ -459,7 +551,8 @@ $id('del').addEventListener('click', async () => {
 window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
 
 async function reload(){
-  try{ cards = (await jdrLoadCards()).list; } catch(err){ status(jdrErrorText(err), true); cards = []; }
+  try{ const [c, g] = await Promise.all([jdrLoadCards(), jdrLoadGroups()]); cards = c.list; groups = g; } catch(err){ status(jdrErrorText(err), true); cards = []; }
+  fillGroupSelect();
   renderList();
 }
 
