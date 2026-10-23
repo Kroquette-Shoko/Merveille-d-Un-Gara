@@ -150,12 +150,14 @@ function jdrOriginHTML(o, opts = {}){
   } else if(o.kind === 'specialisation'){
     const c = jdrSpecClass(o, opts.byId);
     const voies = o.voies.map(id => (opts.cards && opts.cards[id]) || { id, name: id, missing: true });
-    const imp = o.improvements.filter(m => m.text).map(m => `<div class="oa"><div class="oah"><b>Niveau ${esc(m.level)}</b></div><p>${esc(m.text)}</p></div>`).join('');
-    body = `<div class="im">${c ? 'Classe : ' + esc(c.name) : 'Classe non choisie'} · ${o.magic ? 'peut utiliser la magie (Sortilège)' : 'pas de magie (Sortilège)'}</div>
-      <div class="osec">${voies.length > 1 ? 'Voies' : 'Voie'}</div>
+    // opts.hideVoies : ne pas lister les voies (l'assistant de création affiche déjà la voie choisie)
+    const voiesHTML = opts.hideVoies ? '' : `<div class="osec">${voies.length > 1 ? 'Voies' : 'Voie'}</div>
       ${voies.length ? `<div class="ovoie">${voies.map(v => !v.missing && typeof jdrCardHTML === 'function'
           ? jdrCardHTML(v, { width: voies.length > 1 ? '170px' : '210px' })
-          : `<div class="oa"><div class="oah"><b>${esc(v.name)}</b></div></div>`).join('')}</div>` : '<p class="ie">Aucune voie désignée.</p>'}
+          : `<div class="oa"><div class="oah"><b>${esc(v.name)}</b></div></div>`).join('')}</div>` : '<p class="ie">Aucune voie désignée.</p>'}`;
+    const imp = o.improvements.filter(m => m.text).map(m => `<div class="oa"><div class="oah"><b>Niveau ${esc(m.level)}</b></div><p>${esc(m.text)}</p></div>`).join('');
+    body = `<div class="im">${c ? 'Classe : ' + esc(c.name) : 'Classe non choisie'} · ${o.magic ? 'peut utiliser la magie (Sortilège)' : 'pas de magie (Sortilège)'}</div>
+${voiesHTML}
       <div class="osec">Passif de base</div>${abilHTML(o.abilities, 'Aucun passif renseigné.')}
       ${imp ? `<div class="osec">Améliorations de spécialisation</div>${imp}` : ''}`;
   }

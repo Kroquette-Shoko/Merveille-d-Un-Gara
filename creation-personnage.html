@@ -157,7 +157,7 @@ input,select,textarea{background:#FBF5E6}
 /* ---------- Données ---------- */
 let origins = [], items = [], me = null, createdId = null, cardsById = {};
 const C = {           // choix en cours
-  peuple: '', classe: '', specialisation: '', passe: '',
+  peuple: '', classe: '', specialisation: '', voie: '', passe: '',
   equipment: [],      // identifiants d'objets (jdr.items)
   name: '', player: '', genre: '', taillepoids: '', history: '', portrait: ''
 };
@@ -184,6 +184,7 @@ function missing(i){
   if(i === 0 && !C.peuple) return 'Choisis un peuple.';
   if(i === 1 && !C.classe) return 'Choisis une classe.';
   if(i === 2 && !C.specialisation) return specsOf(C.classe).length ? 'Choisis une spécialisation.' : 'Cette classe n’a pas encore de spécialisation (à créer dans la page Origines).';
+  if(i === 2 && voiesOf(C.specialisation).length && !C.voie) return 'Choisis une voie pour ta spécialisation.';
   if(i === 3 && !C.passe) return 'Choisis un passé.';
   if(i === 3 && totals().find(r => r.key === 'wounds').total < 1) return 'Le peuple, la classe et le passé ne donnent aucune case de blessure : renseigne « Cases de blessures » dans la page Origines.';
   if(i === 5 && !C.name.trim()) return 'Donne un nom à ton personnage.';
@@ -198,6 +199,8 @@ $id('next').addEventListener('click', async () => {
 });
 
 /* ---------- Calculs ---------- */
+// Voies proposées par une spécialisation (cartes Passif / Voie qui existent encore)
+function voiesOf(specId){ const sp = oById(specId); return sp ? (sp.voies || []).map(id => cardsById[id]).filter(Boolean) : []; }
 function specsOf(classeId){ const c = oById(classeId); return c ? jdrClassSpecs(c, Object.fromEntries(origins.map(o => [o.id, o]))) : []; }
 function totals(){
   const parts = ['peuple','classe','passe'].map(k => oById(C[k]));
@@ -245,7 +248,8 @@ function originChoices(kind, key, list, emptyText, groupBy){
       html: `<span class="th" ${thumb(o)}>${o.image_url ? '' : jdrEsc((o.name || '?')[0])}</span><span><b>${jdrEsc(o.name)}</b><small>${jdrEsc(jdrOriginSummary(o, Object.fromEntries(origins.map(x => [x.id, x]))))}</small></span>${on ? '<span class="tick">✓</span>' : ''}`,
       onclick: () => {
         C[key] = o.id;
-        if(key === 'classe' && C.specialisation && !specsOf(o.id).some(sp => sp.id === C.specialisation)) C.specialisation = '';
+        if(key === 'classe' && C.specialisation && !specsOf(o.id).some(sp => sp.id === C.specialisation)){ C.specialisation = ''; C.voie = ''; }
+        if(key === 'specialisation'){ const v = voiesOf(o.id); if(!v.some(c => c.id === C.voie)) C.voie = v.length === 1 ? v[0].id : ''; }
         $id('need').textContent = ''; render();
       } }));
   });
@@ -256,12 +260,28 @@ function renderLeft(){
   const k = STEPS[step].key;
   if(k === 'peuple') return originChoices('peuple', 'peuple', origins.filter(o => o.kind === 'peuple').sort((a, b) => (a.family || a.name).localeCompare(b.family || b.name, 'fr') || byName(a, b)), 'Aucun peuple pour l’instant : ils se créent dans la page Origines.', o => o.family || '');
   if(k === 'classe') return originChoices('classe', 'classe', origins.filter(o => o.kind === 'classe').sort(byName), 'Aucune classe pour l’instant : elles se créent dans la page Origines.');
-  if(k === 'spe') return originChoices('specialisation', 'specialisation', specsOf(C.classe).sort(byName), 'Aucune spécialisation pour cette classe : elles se créent dans la page Origines.');
+  if(k === 'spe'){ originChoices('specialisation', 'specialisation', specsOf(C.classe).sort(byName), 'Aucune spécialisation pour cette classe : elles se créent dans la page Origines.'); return renderVoieChoices(); }
   if(k === 'passe') return originChoices('passe', 'passe', origins.filter(o => o.kind === 'passe').sort(byName), 'Aucun passé pour l’instant : ils se créent dans la page Origines.');
   if(k === 'equip') return renderEquipLeft();
   if(k === 'infos') return renderInfosLeft();
   if(k === 'resume') return renderResumeLeft();
   if(k === 'deck') return renderDeckLeft();
+}
+
+// Étape 3 (suite) : choix d'une voie parmi celles de la spécialisation
+function renderVoieChoices(){
+  if(!C.specialisation) return;
+  const L = $id('left'); const voies = voiesOf(C.specialisation).sort(byName);
+  L.append(el('h2', { text: 'La voie', style: 'margin-top:14px' }));
+  if(!voies.length){ L.append(el('p', { class:'empty', text:'Cette spécialisation ne propose pas de voie.' })); return; }
+  const box = el('div', { class:'choices', role:'listbox', 'aria-label':'Voies' });
+  voies.forEach(c => {
+    const on = C.voie === c.id;
+    box.append(el('button', { type:'button', role:'option', 'aria-selected': on ? 'true' : 'false', class: 'choice' + (on ? ' on' : ''),
+      html: `<span class="th" ${thumb(c)}>${c.image_url ? '' : jdrEsc((c.name || '?')[0])}</span><span><b>${jdrEsc(c.name)}</b><small>Carte de voie</small></span>${on ? '<span class="tick">✓</span>' : ''}`,
+      onclick: () => { C.voie = c.id; $id('need').textContent = ''; render(); } }));
+  });
+  L.append(box);
 }
 
 // Étape 5 : équipement de base (ajouter / retirer)
@@ -312,7 +332,9 @@ function renderResumeLeft(){
   const line = (label, value, stepIdx) => s.append(el('button', { type:'button', class: 'l' + (value ? '' : ' miss'), style:'border:0;text-align:left;font:inherit;cursor:pointer', title:'Modifier', onclick: () => go(stepIdx) },
     el('span', { text: label }), el('b', { text: value || 'À choisir' })));
   line('Peuple', (oById(C.peuple) || {}).name, 0); line('Classe', (oById(C.classe) || {}).name, 1);
-  line('Spécialisation', (oById(C.specialisation) || {}).name, 2); line('Passé', (oById(C.passe) || {}).name, 3);
+  line('Spécialisation', (oById(C.specialisation) || {}).name, 2);
+  if(voiesOf(C.specialisation).length) line('Voie', (cardsById[C.voie] || {}).name, 2);
+  line('Passé', (oById(C.passe) || {}).name, 3);
   line('Équipement', C.equipment.length ? C.equipment.map(id => (iById(id) || {}).name).filter(Boolean).join(', ') : 'Aucun', 4);
   line('Nom', C.name, 5);
   L.append(s, el('p', { class:'hint', style:'margin-top:10px', text:'Clique sur une ligne pour la modifier. « Créer le personnage » l’enregistre en ligne, puis passe au deck.' }));
@@ -322,7 +344,8 @@ function renderDeckLeft(){
   const L = $id('left'); L.replaceChildren(el('h2', { text: STEPS[step].name }));
   const c = oById(C.classe);
   L.append(el('p', { text: `${C.name || 'Ton personnage'} est créé. Il reste à construire son deck : ${c ? c.progression[0].deck : 25} cartes au maximum au niveau 1, 25 au minimum.` }),
-    el('p', { class:'hint', text:'Les cartes proposées dépendent de la classe, de la spécialisation, du passé et du peuple.' }));
+    el('p', { class:'hint', text:'Les cartes proposées dépendent de la classe, de la spécialisation, du passé et du peuple.' }),
+    ...(cardsById[C.voie] ? [el('p', { class:'hint', text: `La carte de voie « ${cardsById[C.voie].name} » est déjà dans le deck.` })] : []));
 }
 
 /* ---------- Droite : informations ---------- */
@@ -333,6 +356,10 @@ function renderRight(){
   if(['peuple','classe','spe','passe'].includes(k)){
     const key = k === 'spe' ? 'specialisation' : k;
     const o = oById(C[key]);
+    // Spécialisation : la voie choisie en grand, puis la fiche de la spécialisation
+    if(k === 'spe' && o && cardsById[C.voie]){
+      return show(`<p class="grp" style="margin-top:0">Voie choisie</p><div style="display:flex;justify-content:center;margin-bottom:12px">${jdrCardHTML(cardsById[C.voie], { width: '260px' })}</div>` + jdrOriginHTML(o, { byId: map, cards: cardsById, hideVoies: true }));
+    }
     return show(o ? jdrOriginHTML(o, { byId: map, cards: cardsById }) : `<p class="hintbox">Choisis ${k === 'spe' ? 'une spécialisation' : k === 'classe' ? 'une classe' : k === 'peuple' ? 'un peuple' : 'un passé'} dans la liste pour voir sa description.</p>`);
   }
   if(k === 'equip'){ const it = iById(focus[4]) || iById(C.equipment[C.equipment.length - 1]); return show(it ? jdrItemHTML(it) : '<p class="hintbox">Touche un objet pour l’ajouter et voir sa fiche.</p>'); }
@@ -394,7 +421,8 @@ async function createCharacter(){
   const data = {
     player: C.player, name: C.name.trim(), level: 1, genre: C.genre, taillepoids: C.taillepoids,
     peuple: p.name, classe: c.name, specialisation: s.name, passe: ps.name, portrait: C.portrait,
-    origins: { peuple: p.id, classe: c.id, specialisation: s.id, passe: ps.id, woundsFromOrigins: t.wounds },
+    origins: { peuple: p.id, classe: c.id, specialisation: s.id, passe: ps.id, voie: C.voie || '', woundsFromOrigins: t.wounds },
+    voie: C.voie ? (cardsById[C.voie] || {}).name || '' : '',
     stats: Object.fromEntries(JDR_STATS.map(x => [x.key, t[x.key]])),
     woundsMax: Math.max(1, t.wounds), wounds: Array(Math.max(1, t.wounds)).fill(false), armor: armors.reduce((a, x) => a + (Number(x.pa) || 0), 0), armag: armors.reduce((a, x) => a + (Number(x.pam) || 0), 0),
     resources: s.magic ? [{ name: 'Mana', max: 10, val: 0 }] : [],
@@ -402,7 +430,9 @@ async function createCharacter(){
   };
   data.armor = Math.min(18, data.armor); data.armag = Math.min(18, data.armag);
   status('Création…');
-  const { data: row, error } = await jdrSb.from('characters').insert({ name: data.name, data }).select('id').single();
+  // La carte de voie choisie est placée dans le deck dès la création
+  const deck = C.voie ? [{ card: C.voie, qty: 1 }] : [];
+  const { data: row, error } = await jdrSb.from('characters').insert({ name: data.name, data, deck }).select('id').single();
   if(error){ status(jdrErrorText(error), true); return; }
   createdId = row.id; status('Personnage créé et enregistré en ligne');
   reached = 7; step = 7; render();
