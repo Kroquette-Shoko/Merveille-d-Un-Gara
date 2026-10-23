@@ -71,11 +71,14 @@ const JDR_CARD_COLORS = {
   'Érudit':     { color: '#3A5BB8', ink: '#FFFFFF' },
   'Neutre':     { color: '#6B7280', ink: '#FFFFFF' },
   'Risque':     { color: '#3B2F4A', ink: '#FFFFFF' },
-  'Risque bonus': { color: '#7ED957', ink: '#1D1A16' }   // risque de sous-type « Bonus » (vert clair → texte foncé)
+  'Risque bonus': { color: '#7ED957', ink: '#1D1A16' },  // risque de sous-type « Bonus » (vert clair → texte foncé)
+  'Exploit':    { color: '#0D294C', ink: '#FFFFFF' }      // toutes les cartes Exploit (bleu nuit)
 };
-// Coloris d'une carte : Risque → violet (Risque « Bonus » → vert #7ED957) ; une seule classe → sa couleur ; sinon (aucune ou plusieurs) → neutre
+// Coloris d'une carte : Risque → violet (Risque « Bonus » → vert #7ED957) ; Exploit → bleu nuit #0D294C ;
+// une seule classe → sa couleur ; sinon (aucune ou plusieurs) → neutre
 function jdrCardColorKey(card){
   if(card.type === 'Risque') return card.subtype === 'Bonus' ? 'Risque bonus' : 'Risque';
+  if(card.type === 'Exploit') return 'Exploit';
   const classes = card.classes || [];
   return classes.length === 1 && JDR_CARD_COLORS[classes[0]] ? classes[0] : 'Neutre';
 }
