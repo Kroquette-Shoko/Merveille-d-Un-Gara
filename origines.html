@@ -124,8 +124,9 @@
           <div class="stats" id="o-stats"></div>
         </section>
 
-        <!-- Capacités : peuple (capacités du peuple) et spécialisation (passif de base) -->
-        <section class="part" data-kind="peuple classe specialisation passe">
+        <!-- Capacités : peuple, classe et passé ; spécialisation : passif FACULTATIF
+             (pour une spécialisation, cette section est déplacée au-dessus de « Magie / Voies », voir renderForm) -->
+        <section class="part" data-kind="peuple classe specialisation passe" id="o-abil-sec">
           <h2 id="o-abil-h">Capacités</h2>
           <div id="o-abil" style="display:flex;flex-direction:column;gap:10px"></div>
           <button type="button" id="o-add" style="align-self:start">Ajouter une capacité</button>
@@ -363,7 +364,7 @@ function renderStats(){
 }
 function renderAbilities(){
   const box = $id('o-abil'); box.replaceChildren();
-  if(!cur.abilities.length) box.append(el('span', { class:'hint', text:'Aucune capacité.' }));
+  if(!cur.abilities.length) box.append(el('span', { class:'hint', text: cur.kind === 'specialisation' ? 'Aucun passif : c\'est normal, toutes les spécialisations n\'en ont pas.' : 'Aucune capacité.' }));
   cur.abilities.forEach((a, i) => {
     const inp = (k, attrs) => { const x = el('input', Object.assign({ value: a[k] || '' }, attrs)); x.addEventListener('input', () => { a[k] = x.value; changed(); }); return x; };
     // Coût en points d'action : vide = capacité passive
@@ -396,8 +397,12 @@ function renderForm(){
   if(cur.kind === 'peuple' || cur.kind === 'classe' || cur.kind === 'passe'){ renderStats(); $id('o-stats-h').textContent = cur.kind === 'peuple' ? '— bonus ou malus apportés par le peuple' : cur.kind === 'classe' ? '— valeurs apportées par la classe' : '— valeurs apportées par le passé'; }
   if(cur.kind === 'passe'){ fillCardSelect(); $id('ps-card').value = cardsById[cur.card] ? cur.card : ''; renderEvents(); }
   renderAbilities();
-  $id('o-abil-h').textContent = ({ peuple: 'Capacités du peuple', classe: 'Capacités de classe', specialisation: 'Passif de base', passe: 'Capacités du passé' })[cur.kind];
+  $id('o-abil-h').textContent = ({ peuple: 'Capacités du peuple', classe: 'Capacités de classe', specialisation: 'Passif (facultatif)', passe: 'Capacités du passé' })[cur.kind] || 'Capacités';
   $id('o-add').textContent = cur.kind === 'specialisation' ? 'Ajouter un passif' : 'Ajouter une capacité';
+  // Spécialisation : le passif se remplit AVANT les voies (même ordre que sur la fiche) ; sinon place d'origine
+  const abSec = $id('o-abil-sec'), specSec = document.querySelector('section[data-kind="specialisation"]');
+  if(!abSec._home){ abSec._home = document.createComment('place des capacités'); abSec.after(abSec._home); }
+  if(cur.kind === 'specialisation') specSec.before(abSec); else abSec._home.before(abSec);
   if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; $id('c-hex').value = cur.color; $id('c-hex-err').textContent = ''; renderClassSpecs(); renderProgression(); }
   if(cur.kind === 'specialisation'){ $id('s-magic').checked = cur.magic; renderSpecHint(); fillVoieSelect(); renderImprovements(); }
   preview(); renderList(); rights();
