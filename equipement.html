@@ -32,6 +32,9 @@
 @media (max-width:560px){.grid3{grid-template-columns:1fr}}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .soon{background:var(--panel);border-radius:10px;padding:14px;color:var(--muted)}
+.sizes{display:flex;flex-wrap:wrap;gap:4px}
+.sizes button{padding:5px 9px;font-size:.85rem;border-radius:999px}
+.sizes button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -59,10 +62,17 @@
             <label class="f">Nom<input id="i-name" maxlength="80" placeholder="ex. Pistolet à silex"></label>
             <label class="f">Identifiant<input id="i-id" maxlength="64" placeholder="rempli depuis le nom"></label>
           </div>
-          <div class="grid2">
-            <label class="f">Taille dans l'inventaire<select id="i-size"></select></label>
-            <span></span>
+        </section>
+
+        <!-- Inventaire : nombre de cases occupées (la poche du sac se choisit sur la fiche du personnage) -->
+        <section class="part">
+          <h2>Inventaire</h2>
+          <div class="row" style="align-items:end">
+            <label class="f" style="max-width:160px">Cases occupées<input id="i-size" type="number" min="0" max="60" step="1"></label>
+            <div class="sizes" id="i-sizes" role="group" aria-label="Tailles du mémo"></div>
           </div>
+          <p class="hint" style="margin:0" id="i-size-hint"></p>
+          <p class="hint" style="margin:0">La poche où l'objet est rangé (sac à dos, ceinture, bourse…) se choisit sur la fiche du personnage.</p>
         </section>
 
         <!-- Arme -->
@@ -169,7 +179,14 @@ const fill = (id, list, labels) => $id(id).replaceChildren(...list.map((v, i) =>
 const num = v => v === '' ? 0 : Number(v) || 0;
 
 // ---------- Listes déroulantes ----------
-fill('i-size', JDR_ITEM_SIZES.map(s => String(s.n)), JDR_ITEM_SIZES.map(s => `${s.n} case${s.n > 1 ? 's' : ''} · ${s.t}`));
+// Raccourcis du mémo des tailles (0, 1, 2, 3, 6, 9 cases) ; le champ accepte aussi n'importe quel nombre
+$id('i-sizes').replaceChildren(...JDR_ITEM_SIZES.map(sz => el('button', { type:'button', 'data-n': sz.n, title: sz.t, text: `${sz.n} · ${sz.t}`,
+  onclick: () => { cur.size = sz.n; renderSize(); changed(); } })));
+function renderSize(){
+  $id('i-size').value = cur.size;
+  document.querySelectorAll('#i-sizes button').forEach(b => b.classList.toggle('on', Number(b.dataset.n) === cur.size));
+  $id('i-size-hint').textContent = 'Taille : ' + jdrSizeLabel(cur.size || 0) + '.';
+}
 fill('w-cat', JDR_WEAPON_CATEGORIES); fill('w-reach', JDR_WEAPON_REACH);
 fill('w-dmg', JDR_DAMAGE_TYPES); fill('s-dmg', JDR_DAMAGE_TYPES);
 fill('w-range', ['', ...JDR_RANGES.filter(r => r !== 'Soi')], ['Aucune', ...JDR_RANGES.filter(r => r !== 'Soi')]);
@@ -202,7 +219,7 @@ function switchKind(k){
 const bind = (id, get, set, ev = 'input') => $id(id).addEventListener(ev, e => { set(e.target.value); changed(); });
 bind('i-name', null, v => { cur.name = v; if(!savedId){ cur.id = jdrSlug(v); $id('i-id').value = cur.id; } });
 bind('i-id', null, v => { cur.id = v.toLowerCase().replace(/[^a-z0-9_-]/g, ''); $id('i-id').value = cur.id; });
-bind('i-size', null, v => cur.size = Number(v), 'change');
+$id('i-size').addEventListener('input', e => { cur.size = Math.max(0, Math.round(Number(e.target.value) || 0)); renderSize(); changed(); });
 bind('i-desc', null, v => cur.description = v);
 bind('w-cat', null, v => cur.category = v, 'change');
 bind('w-reach', null, v => cur.reach = v, 'change');
@@ -242,7 +259,7 @@ function renderForm(){
   const ready = JDR_ITEM_KINDS[kind].ready;
   $id('soon').hidden = ready; $id('fields').hidden = !ready;
   document.querySelectorAll('[data-kind]').forEach(s => s.hidden = !s.dataset.kind.split(' ').includes(cur.kind));
-  $id('i-name').value = cur.name; $id('i-id').value = cur.id; $id('i-size').value = String(cur.size);
+  $id('i-name').value = cur.name; $id('i-id').value = cur.id; renderSize();
   $id('i-desc').value = cur.description || '';
   if(cur.kind === 'arme'){
     $id('w-cat').value = cur.category; $id('w-reach').value = cur.reach; $id('w-dmg').value = cur.damageType; $id('w-range').value = cur.range || '';
