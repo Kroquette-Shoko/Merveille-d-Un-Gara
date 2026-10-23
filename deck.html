@@ -7,95 +7,206 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/jdr-ui.css">
 <style>
-/* Layout : bandeau personnage + caractéristiques ; dessous, cartes disponibles (gauche) et deck (droite, collant) */
-.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px}
-@media (max-width:860px){.top{grid-template-columns:1fr}}
-.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
-.st{background:var(--panel);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
-.st .k{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.st .v{font-family:var(--f-display);font-weight:800;font-size:1.6rem;font-variant-numeric:tabular-nums;line-height:1}
-.st .m{font-size:.8rem;font-variant-numeric:tabular-nums}
-.st .m.up{color:var(--ok)} .st .m.down{color:var(--hurt)}
-.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
-@media (max-width:980px){.main{grid-template-columns:1fr}}
-.pool{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;justify-items:center}
-.pool .jcard{--w:190px}
-.pool .cardbtn:has(.jcrea){grid-column:1/-1}
-.pool button.cardbtn{border:0;padding:0;background:none;border-radius:10px;position:relative;cursor:pointer}
-.pool button.cardbtn:disabled{cursor:not-allowed}
-.pool .qty{position:absolute;top:-6px;right:-6px;background:var(--accent);color:var(--accent-ink);border-radius:999px;min-width:26px;height:26px;display:grid;place-items:center;font-weight:700;font-size:.9rem;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.deckcol{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
-@media (max-width:980px){.deckcol{position:static;max-height:none}}
-.dl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
-.dl li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;background:var(--panel)}
-.dl li.bad{outline:1px solid var(--hurt)}
-.dl .n{font-variant-numeric:tabular-nums;font-weight:700;min-width:1.6em;text-align:right}
-.dl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dl .btns{display:flex;gap:2px}
-.dl .btns button{padding:2px 9px}
-.gh{font-family:var(--f-display);font-weight:700;margin:8px 0 4px;font-size:.98rem}
+/* =====================================================================
+   Construction du deck — même navigation que le deckbuilder de Rimd'Orël :
+   - Gauche  : filtres secondaires (sous-types, super-types, mot-clé, rang…) et tri
+   - Centre  : onglets des types de cartes en haut + recherche + coût en mana,
+               puis le classeur paginé (feuillets de 8 cartes, flèches ‹ ›)
+               Clic gauche = ajouter au deck · clic droit = agrandir la carte
+   - Droite  : le deck du personnage (compteur, courbe de mana, liste / détails)
+   La classe, la spécialisation, le passé et le peuple viennent de la fiche :
+   seules les cartes jouables par le personnage sont proposées.
+   ===================================================================== */
+.wrap{max-width:1640px}
+.db{display:grid;grid-template-columns:230px minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:1250px){.db{grid-template-columns:220px minmax(0,1fr)}.db .deckc{grid-column:1/-1}}
+@media (max-width:760px){.db{grid-template-columns:1fr}}
+.pnl{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.tb-title{font-family:var(--f-display);font-weight:700;font-size:1.05rem;margin:0 0 6px}
+.tb-sep{height:1px;background:var(--line);margin:10px 0}
+.leftc{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:760px){.leftc{position:static;max-height:none}}
+.leftc .chips{gap:4px}
+.leftc .chip{font-size:.8rem;padding:2px 8px}
+.leftc select{width:100%}
+.count{font-size:.88rem;color:var(--muted);text-align:center}
+
+/* Barre du haut du classeur : types + recherche + mana */
+.quick{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.qtabs{display:flex;flex-wrap:wrap;gap:5px}
+.qtog{border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:5px 12px;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer}
+.qtog .n{font-weight:500;color:var(--muted);margin-left:4px}
+.qtog.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.qtog.on .n{color:inherit;opacity:.85}
+.qrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.qrow input[type=search]{flex:1 1 220px;min-width:0}
+.qcost{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.qcost span{font-size:.85rem;color:var(--muted)}
+.qcost button{width:32px;height:32px;border-radius:50%;padding:0;font-weight:800;border:1.5px solid #1F4FB8;color:#1F4FB8;background:var(--sheet)}
+.qcost button.on{background:#1F4FB8;color:#fff}
+.hint2{font-size:.85rem;color:var(--muted)}
+.hint2 b{color:var(--ink)}
+
+/* Classeur : feuillet de 2 demi-pages de 2×2 cartes (une seule demi-page sur écran étroit) */
+.binder{background:linear-gradient(180deg,var(--panel),var(--sheet));border:1px solid var(--line);border-radius:18px;padding:20px;min-height:420px;display:flex;justify-content:center;align-items:flex-start;gap:24px}
+.half{display:grid;grid-template-columns:repeat(2,var(--cw));gap:22px}
+.spine{width:1px;align-self:stretch;background:var(--line)}
+.slot{position:relative;width:var(--cw)}
+.slot .jcard{--w:var(--cw);cursor:pointer;transition:transform .12s}
+.slot:hover .jcard{transform:translateY(-3px)}
+.slot.locked .jcard{cursor:not-allowed}
+.slot .qty{position:absolute;top:-8px;right:-8px;z-index:5;background:var(--ok);color:#fff;border-radius:999px;min-width:28px;height:28px;display:grid;place-items:center;font-weight:800;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+.slot .why{position:absolute;left:4px;right:4px;bottom:6px;z-index:5;background:rgba(20,16,12,.85);color:#fff;font-size:.72rem;border-radius:6px;padding:3px 6px;text-align:center}
+.bnav{display:flex;align-items:center;justify-content:center;gap:16px;margin:12px auto 0;width:max-content;background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:6px 16px}
+.arrow{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);background:var(--sheet);font-size:1.2rem;padding:0;display:grid;place-items:center}
+.arrow:disabled{opacity:.3;cursor:not-allowed}
+.pind{font-family:var(--f-display);min-width:110px;text-align:center;color:var(--muted)}
+.empty-state{color:var(--muted);text-align:center;padding:40px 10px;max-width:420px}
+@media (prefers-reduced-motion:reduce){.slot .jcard{transition:none}}
+
+/* Colonne du deck */
+.deckc{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;padding:0;overflow:hidden}
+@media (max-width:1250px){.deckc{position:static;max-height:none}}
+.dk-top{padding:12px 14px 6px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid var(--line)}
+.dk-top h2{margin:0;font-size:1.3rem}
+.dk-who{font-size:.85rem;color:var(--muted)}
+.dk-count{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.dk-count b{font-family:var(--f-display);font-size:1.6rem;font-variant-numeric:tabular-nums}
 .meter{height:8px;background:var(--panel);border-radius:999px;overflow:hidden}
 .meter>div{height:100%;background:var(--accent)}
-.msgs{margin:0;padding-left:1.1rem;font-size:.88rem;display:flex;flex-direction:column;gap:2px}
+.curve{display:flex;align-items:flex-end;gap:4px;height:62px;padding:8px 14px 4px;border-bottom:1px solid var(--line)}
+.curve div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;justify-content:flex-end}
+.curve i{display:block;width:100%;background:#1F4FB8;border-radius:3px 3px 0 0;min-height:2px}
+.curve span{font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.dtabs{display:flex;gap:6px;padding:8px 10px 0}
+.dtab{flex:1;padding:7px;border:1px solid var(--line);border-bottom:0;border-radius:8px 8px 0 0;background:var(--panel);color:var(--muted);font-weight:700}
+.dtab.on{color:var(--ink);background:var(--sheet);border-color:var(--accent)}
+.dbody{flex:1;overflow:auto;padding:8px 10px;border-top:1px solid var(--accent)}
+.gh{font-family:var(--f-display);font-weight:700;margin:8px 0 4px;font-size:.98rem;color:var(--muted)}
+.drow{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:6px;background:var(--panel);margin-bottom:3px}
+.drow.bad{outline:1px solid var(--hurt)}
+.drow .mc{width:24px;height:24px;border-radius:50%;flex:0 0 24px;display:grid;place-items:center;font-weight:800;font-size:.8rem;background:#1F4FB8;color:#fff}
+.drow .mc.none{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+.drow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help}
+.drow .nm:hover{color:var(--accent);text-decoration:underline}
+.drow .q{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.drow button{width:26px;height:26px;padding:0;border-radius:6px}
+.msgs{margin:0 0 8px;padding-left:1.1rem;font-size:.88rem;display:flex;flex-direction:column;gap:2px}
 .msgs li.err{color:var(--hurt)} .msgs li.warn{color:var(--brass)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.st{background:var(--panel);border-radius:8px;padding:6px 8px}
+.st .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block}
+.st .v{font-family:var(--f-display);font-weight:800;font-size:1.3rem;font-variant-numeric:tabular-nums}
+.st .m{font-size:.75rem;margin-left:4px} .st .m.up{color:var(--ok)} .st .m.down{color:var(--hurt)}
+.dfoot{padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dfoot .save{font-size:.85rem;color:var(--muted);flex:1;text-align:right}
+
+/* Agrandissement (clic droit) et aperçu au survol d'une ligne du deck */
+#zoom{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px}
+#zoom.show{display:flex}
+#zoom .jcard{--w:min(380px,86vw)}
+#zoom .zi{display:flex;flex-direction:column;align-items:center;gap:10px}
+#zoom .zb{display:flex;gap:8px}
+#hover{position:fixed;z-index:250;pointer-events:none;display:none}
+#hover .jcard{--w:240px;box-shadow:0 16px 34px rgba(0,0,0,.5)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="row" style="justify-content:space-between;align-items:end">
-    <div><h1>Deck</h1><p class="sub" id="who">Construit à partir de la fiche du personnage</p></div>
-    <div class="row">
-      <label class="f" style="min-width:230px">Personnage<select id="char"></select></label>
-      <a id="to-sheet" href="fiche-personnage.html">Ouvrir la fiche</a>
-    </div>
-  </div>
   <p class="status" id="status" role="status"></p>
   <p class="status bad" id="ro" hidden>Lecture seule : ce deck appartient à un joueur de ta campagne.</p>
 
-  <div class="top">
-    <section class="sheet">
-      <h2>Règles du deck</h2>
-      <div id="limits"></div>
-      <div class="meter" aria-hidden="true"><div id="meter" style="width:0"></div></div>
-      <ul class="msgs" id="msgs"></ul>
-    </section>
-    <section class="sheet">
-      <h2>Caractéristiques avec ce deck</h2>
-      <div class="stats" id="stats"></div>
-      <p class="hint">Valeur de la fiche + modifications des cartes « Tant que cette carte est dans votre deck ».</p>
-    </section>
-  </div>
+  <div class="db">
+    <!-- ===== Gauche : filtres secondaires ===== -->
+    <aside class="pnl leftc" aria-label="Filtres">
+      <p class="tb-title">Filtres</p>
+      <p class="hint" style="margin:0 0 4px">Sous-type</p>
+      <div class="chips" id="f-sub"></div>
+      <div class="tb-sep"></div>
+      <p class="hint" style="margin:0 0 4px">Super-types</p>
+      <div class="chips" id="f-sup"></div>
+      <div class="tb-sep"></div>
+      <label class="f">Mot-clé<select id="f-kw"></select></label>
+      <label class="f" style="margin-top:8px">Rang<select id="f-rank"></select></label>
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="f-pers"> Persistantes seulement</label>
+      <label class="chk"><input type="checkbox" id="f-locked"> Montrer aussi les cartes non jouables</label>
+      <div class="tb-sep"></div>
+      <label class="f">Trier<select id="f-sort">
+        <option value="type">Type → Mana → Nom</option><option value="name">Nom (A → Z)</option>
+        <option value="mana">Coût en mana</option><option value="value">Valeur</option><option value="rank">Rang</option></select></label>
+      <p class="count" id="count"></p>
+      <button type="button" class="ghost" id="f-reset" style="width:100%">Réinitialiser les filtres</button>
+    </aside>
 
-  <div class="main">
-    <section class="sheet">
-      <details id="fdet"><summary style="cursor:pointer;font-weight:700">Filtres</summary><div id="filters" style="margin-top:10px"></div></details>
-      <div class="row" style="justify-content:space-between"><span class="hint" id="pool-count"></span><label class="chk"><input type="checkbox" id="show-locked"> Afficher aussi les cartes non jouables</label></div>
-      <div class="pool" id="pool"></div>
-    </section>
-    <aside class="sheet deckcol">
-      <div class="row" style="justify-content:space-between;align-items:center"><h2>Cartes du deck</h2><button class="ghost" id="clear" type="button">Vider</button></div>
-      <div id="deck"></div>
+    <!-- ===== Centre : types + classeur ===== -->
+    <main>
+      <div class="pnl quick">
+        <div class="qtabs" id="qtabs" role="toolbar" aria-label="Types de cartes"></div>
+        <div class="qrow">
+          <input type="search" id="q" placeholder="Nom ou texte de carte…" aria-label="Rechercher une carte">
+          <div class="qcost" id="qcost" aria-label="Coût en mana"></div>
+        </div>
+        <div class="hint2">Clic gauche : ajouter au deck · <b>Clic droit : agrandir la carte</b> · flèches du clavier : changer de feuillet</div>
+      </div>
+      <div class="binder" id="binder"></div>
+      <div class="bnav">
+        <button type="button" class="arrow" id="prev" aria-label="Feuillet précédent">‹</button>
+        <span class="pind" id="pind">—</span>
+        <button type="button" class="arrow" id="next" aria-label="Feuillet suivant">›</button>
+      </div>
+    </main>
+
+    <!-- ===== Droite : deck ===== -->
+    <aside class="pnl deckc" aria-label="Deck">
+      <div class="dk-top">
+        <h2 id="dk-title">Deck</h2>
+        <label class="f">Personnage<select id="char"></select></label>
+        <div class="dk-who" id="who"></div>
+        <div class="dk-count"><b id="dk-n">0</b><span id="dk-lim"></span><span class="pill" id="dk-ok"></span></div>
+        <div class="meter" aria-hidden="true"><div id="meter" style="width:0"></div></div>
+      </div>
+      <div class="curve" id="curve" aria-label="Courbe de mana"></div>
+      <div class="dtabs" role="tablist">
+        <button type="button" class="dtab on" id="t-list" role="tab" aria-selected="true">Liste</button>
+        <button type="button" class="dtab" id="t-det" role="tab" aria-selected="false">Détails</button>
+      </div>
+      <div class="dbody" id="d-list"></div>
+      <div class="dbody" id="d-det" hidden></div>
+      <div class="dfoot">
+        <button type="button" id="clear">Vider</button>
+        <a id="to-sheet" href="fiche-personnage.html">Fiche</a>
+        <span class="save" id="save"></span>
+      </div>
     </aside>
   </div>
 </div>
+<div id="zoom" role="dialog" aria-modal="true" aria-label="Carte agrandie"></div>
+<div id="hover" aria-hidden="true"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="js/jdr-supabase.js"></script>
 <script src="js/jdr-rules.js"></script>
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
-<script src="js/jdr-filters.js"></script>
 <script src="js/jdr-origins.js"></script>
 <script>
 let me = null, cards = [], byId = {}, chars = [], groups = {};
 let ch = null;        // personnage ouvert { id, owner_id, name, data, deck }
 let deck = [];        // [{card, qty}]
-let readOnly = false, saveTimer = null;
-const F = jdrFilters($id('filters'), renderPool, {});
+let readOnly = false, saveTimer = null, page = 0;
+// Types proposés dans le deck (les Risque et les Créature ne vont pas dans un deck de joueur)
+const DECK_TYPES = JDR_CARD_TYPES.filter(t => t !== 'Risque' && t !== 'Créature');
+const MANA_BTNS = ['0','1','2','3','4','5+'];
+const FK = 'jdr-deck-filtres';
+const F = { types: [], q: '', mana: [], sub: [], sup: [], kw: '', rank: '', pers: false, locked: false, sort: 'type' };
+try{ Object.assign(F, JSON.parse(localStorage.getItem(FK) || '{}'), { q: '' }); }catch(e){}
+function keep(){ try{ localStorage.setItem(FK, JSON.stringify(F)); }catch(e){} }
 
 function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); }
 function sheet(){ return Object.assign({}, ch ? ch.data : {}, { name: ch && ch.name }); }
 function qtyOf(id){ const e = deck.find(x => x.card === id); return e ? e.qty : 0; }
+const toggle = (arr, v) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+const manaKey = c => (c.mana === null || c.mana === '' || c.mana === undefined) ? null : Number(c.mana);
 
 function setQty(id, q){
   if(readOnly) return;
@@ -109,69 +220,184 @@ function setQty(id, q){
   renderAll(); scheduleSave();
 }
 
-/* ---------- Caractéristiques (cartes → stats) ---------- */
-function renderStats(){
-  const eff = jdrEffectiveStats(sheet(), deck, byId);
-  $id('stats').innerHTML = JDR_STATS.map(s => {
-    const m = eff.mods[s.key];
-    const src = eff.sources[s.key].map(x => `${x.card} ${x.value > 0 ? '+' : ''}${x.value}`).join(', ');
-    return `<div class="st" title="${jdrEsc(src)}"><span class="k">${s.label}</span><span class="v">${eff.total[s.key]}</span>
-      <span class="m ${m > 0 ? 'up' : m < 0 ? 'down' : ''}">${m ? `fiche ${eff.base[s.key] ?? 0} ${m > 0 ? '+' : ''}${m}` : 'fiche'}</span></div>`;
-  }).join('');
-  return eff.total;
-}
-
-/* ---------- Règles et validation ---------- */
-function renderRules(){
-  const v = jdrValidateDeck(deck, byId, sheet());
-  $id('limits').innerHTML = `<p style="margin:0"><b style="font-size:1.4rem;font-variant-numeric:tabular-nums">${v.count}</b> carte${v.count > 1 ? 's' : ''} · minimum ${v.limits.min} · maximum ${v.limits.max} (niveau ${v.limits.level})${v.horsDeck ? ` · ${v.horsDeck} hors deck` : ''}
-    &nbsp;<span class="pill ${v.valid ? 'good' : 'bad'}">${v.valid ? 'Deck valide' : 'Deck incomplet ou invalide'}</span></p>`;
-  $id('meter').style.width = Math.min(100, v.count / v.limits.max * 100) + '%';
-  $id('msgs').innerHTML = v.errors.map(e => `<li class="err">${jdrEsc(e)}</li>`).join('') + v.warnings.map(e => `<li class="warn">${jdrEsc(e)}</li>`).join('');
-  return v;
-}
-
-/* ---------- Cartes disponibles ---------- */
-function renderPool(){
-  if(!ch){ $id('pool').innerHTML = ''; return; }
+/* ---------- Cartes proposées (jouables par le personnage) + filtres ---------- */
+function pool(){
+  if(!ch) return [];
   const sh = sheet(); const eff = jdrEffectiveStats(sh, deck, byId).total;
-  const showLocked = $id('show-locked').checked;
-  const list = F.apply(cards, {}).filter(c => c.type !== 'Risque').map(c => ({ c, ok: jdrCardAllowed(c, sh, eff).ok })).filter(x => x.ok || showLocked);
-  $id('pool-count').textContent = `${list.length} carte${list.length > 1 ? 's' : ''} · touche une carte pour l'ajouter`;
-  if(!cards.length){ $id('pool').innerHTML = `<p class="empty">Aucune carte n'existe encore.${JDR_IS_EDITOR ? ' <a href="editeur-cartes.html">Créer des cartes</a>' : ''}</p>`; return; }
-  if(!list.length){ $id('pool').innerHTML = '<p class="empty">Aucune carte jouable ne correspond.</p>'; return; }
-  $id('pool').innerHTML = list.map(({ c, ok }) => {
-    const q = qtyOf(c.id);
-    return `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" ${!ok || readOnly ? 'disabled' : ''} aria-label="Ajouter ${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet: sh, locked: !ok, groups, width: 'min(400px, calc(100vw - 64px))' })}${q ? `<span class="qty">${q}</span>` : ''}</button>`;
-  }).join('');
+  return cards.filter(c => DECK_TYPES.includes(c.type)).map(c => ({ c, a: jdrCardAllowed(c, sh, eff) })).filter(x => x.a.ok || F.locked);
 }
-$id('pool').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b && !b.disabled) setQty(b.dataset.id, qtyOf(b.dataset.id) + 1); });
-$id('show-locked').addEventListener('change', renderPool);
+function matches({ c }, skip){
+  if(skip !== 'types' && F.types.length && !F.types.includes(c.type)) return false;
+  if(F.q){ const q = jdrNorm(F.q); if(!jdrNorm([c.name, ...jdrCardText(c), c.footer].join(' ')).includes(q)) return false; }
+  if(F.mana.length){ const m = manaKey(c); if(m === null || !F.mana.some(b => b === '5+' ? m >= 5 : m === Number(b))) return false; }
+  if(F.sub.length && !F.sub.includes(c.subtype)) return false;
+  if(F.sup.length && !F.sup.every(s => c.supertypes.includes(s))) return false;
+  if(F.kw && !jdrCardKeywords(c).some(k => k.id === F.kw)) return false;
+  if(F.rank && (F.rank === 'none' ? c.rank : c.rank !== Number(F.rank))) return false;
+  if(F.pers && !c.persistent) return false;
+  return true;
+}
+function sorted(list){
+  const n = v => v === null || v === undefined || v === '' ? 999 : Number(v);
+  const by = { name: (a, b) => 0, mana: (a, b) => n(a.c.mana) - n(b.c.mana), value: (a, b) => n(a.c.value) - n(b.c.value), rank: (a, b) => n(a.c.rank) - n(b.c.rank),
+    type: (a, b) => DECK_TYPES.indexOf(a.c.type) - DECK_TYPES.indexOf(b.c.type) || n(a.c.mana) - n(b.c.mana) };
+  return list.sort((a, b) => (by[F.sort] || by.type)(a, b) || a.c.name.localeCompare(b.c.name, 'fr'));
+}
 
-/* ---------- Liste du deck ---------- */
-function renderDeck(v){
-  const errorsByName = new Set(v.errors.map(e => e.split(' : ')[0]));
-  const groups = {};
-  deck.forEach(e => {
-    const c = byId[e.card];
-    const g = c ? (c.horsDeck ? 'Hors deck' : c.type) : 'Introuvables';
-    (groups[g] = groups[g] || []).push({ e, c });
+/* ---------- Gauche : filtres secondaires ---------- */
+function chipList(box, values, selected, onToggle){
+  box.replaceChildren();
+  if(!values.length){ box.append(Object.assign(document.createElement('span'), { className:'hint', textContent:'—' })); return; }
+  values.forEach(v => {
+    const lab = document.createElement('label'); lab.className = 'chip' + (selected.includes(v) ? ' on' : '');
+    const i = document.createElement('input'); i.type = 'checkbox'; i.checked = selected.includes(v);
+    i.addEventListener('change', () => onToggle(v)); lab.append(i, document.createTextNode(v)); box.append(lab);
   });
-  const order = [...JDR_CARD_TYPES, 'Hors deck', 'Introuvables'];
-  const html = order.filter(g => groups[g]).map(g => {
-    const items = groups[g].sort((a, b) => (a.c ? a.c.name : a.e.card).localeCompare(b.c ? b.c.name : b.e.card, 'fr'));
-    const total = items.reduce((s, x) => s + x.e.qty, 0);
-    return `<p class="gh">${g} (${total})</p><ul class="dl">${items.map(({ e, c }) => `
-      <li class="${c && errorsByName.has(c.name) ? 'bad' : ''}"><span class="n">${e.qty}</span><span class="nm">${jdrEsc(c ? c.name : e.card)}</span>
-      <span class="btns">${readOnly ? '' : `<button type="button" data-minus="${jdrEsc(e.card)}" aria-label="Retirer un exemplaire">−</button><button type="button" data-plus="${jdrEsc(e.card)}" aria-label="Ajouter un exemplaire">+</button>`}</span></li>`).join('')}</ul>`;
-  }).join('');
-  $id('deck').innerHTML = html || '<p class="empty">Le deck est vide. Touche les cartes à gauche pour les ajouter.</p>';
 }
-$id('deck').addEventListener('click', e => {
+function renderFilters(){
+  const P = pool();
+  const subs = [...new Set(P.map(x => x.c.subtype).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  const sups = [...new Set(P.flatMap(x => x.c.supertypes))].sort((a, b) => a.localeCompare(b, 'fr'));
+  F.sub = F.sub.filter(v => subs.includes(v)); F.sup = F.sup.filter(v => sups.includes(v));
+  chipList($id('f-sub'), subs, F.sub, v => { F.sub = toggle(F.sub, v); page = 0; keep(); render(); });
+  chipList($id('f-sup'), sups, F.sup, v => { F.sup = toggle(F.sup, v); page = 0; keep(); render(); });
+  const kws = Object.values(JDR_KW).filter(k => P.some(x => jdrCardKeywords(x.c).some(y => y.id === k.id))).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  $id('f-kw').replaceChildren(new Option('Tous', ''), ...kws.map(k => new Option(k.name, k.id))); $id('f-kw').value = kws.some(k => k.id === F.kw) ? F.kw : '';
+  $id('f-rank').replaceChildren(new Option('Tous', ''), ...JDR_CARD_RANKS.map(r => new Option('Rang ' + r, String(r))), new Option('Sans rang', 'none')); $id('f-rank').value = F.rank;
+  $id('f-pers').checked = F.pers; $id('f-locked').checked = F.locked; $id('f-sort').value = F.sort;
+}
+$id('f-kw').addEventListener('change', e => { F.kw = e.target.value; page = 0; keep(); render(); });
+$id('f-rank').addEventListener('change', e => { F.rank = e.target.value; page = 0; keep(); render(); });
+$id('f-pers').addEventListener('change', e => { F.pers = e.target.checked; page = 0; keep(); render(); });
+$id('f-locked').addEventListener('change', e => { F.locked = e.target.checked; page = 0; keep(); render(); });
+$id('f-sort').addEventListener('change', e => { F.sort = e.target.value; page = 0; keep(); render(); });
+$id('f-reset').addEventListener('click', () => { Object.assign(F, { types: [], q: '', mana: [], sub: [], sup: [], kw: '', rank: '', pers: false, locked: false, sort: 'type' }); $id('q').value = ''; page = 0; keep(); render(); });
+
+/* ---------- Centre : types en haut + coût en mana ---------- */
+function renderQuick(){
+  const P = pool().filter(x => matches(x, 'types'));
+  const tab = (label, on, n, click) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'qtog' + (on ? ' on' : ''); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.innerHTML = `${jdrEsc(label)}<span class="n">${n}</span>`; b.addEventListener('click', click); return b; };
+  $id('qtabs').replaceChildren(tab('Toutes', !F.types.length, P.length, () => { F.types = []; page = 0; keep(); render(); }),
+    ...DECK_TYPES.map(t => tab(t, F.types.includes(t), P.filter(x => x.c.type === t).length, () => { F.types = toggle(F.types, t); page = 0; keep(); render(); })));
+  $id('qcost').replaceChildren(Object.assign(document.createElement('span'), { textContent: 'Mana' }), ...MANA_BTNS.map(m => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = m; b.className = F.mana.includes(m) ? 'on' : ''; b.title = 'Coût en mana ' + m;
+    b.setAttribute('aria-pressed', F.mana.includes(m) ? 'true' : 'false');
+    b.addEventListener('click', () => { F.mana = toggle(F.mana, m); page = 0; keep(); render(); }); return b; }));
+}
+$id('q').addEventListener('input', e => { F.q = e.target.value; page = 0; render(); });
+
+/* ---------- Classeur ---------- */
+// Deux demi-pages (8 cartes) si la place le permet, sinon une seule (4 cartes) ; cartes de 200 px au plus
+function layout(){
+  const w = ($id('binder').clientWidth || 900) - 40;           // largeur utile (sans le rembourrage)
+  if(w >= 4 * 170 + 3 * 22 + 24) return { halves: 2, cw: Math.min(200, Math.floor((w - 3 * 22 - 24) / 4)) };
+  return { halves: 1, cw: Math.max(120, Math.min(200, Math.floor((w - 22) / 2))) };
+}
+function renderBinder(){
+  const B = $id('binder');
+  if(!ch){ B.innerHTML = '<p class="empty-state">Choisis un personnage à droite.</p>'; $id('pind').textContent = '—'; $id('prev').disabled = $id('next').disabled = true; return; }
+  if(!cards.length){ B.innerHTML = `<p class="empty-state">Aucune carte n'existe encore.${JDR_IS_EDITOR ? ' <a href="editeur-cartes.html">Créer des cartes</a>' : ''}</p>`; return; }
+  const list = sorted(pool().filter(x => matches(x)));
+  $id('count').textContent = `${list.length} carte${list.length > 1 ? 's' : ''}`;
+  const { halves, cw } = layout(); const per = halves * 4;
+  const pages = Math.max(1, Math.ceil(list.length / per));
+  page = Math.min(Math.max(0, page), pages - 1);
+  $id('pind').textContent = `Feuillet ${page + 1} / ${pages}`;
+  $id('prev').disabled = page <= 0; $id('next').disabled = page >= pages - 1;
+  B.style.setProperty('--cw', cw + 'px');
+  if(!list.length){ B.innerHTML = '<p class="empty-state">Aucune carte jouable ne correspond à ces filtres.</p>'; return; }
+  const sh = sheet();
+  const slice = list.slice(page * per, page * per + per);
+  const half = items => `<div class="half">${items.map(({ c, a }) => { const q = qtyOf(c.id);
+    return `<div class="slot${a.ok ? '' : ' locked'}" data-id="${jdrEsc(c.id)}" title="${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet: sh, locked: !a.ok, groups })}${q ? `<span class="qty">${q}</span>` : ''}${a.ok ? '' : `<span class="why">${jdrEsc(a.reasons[0] || 'Non jouable')}</span>`}</div>`; }).join('')}</div>`;
+  B.innerHTML = halves === 2 ? half(slice.slice(0, 4)) + (slice.length > 4 ? '<div class="spine"></div>' + half(slice.slice(4)) : '') : half(slice);
+}
+$id('binder').addEventListener('click', e => {
+  const s = e.target.closest('.slot'); if(!s || readOnly) return;
+  if(s.classList.contains('locked')){ status('Carte non jouable par ce personnage.', true); return; }
+  setQty(s.dataset.id, qtyOf(s.dataset.id) + 1);
+});
+$id('binder').addEventListener('contextmenu', e => { const s = e.target.closest('.slot'); if(!s) return; e.preventDefault(); zoom(s.dataset.id); });
+$id('prev').addEventListener('click', () => { page--; renderBinder(); });
+$id('next').addEventListener('click', () => { page++; renderBinder(); });
+document.addEventListener('keydown', e => {
+  if(e.target.closest('input,select,textarea')) return;
+  if(e.key === 'Escape') closeZoom();
+  if($id('zoom').classList.contains('show')) return;
+  if(e.key === 'ArrowLeft' && !$id('prev').disabled){ page--; renderBinder(); }
+  if(e.key === 'ArrowRight' && !$id('next').disabled){ page++; renderBinder(); }
+});
+let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(renderBinder, 150); });
+
+/* ---------- Agrandir (clic droit) / aperçu au survol ---------- */
+function zoom(id){
+  const c = byId[id]; if(!c) return;
+  const z = $id('zoom'); const q = qtyOf(id);
+  z.innerHTML = `<div class="zi">${jdrCardHTML(c, { sheet: sheet(), groups })}<div class="zb">
+    ${readOnly ? '' : `<button type="button" data-z="-1">− Retirer</button><span class="pill">${q} dans le deck</span><button type="button" class="primary" data-z="1">+ Ajouter</button>`}
+    <button type="button" data-z="x">Fermer</button></div></div>`;
+  z.classList.add('show'); z.dataset.id = id;
+}
+function closeZoom(){ $id('zoom').classList.remove('show'); }
+$id('zoom').addEventListener('click', e => {
+  const b = e.target.closest('[data-z]');
+  if(!b){ if(e.target === $id('zoom')) closeZoom(); return; }
+  if(b.dataset.z === 'x') return closeZoom();
+  const id = $id('zoom').dataset.id; setQty(id, qtyOf(id) + Number(b.dataset.z)); zoom(id);
+});
+$id('zoom').addEventListener('contextmenu', e => { e.preventDefault(); closeZoom(); });
+function showHover(id, ev){
+  const c = byId[id]; const h = $id('hover'); if(!c){ h.style.display = 'none'; return; }
+  h.innerHTML = jdrCardHTML(c, { sheet: sheet(), groups }); h.style.display = 'block';
+  const x = Math.min(ev.clientX - 260, window.innerWidth - 260), y = Math.min(Math.max(8, ev.clientY - 160), window.innerHeight - 350);
+  h.style.left = Math.max(8, x) + 'px'; h.style.top = y + 'px';
+}
+
+/* ---------- Droite : deck ---------- */
+function renderDeck(){
+  const v = jdrValidateDeck(deck, byId, sheet());
+  $id('dk-n').textContent = v.count;
+  $id('dk-lim').textContent = `/ ${v.limits.max} max · min ${v.limits.min} · niveau ${v.limits.level}${v.horsDeck ? ` · ${v.horsDeck} hors deck` : ''}`;
+  $id('dk-ok').textContent = v.valid ? 'Deck valide' : 'Incomplet ou invalide'; $id('dk-ok').className = 'pill ' + (v.valid ? 'good' : 'bad');
+  $id('meter').style.width = Math.min(100, v.count / v.limits.max * 100) + '%';
+  // Courbe de mana : nombre de cartes par coût
+  const buckets = ['—','0','1','2','3','4','5','6+'].map(k => ({ k, n: 0 }));
+  deck.forEach(e => { const c = byId[e.card]; if(!c || c.horsDeck) return; const m = manaKey(c);
+    const i = m === null ? 0 : Math.min(7, m + 1); buckets[i].n += e.qty; });
+  const mx = Math.max(1, ...buckets.map(b => b.n));
+  $id('curve').innerHTML = buckets.map(b => `<div title="${b.k === '—' ? 'Sans mana' : 'Mana ' + b.k} : ${b.n}"><span>${b.n || ''}</span><i style="height:${Math.round(b.n / mx * 34)}px"></i><span>${b.k}</span></div>`).join('');
+  // Liste par type
+  const bad = new Set(v.errors.map(e => e.split(' : ')[0]));
+  const grp = {};
+  deck.forEach(e => { const c = byId[e.card]; const g = c ? (c.horsDeck ? 'Hors deck' : c.type) : 'Introuvables'; (grp[g] = grp[g] || []).push({ e, c }); });
+  const order = [...JDR_CARD_TYPES, 'Hors deck', 'Introuvables'];
+  $id('d-list').innerHTML = order.filter(g => grp[g]).map(g => {
+    const items = grp[g].sort((a, b) => (manaKey(a.c || {}) ?? -1) - (manaKey(b.c || {}) ?? -1) || (a.c ? a.c.name : a.e.card).localeCompare(b.c ? b.c.name : b.e.card, 'fr'));
+    return `<p class="gh">${g} (${items.reduce((s, x) => s + x.e.qty, 0)})</p>` + items.map(({ e, c }) => { const m = c ? manaKey(c) : null;
+      return `<div class="drow${c && bad.has(c.name) ? ' bad' : ''}"><span class="mc${m === null ? ' none' : ''}">${m === null ? '·' : m}</span>
+        <span class="nm" data-h="${jdrEsc(e.card)}">${jdrEsc(c ? c.name : e.card)}</span><span class="q">×${e.qty}</span>
+        ${readOnly ? '' : `<button type="button" data-minus="${jdrEsc(e.card)}" aria-label="Retirer un exemplaire">−</button><button type="button" data-plus="${jdrEsc(e.card)}" aria-label="Ajouter un exemplaire">+</button>`}</div>`; }).join('');
+  }).join('') || '<p class="empty">Le deck est vide. Clique sur les cartes du classeur pour les ajouter.</p>';
+  // Détails : règles + caractéristiques avec ce deck
+  const eff = jdrEffectiveStats(sheet(), deck, byId);
+  $id('d-det').innerHTML = `<p class="gh" style="margin-top:0">Règles du deck</p>
+    ${v.errors.length || v.warnings.length ? `<ul class="msgs">${v.errors.map(x => `<li class="err">${jdrEsc(x)}</li>`).join('')}${v.warnings.map(x => `<li class="warn">${jdrEsc(x)}</li>`).join('')}</ul>` : '<p class="hint">Aucun problème.</p>'}
+    <p class="gh">Caractéristiques avec ce deck</p>
+    <div class="stats">${JDR_STATS.map(s => { const m = eff.mods[s.key]; return `<div class="st" title="${jdrEsc(eff.sources[s.key].map(x => `${x.card} ${x.value > 0 ? '+' : ''}${x.value}`).join(', '))}"><span class="k">${s.label}</span><span class="v">${eff.total[s.key]}</span>${m ? `<span class="m ${m > 0 ? 'up' : 'down'}">(${m > 0 ? '+' : ''}${m})</span>` : ''}</div>`; }).join('')}</div>
+    <p class="hint">Valeur de la fiche + cartes « Tant que cette carte est dans votre deck ».</p>`;
+}
+$id('d-list').addEventListener('click', e => {
   const m = e.target.closest('[data-minus]'), p = e.target.closest('[data-plus]');
   if(m) setQty(m.dataset.minus, qtyOf(m.dataset.minus) - 1);
   if(p) setQty(p.dataset.plus, qtyOf(p.dataset.plus) + 1);
 });
+$id('d-list').addEventListener('mousemove', e => { const n = e.target.closest('[data-h]'); if(n) showHover(n.dataset.h, e); else $id('hover').style.display = 'none'; });
+$id('d-list').addEventListener('mouseleave', () => { $id('hover').style.display = 'none'; });
+$id('d-list').addEventListener('contextmenu', e => { const n = e.target.closest('[data-h]'); if(!n) return; e.preventDefault(); $id('hover').style.display = 'none'; zoom(n.dataset.h); });
+['list','det'].forEach(k => $id('t-' + k).addEventListener('click', () => {
+  ['list','det'].forEach(x => { $id('t-' + x).classList.toggle('on', x === k); $id('t-' + x).setAttribute('aria-selected', x === k ? 'true' : 'false'); $id('d-' + x).hidden = x !== k; });
+}));
 let clearArmed = false;
 $id('clear').addEventListener('click', e => {
   if(readOnly || !deck.length) return;
@@ -179,16 +405,18 @@ $id('clear').addEventListener('click', e => {
   clearArmed = false; e.target.textContent = 'Vider'; deck = []; renderAll(); scheduleSave();
 });
 
-function renderAll(){ renderStats(); const v = renderRules(); renderDeck(v); renderPool(); }
+function render(){ renderFilters(); renderQuick(); renderBinder(); }
+function renderAll(){ renderDeck(); render(); }
 
-/* ---------- Enregistrement ---------- */
-function scheduleSave(){ clearTimeout(saveTimer); status('Modifications en attente…'); saveTimer = setTimeout(saveDeck, 900); }
+/* ---------- Enregistrement (automatique) ---------- */
+function scheduleSave(){ clearTimeout(saveTimer); $id('save').textContent = 'Modifications en attente…'; saveTimer = setTimeout(saveDeck, 900); }
 async function saveDeck(){
+  saveTimer = null;
   if(readOnly || !ch) return;
   const { error } = await jdrSb.from('characters').update({ deck }).eq('id', ch.id);
-  if(error){ status(jdrErrorText(error), true); return; }
+  if(error){ status(jdrErrorText(error), true); $id('save').textContent = 'Non enregistré'; return; }
   ch.deck = structuredClone(deck);
-  status('Deck enregistré à ' + new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }));
+  $id('save').textContent = '✓ Enregistré à ' + new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
 }
 
 /* ---------- Chargement ---------- */
@@ -197,24 +425,25 @@ async function openChar(id){
   const { data, error } = await jdrSb.from('characters').select('id,owner_id,name,data,deck').eq('id', id).maybeSingle();
   if(error){ status(jdrErrorText(error), true); return; }
   if(!data){ status('Personnage introuvable ou accès refusé.', true); return; }
-  ch = data; deck = Array.isArray(data.deck) ? structuredClone(data.deck) : [];
+  ch = data; deck = Array.isArray(data.deck) ? structuredClone(data.deck) : []; page = 0;
   readOnly = data.owner_id !== me.id;
   $id('ro').hidden = !readOnly; $id('clear').hidden = readOnly;
   const s = data.data || {};
-  $id('who').textContent = [data.name || 'Sans nom', s.peuple, s.classe, s.specialisation, s.passe, s.level ? 'niveau ' + s.level : ''].filter(Boolean).join(' · ');
+  $id('dk-title').textContent = 'Deck de ' + (data.name || 'sans nom');
+  $id('who').textContent = [s.peuple, s.classe, s.specialisation, s.voie ? 'voie : ' + s.voie : '', s.passe, s.level ? 'niveau ' + s.level : ''].filter(Boolean).join(' · ');
   $id('to-sheet').href = 'fiche-personnage.html?id=' + encodeURIComponent(data.id);
   if(![...$id('char').options].some(o => o.value === data.id)) $id('char').append(new Option((data.name || 'Sans nom') + ' (joueur)', data.id));
   $id('char').value = data.id;
   history.replaceState(null, '', '?character=' + encodeURIComponent(data.id));
-  status(''); renderAll();
+  status(''); $id('save').textContent = ''; renderAll();
 }
-$id('char').addEventListener('change', e => openChar(e.target.value));
-window.addEventListener('beforeunload', e => { if(saveTimer && !readOnly){ saveDeck(); } });
+$id('char').addEventListener('change', e => { if(e.target.value) openChar(e.target.value); });
+window.addEventListener('beforeunload', () => { if(saveTimer && !readOnly) saveDeck(); });
 
 (async () => {
+  render(); renderDeck();
   if(!jdrSb){ status('Connexion au serveur impossible.', true); return; }
   me = await jdrPage('deck', { requireLogin: true }); if(!me) return;
-  if(matchMedia('(min-width:981px)').matches) $id('fdet').open = true;
   try{
     const [c, r, g] = await Promise.all([ jdrLoadCards(),
       jdrSb.from('characters').select('id,name').eq('owner_id', me.id).order('updated_at', { ascending: false }),
@@ -226,7 +455,7 @@ window.addEventListener('beforeunload', e => { if(saveTimer && !readOnly){ saveD
   const wanted = new URLSearchParams(location.search).get('character');
   if(wanted) await openChar(wanted);
   else if(chars.length) await openChar(chars[0].id);
-  else { $id('char').append(new Option('Aucun personnage en ligne', '')); status("Crée d'abord ton personnage en ligne depuis la fiche (« Mettre la fiche actuelle en ligne »).", true); }
+  else { $id('char').append(new Option('Aucun personnage en ligne', '')); status('Crée d’abord un personnage (menu « Nouveau perso »).', true); render(); }
 })();
 </script>
 </body>

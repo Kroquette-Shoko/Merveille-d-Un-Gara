@@ -26,7 +26,7 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | `connexion.html` | Connexion (compte commun avec Rimd'Orël) |
 | `creation-personnage.html` | Assistant de création en 8 étapes (peuple, classe, spécialisation, passé, équipement de base, informations, résumé, deck) : choix à gauche, tableau des caractéristiques au centre, informations et illustration à droite. Enregistre le personnage en ligne puis ouvre la construction du deck |
 | `fiche-personnage.html` | Fiche de personnage (modèle « parchemin ») : portrait entouré des caractéristiques, blessures en 5 paliers de 6 cases, armures, ressources, armes, armure et bouclier, inventaire avec charge. Sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne ; lien vers le deck ; affiche les effets du deck sur les caractéristiques |
-| `deck.html` | Construction du deck d'un personnage (cartes autorisées selon classe, spécialisation, passé, peuple, prérequis ; taille selon le niveau) |
+| `deck.html` | Construction du deck (navigation reprise du deckbuilder de Rimd'Orël) : onglets des types de cartes et coût en mana en haut, filtres secondaires à gauche (sous-type, super-types, mot-clé, rang), classeur paginé au centre (clic gauche ajouter, clic droit agrandir), deck à droite (compteur, courbe de mana, liste / détails). Seules les cartes jouables par le personnage sont proposées |
 | `bibliotheque.html` | Toutes les cartes avec filtres |
 | `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur). Type « Créature » : formulaire et fiche paysage dédiés |
 | `editeur-groupes.html` | Tableaux d'action de groupe des créatures, attribués ensuite aux créatures (réservé au compte éditeur) |

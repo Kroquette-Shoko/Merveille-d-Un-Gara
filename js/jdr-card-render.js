@@ -6,7 +6,7 @@
    Disposition :
    - colonne de couleur à gauche : valeur (écusson), mana (sorts), composantes (sorts), persistance
    - bandeau du haut : nom, puis « Super-types · Type — Sous-type »
-   - illustration cadrée, capacités, encadré « Spécial · <nom> » si la carte a une capacité spéciale
+   - illustration cadrée, capacités, encadré « <nom> » (sans le mot « Spécial ») si la carte a une capacité spéciale
    - couleur : celle de la classe (une seule classe), neutre sinon, violet sombre pour les Risques */
 
 // "2+corps" → "2 + Corps" ; avec une fiche → "6 (2 + Corps)"
@@ -88,7 +88,7 @@ function jdrCardHTML(card, opts = {}){
       </div>
       ${art}
       <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>
-      ${special.length ? `<div class="spec"><div class="st">Spécial${c.special.name ? ' · ' + esc(c.special.name) : ''}</div>${special.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
+      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>
   </div>`;
