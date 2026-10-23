@@ -68,9 +68,11 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 
 /* ----- Carte du JDR (modèle D validé le 23/10/2026) -----
    Colonne de couleur à gauche (valeur, mana, composantes) + bandeau nom/type en haut,
-   illustration, capacités, encadré « Spécial ». Tailles en cqw : 1cqw = 1 % de la largeur. */
+   illustration, capacités, encadré « Spécial ». Tailles en cqw : 1cqw = 1 % de la largeur.
+   ATTENTION : les cqw ne marchent que pour les ÉLÉMENTS INTÉRIEURS. Pour .jcard lui-même (contour,
+   coins), utiliser calc(var(--w)*…) : sinon la valeur suit la largeur de l'écran. */
 .jcard{--w:220px;--cc:#6B7280;--ci:#FFFFFF;width:var(--w);aspect-ratio:5/7;container-type:inline-size;flex:0 0 auto;position:relative;
-  box-sizing:border-box;border:.86cqw solid var(--cc);border-radius:4.6cqw;background:#FBFAF6;display:flex;overflow:hidden;
+  box-sizing:border-box;border:calc(var(--w)*.0086) solid var(--cc);border-radius:calc(var(--w)*.046);background:#FBFAF6;display:flex;overflow:hidden;
   color:#1D1A16;font-family:var(--f-body);text-align:left;box-shadow:0 2px 6px rgba(0,0,0,.22)}
 .jcard .col{width:16cqw;flex:0 0 16cqw;background:var(--cc);color:var(--ci);display:flex;flex-direction:column;align-items:center;gap:4cqw;padding:2.9cqw 0}
 .jcard .vbox{display:flex;flex-direction:column;align-items:center;gap:1.1cqw;line-height:1}
