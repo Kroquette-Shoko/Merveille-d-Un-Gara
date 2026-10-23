@@ -96,7 +96,13 @@
         <section class="part" data-kind="classe">
           <div class="grid2">
             <label class="f">Accès à la magie<select id="c-magic"></select></label>
-            <label class="f">Couleur de la classe (contour des cartes)<input id="c-color" type="color" style="height:38px;padding:2px"></label>
+            <div class="f" style="display:flex;flex-direction:column;gap:2px;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Couleur de la classe (contour des cartes)
+              <div style="display:flex;gap:6px;align-items:center">
+                <input id="c-hex" maxlength="7" placeholder="#d4af37" aria-label="Code couleur (ex. #d4af37)" style="font-family:ui-monospace,Consolas,monospace;text-transform:none;letter-spacing:0;width:8.5rem">
+                <input id="c-color" type="color" aria-label="Choisir la couleur" style="height:38px;width:52px;padding:2px">
+              </div>
+              <span id="c-hex-err" style="text-transform:none;letter-spacing:0;color:var(--hurt);min-height:1em"></span>
+            </div>
           </div>
         </section>
 
@@ -230,7 +236,14 @@ $id('im-y').addEventListener('input', e => { cur.image.y = Number(e.target.value
 
 $id('c-magic').replaceChildren(...Object.entries(JDR_CLASS_MAGIC).map(([k, v]) => new Option(v, k)));
 $id('c-magic').addEventListener('change', e => { cur.magic = e.target.value; changed(); });
-$id('c-color').addEventListener('input', e => { cur.color = e.target.value; changed(); });
+// Couleur : code hexadécimal (#d4af37) ou sélecteur de couleur, les deux restent synchronisés
+$id('c-color').addEventListener('input', e => { cur.color = e.target.value; $id('c-hex').value = cur.color; $id('c-hex-err').textContent = ''; changed(); });
+$id('c-hex').addEventListener('input', e => {
+  let v = e.target.value.trim().toLowerCase(); if(v && v[0] !== '#') v = '#' + v;
+  if(/^#[0-9a-f]{3}$/.test(v)) v = '#' + v.slice(1).split('').map(c => c + c).join('');   // #abc → #aabbcc
+  if(/^#[0-9a-f]{6}$/.test(v)){ cur.color = v; $id('c-color').value = v; $id('c-hex-err').textContent = ''; changed(); }
+  else $id('c-hex-err').textContent = 'Code attendu : # suivi de 6 caractères (0-9, a-f), ex. #d4af37';
+});
 $id('s-classe').addEventListener('change', e => { cur.classe = e.target.value; renderSpecHint(); changed(); });
 $id('s-magic').addEventListener('change', e => { cur.magic = e.target.checked; changed(); });
 function fillClassSelect(){
@@ -353,7 +366,7 @@ function renderForm(){
   renderAbilities();
   $id('o-abil-h').textContent = ({ peuple: 'Capacités du peuple', classe: 'Capacités de classe', specialisation: 'Passif de base', passe: 'Capacités du passé' })[cur.kind];
   $id('o-add').textContent = cur.kind === 'specialisation' ? 'Ajouter un passif' : 'Ajouter une capacité';
-  if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; renderMechanics(); renderProgression(); }
+  if(cur.kind === 'classe'){ $id('c-magic').value = cur.magic; $id('c-color').value = cur.color; $id('c-hex').value = cur.color; $id('c-hex-err').textContent = ''; renderMechanics(); renderProgression(); }
   if(cur.kind === 'specialisation'){ fillClassSelect(); $id('s-classe').value = cur.classe; $id('s-magic').checked = cur.magic; renderSpecHint(); renderImprovements(); }
   preview(); renderList(); rights();
 }

@@ -84,7 +84,7 @@ function jdrNormalizeOrigin(row){
   if(o.kind === 'peuple' && !JDR_CHAR_SIZES[o.size]) o.size = 'M';
   if(o.kind === 'classe'){
     if(!JDR_CLASS_MAGIC[o.magic]) o.magic = 'aucune';
-    if(!/^#[0-9a-fA-F]{6}$/.test(o.color || '')) o.color = '#8A5A2B';
+    o.color = /^#[0-9a-fA-F]{6}$/.test(o.color || '') ? o.color.toLowerCase() : '#8a5a2b';
     o.mechanics = arr(o.mechanics).map(m => ({ name: String((m && m.name) || ''), text: String((m && m.text) || '') }));
     const def = jdrBlankProgression();
     o.progression = def.map((r, i) => { const x = arr(o.progression)[i] || {}; return { deck: x.deck === undefined ? r.deck : num(x.deck), text: String(x.text || '') }; });
