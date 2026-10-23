@@ -18,19 +18,31 @@
      armor, armorMagic, resistance  (nombres)
    Bouclier :
      armor, armorMagic, resistance, attack {cost, text}, damageType
-   Objets magiques et objets divers : étape 2.
+   Objet magique :
+     base        objet de base, texte libre (ex. « Armure légère (vêtement) »)
+     slot        emplacement (JDR_ITEM_SLOTS)
+     rarity      rareté (JDR_RARITIES)
+     armor, armorMagic, resistance  bonus donnés (nombres, 0 = aucun)
+     powers      [{ text, uses }] : pouvoirs ; uses = limite d'utilisation (ex. « 3 fois par jour »), vide = illimité
+   Objet divers :
+     category    catégorie (JDR_OBJECT_CATEGORIES)
+     consumable  vrai si l'objet disparaît une fois utilisé
+     effect      effet quand on l'utilise (texte libre, vide = aucun)
 */
 
 const JDR_ITEM_KINDS = {
   arme:     { label: 'Arme',          plural: 'Armes',           color: '#9A2F27', ready: true },
   armure:   { label: 'Armure',        plural: 'Armures',         color: '#5E6B78', ready: true },
   bouclier: { label: 'Bouclier',      plural: 'Boucliers',       color: '#3A5BB8', ready: true },
-  magique:  { label: 'Objet magique', plural: 'Objets magiques', color: '#7A3FA0', ready: false },
-  objet:    { label: 'Objet',         plural: 'Objets',          color: '#3A7D8C', ready: false }
+  magique:  { label: 'Objet magique', plural: 'Objets magiques', color: '#7A3FA0', ready: true },
+  objet:    { label: 'Objet',         plural: 'Objets',          color: '#3A7D8C', ready: true }
 };
 const JDR_WEAPON_CATEGORIES = ['Courante', 'De guerre'];
 const JDR_WEAPON_REACH = ['Corps à corps', 'Distance'];
 const JDR_ARMOR_CATEGORIES = ['Légère', 'Intermédiaire', 'Lourde'];
+const JDR_ITEM_SLOTS = ['Armure', 'Main principale', 'Main secondaire', 'Deux mains', 'Tête', 'Cou', 'Dos', 'Mains', 'Bijou', 'Ceinture', 'Pieds', 'Aucun (transporté)'];
+const JDR_RARITIES = ['Commune', 'Non-commune', 'Rare', 'Très rare', 'Légendaire'];
+const JDR_OBJECT_CATEGORIES = ['Consommable', 'Outil', 'Munition', 'Nourriture', 'Matériel d\'aventure', 'Trésor', 'Autre'];
 // Mémo des tailles (même liste que la fiche de personnage)
 const JDR_ITEM_SIZES = [
   { n: 0, t: 'Minuscule' }, { n: 1, t: 'Petit' }, { n: 2, t: 'Moyen' },
@@ -45,6 +57,8 @@ function jdrBlankItem(kind){
     attacks: { main: { text: '' }, second: jdrBlankAttack(), third: jdrBlankAttack() } });
   if(kind === 'armure') return Object.assign(base, { size: 6, category: 'Légère', armor: 0, armorMagic: 0, resistance: 0 });
   if(kind === 'bouclier') return Object.assign(base, { size: 2, armor: 0, armorMagic: 0, resistance: 0, attack: jdrBlankAttack(), damageType: 'contondant' });
+  if(kind === 'magique') return Object.assign(base, { base: '', slot: 'Bijou', rarity: 'Non-commune', armor: 0, armorMagic: 0, resistance: 0, powers: [{ text: '', uses: '' }] });
+  if(kind === 'objet') return Object.assign(base, { category: 'Matériel d\'aventure', consumable: false, effect: '' });
   return base;
 }
 // Complète un objet lu en base (champs manquants, mauvais types)
@@ -64,6 +78,8 @@ function jdrNormalizeItem(row){
                   second: Object.assign(jdrBlankAttack(), a.second || {}), third: Object.assign(jdrBlankAttack(), a.third || {}) };
   }
   if(o.kind === 'bouclier') o.attack = Object.assign(jdrBlankAttack(), o.attack || {});
+  if(o.kind === 'magique') o.powers = (Array.isArray(o.powers) ? o.powers : []).map(p => ({ text: String((p && p.text) || ''), uses: String((p && p.uses) || '') }));
+  if(o.kind === 'objet') o.consumable = !!o.consumable;
   return o;
 }
 // Données à enregistrer en base (sans id ni name, qui sont des colonnes)
@@ -78,6 +94,8 @@ function jdrItemSummary(it){
   if(it.kind === 'arme') return [it.category, it.reach, it.damageType].filter(Boolean).join(' · ');
   if(it.kind === 'armure') return `${it.category} · Armure ${it.armor}`;
   if(it.kind === 'bouclier') return `Armure ${it.armor}`;
+  if(it.kind === 'magique') return [it.slot, it.rarity].filter(Boolean).join(' · ');
+  if(it.kind === 'objet') return [it.category, it.consumable ? 'consommable' : ''].filter(Boolean).join(' · ');
   return JDR_ITEM_KINDS[it.kind] ? JDR_ITEM_KINDS[it.kind].label : '';
 }
 
@@ -103,6 +121,16 @@ function jdrItemHTML(it, opts = {}){
     body = `${it.kind === 'armure' ? `<div class="im">Armure ${esc((it.category || '').toLowerCase())}</div>` : ''}
       <div class="iv">${vals.map(([l, v]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div>
       ${it.kind === 'bouclier' ? `<div class="iatt">${att('Attaque', it.attack, true)}</div>${it.attack && it.attack.text ? `<div class="im">${esc(it.damageType)}</div>` : ''}` : ''}`;
+  } else if(it.kind === 'magique'){
+    const meta = [it.base, it.slot && it.slot !== 'Aucun (transporté)' ? 'Emplacement : ' + it.slot.toLowerCase() : '', it.rarity ? it.rarity.toLowerCase() : ''].filter(Boolean);
+    const bon = [['Armure', it.armor], ['Armure magique', it.armorMagic], ['Résistance', it.resistance]].filter(([, v]) => v);
+    const pw = (it.powers || []).filter(p => p.text);
+    body = `<div class="im">${meta.map(esc).join(' · ')}</div>
+      ${bon.length ? `<div class="iv">${bon.map(([l, v]) => `<div><b>${v > 0 ? '+' : ''}${esc(v)}</b><span>${l}</span></div>`).join('')}</div>` : ''}
+      ${pw.length ? `<div class="iatt">${pw.map(p => `<div class="ia ipw"><span>${esc(p.text)}${p.uses ? ` <b class="ic">${esc(p.uses)}</b>` : ''}</span></div>`).join('')}</div>` : `<p class="ie">Aucun pouvoir renseigné.</p>`}`;
+  } else if(it.kind === 'objet'){
+    body = `<div class="im">${esc(it.category)}${it.consumable ? (it.category === 'Consommable' ? ' (disparaît une fois utilisé)' : ' · consommable (disparaît une fois utilisé)') : ''}</div>
+      ${it.effect ? `<div class="iatt"><div class="ia"><span class="il">Effet</span><span>${esc(it.effect)}</span></div></div>` : ''}`;
   }
   return `<div class="jitem" style="--ik:${k.color}${opts.width ? ';width:' + opts.width : ''}">
     <div class="ih"><span class="ik">${esc(k.label)}</span><div class="in">${esc(it.name || 'Sans nom')}</div></div>

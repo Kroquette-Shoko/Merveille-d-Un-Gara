@@ -37,7 +37,7 @@
 <body>
 <div class="wrap">
   <div class="row" style="justify-content:space-between;align-items:baseline">
-    <div><h1>Équipement</h1><p class="sub">Armes, armures et boucliers. Les objets magiques et les objets divers arrivent à l'étape suivante.</p></div>
+    <div><h1>Équipement</h1><p class="sub">Armes, armures, boucliers, objets magiques et objets divers.</p></div>
     <span class="status" id="status" role="status"></span>
   </div>
   <p class="status bad" id="ro" hidden>Lecture seule : seul le compte éditeur peut modifier l'équipement.</p>
@@ -100,9 +100,32 @@
           <label class="f" style="max-width:260px">Type de dégât de l'attaque<select id="s-dmg"></select></label>
         </section>
 
-        <!-- Armure + bouclier : protection -->
-        <section class="part" data-kind="armure bouclier">
-          <h2>Protection</h2>
+        <!-- Objet magique -->
+        <section class="part" data-kind="magique">
+          <h2>Objet magique</h2>
+          <div class="grid2">
+            <label class="f">Objet de base<input id="m-base" maxlength="80" placeholder="ex. Armure légère (vêtement)"></label>
+            <label class="f">Emplacement<select id="m-slot"></select></label>
+            <label class="f">Rareté<select id="m-rarity"></select></label>
+          </div>
+          <p class="sub-h" style="margin:0">Pouvoirs</p>
+          <div id="m-powers" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button type="button" id="m-add" style="align-self:start">Ajouter un pouvoir</button>
+        </section>
+
+        <!-- Objet divers -->
+        <section class="part" data-kind="objet">
+          <h2>Objet</h2>
+          <div class="grid2">
+            <label class="f">Catégorie<select id="o-cat"></select></label>
+            <label class="chk" style="align-self:end"><input type="checkbox" id="o-cons"> Consommable (disparaît une fois utilisé)</label>
+          </div>
+          <label class="f">Effet quand on l'utilise<textarea id="o-effect" rows="2" maxlength="600" placeholder="ex. Soigne une blessure légère. Vide = aucun effet de règle."></textarea></label>
+        </section>
+
+        <!-- Armure, bouclier, objet magique : protection -->
+        <section class="part" data-kind="armure bouclier magique">
+          <h2 id="p-title">Protection</h2>
           <div class="grid3">
             <label class="f">Armure<input id="p-armor" type="number" min="0" max="30"></label>
             <label class="f">Armure magique<input id="p-mag" type="number" min="0" max="30"></label>
@@ -151,6 +174,7 @@ fill('w-cat', JDR_WEAPON_CATEGORIES); fill('w-reach', JDR_WEAPON_REACH);
 fill('w-dmg', JDR_DAMAGE_TYPES); fill('s-dmg', JDR_DAMAGE_TYPES);
 fill('w-range', ['', ...JDR_RANGES.filter(r => r !== 'Soi')], ['Aucune', ...JDR_RANGES.filter(r => r !== 'Soi')]);
 fill('r-cat', JDR_ARMOR_CATEGORIES);
+fill('m-slot', JDR_ITEM_SLOTS); fill('m-rarity', JDR_RARITIES); fill('o-cat', JDR_OBJECT_CATEGORIES);
 
 // ---------- Onglets et liste ----------
 function renderTabs(){
@@ -190,6 +214,28 @@ bind('w-c3', null, v => cur.attacks.third.cost = v);  bind('w-a3', null, v => cu
 bind('r-cat', null, v => cur.category = v, 'change');
 bind('s-cost', null, v => cur.attack.cost = v); bind('s-text', null, v => cur.attack.text = v);
 bind('s-dmg', null, v => cur.damageType = v, 'change');
+bind('m-base', null, v => cur.base = v);
+bind('m-slot', null, v => cur.slot = v, 'change');
+bind('m-rarity', null, v => cur.rarity = v, 'change');
+bind('o-cat', null, v => cur.category = v, 'change');
+bind('o-effect', null, v => cur.effect = v);
+$id('o-cons').addEventListener('change', e => { cur.consumable = e.target.checked; changed(); });
+// Pouvoirs d'un objet magique : texte + limite d'utilisation
+function renderPowers(){
+  const box = $id('m-powers'); box.replaceChildren();
+  cur.powers.forEach((p, i) => {
+    const t = el('textarea', { rows: 2, maxlength: 600, placeholder: 'ex. Vous ne pouvez pas être endormi magiquement ou par poison.', 'aria-label': 'Pouvoir ' + (i + 1) }); t.value = p.text;
+    t.addEventListener('input', () => { p.text = t.value; changed(); });
+    const u = el('input', { value: p.uses, maxlength: 40, placeholder: 'ex. 3 fois par jour', 'aria-label': 'Limite d\'utilisation du pouvoir ' + (i + 1) });
+    u.addEventListener('input', () => { p.uses = u.value; changed(); });
+    box.append(el('div', { class: 'atk', style: 'grid-template-columns:minmax(0,1.8fr) minmax(0,.9fr) auto;align-items:start' },
+      t, el('label', { class: 'f' }, document.createTextNode('Limite'), u),
+      el('button', { type: 'button', class: 'ghost', 'aria-label': 'Supprimer ce pouvoir', text: '✕', onclick: () => { cur.powers.splice(i, 1); renderPowers(); changed(); } })));
+  });
+  if(!cur.powers.length) box.append(el('span', { class: 'hint', text: 'Aucun pouvoir.' }));
+  rights();
+}
+$id('m-add').addEventListener('click', () => { cur.powers.push({ text: '', uses: '' }); renderPowers(); changed(); });
 bind('p-armor', null, v => cur.armor = num(v)); bind('p-mag', null, v => cur.armorMagic = num(v)); bind('p-res', null, v => cur.resistance = num(v));
 
 function renderForm(){
@@ -205,7 +251,10 @@ function renderForm(){
   }
   if(cur.kind === 'armure') $id('r-cat').value = cur.category;
   if(cur.kind === 'bouclier'){ $id('s-cost').value = cur.attack.cost; $id('s-text').value = cur.attack.text; $id('s-dmg').value = cur.damageType; }
-  if(cur.kind === 'armure' || cur.kind === 'bouclier'){ $id('p-armor').value = cur.armor; $id('p-mag').value = cur.armorMagic; $id('p-res').value = cur.resistance; }
+  if(cur.kind === 'magique'){ $id('m-base').value = cur.base; $id('m-slot').value = cur.slot; $id('m-rarity').value = cur.rarity; renderPowers(); }
+  if(cur.kind === 'objet'){ $id('o-cat').value = cur.category; $id('o-cons').checked = cur.consumable; $id('o-effect').value = cur.effect; }
+  if(['armure','bouclier','magique'].includes(cur.kind)){ $id('p-armor').value = cur.armor; $id('p-mag').value = cur.armorMagic; $id('p-res').value = cur.resistance;
+    $id('p-title').textContent = cur.kind === 'magique' ? 'Bonus de protection (0 = aucun)' : 'Protection'; }
   renderProps(); preview(); renderList(); rights();
 }
 function preview(){ $id('preview').innerHTML = JDR_ITEM_KINDS[kind].ready ? jdrItemHTML(cur) : ''; }

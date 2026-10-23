@@ -178,6 +178,7 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jitem .iatt{display:flex;flex-direction:column;gap:4px}
 .jitem .ia{display:grid;grid-template-columns:6.5rem minmax(0,1fr);gap:8px;font-size:.95rem;background:#E8D9B6;border-radius:8px;padding:5px 9px}
 .jitem .il{color:#7A6548}
+.jitem .ia.ipw{grid-template-columns:1fr}
 .jitem .ic{display:inline-block;background:#2B2016;color:#F3E8CF;border-radius:5px;padding:0 6px;font-size:.8rem}
 .jitem .iv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}
 .jitem .iv div{background:#E8D9B6;border-radius:8px;padding:6px 4px;display:flex;flex-direction:column}
