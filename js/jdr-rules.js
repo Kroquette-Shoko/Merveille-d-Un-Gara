@@ -40,8 +40,19 @@ const JDR_PEUPLES = ['Haut-elfe','Elfe sylvain','Elfe solaire','Elfe de Zaraë',
 const JDR_SPELL_CLASSES = ['Érudit'];
 const JDR_SPELL_SPECS = ['Prêtre', 'Druide', 'Barde'];
 
-const JDR_CARD_TYPES = ['Manœuvre', 'Sort', 'Capacité', 'Risque'];
-const JDR_SUBTYPES = ['Posture','Aura','Rage','Frappe','Formation','Chanson','Poison','Bénédiction','Éclosion','Malédiction','Pacte','Abjuration','Enchantement','Illusion','Arcane','Feu','Glace','Foudre','Sacré','Nécrotique'];
+// Listes validées le 23/10/2026
+const JDR_CARD_TYPES = ['Manœuvre', 'Capacité', 'Sortilège', 'Risque', 'Passif', 'Exploit', 'Créature', 'Pacte', 'Grimoire'];
+// Sous-type : 1 seul. Offensif / Défensif / Utilitaire pour tous les types ; les autres sont réservés à un type.
+const JDR_SUBTYPES_COMMON = ['Offensif', 'Défensif', 'Utilitaire'];
+const JDR_SUBTYPES_BY_TYPE = {
+  'Passif':   ['Voie', 'Bénédiction', 'Passé'],
+  'Risque':   ['Malus', 'Bonus'],
+  'Créature': ['Familier', 'Monstre', 'Boss']
+};
+const JDR_SUBTYPES = [...JDR_SUBTYPES_COMMON, ...Object.values(JDR_SUBTYPES_BY_TYPE).flat()];
+function jdrSubtypesFor(type){ return [...JDR_SUBTYPES_COMMON, ...(JDR_SUBTYPES_BY_TYPE[type] || [])]; }
+// Super-types : plusieurs possibles
+const JDR_SUPERTYPES = ['Posture','Malédiction','Aura','Rage','Chanson','Frappe','Piège','Piste','Poison','Arcane','Feu','Air','Eau','Terre','Éclosion','Enchantement','Illusion','Transmutation','Réaction','Évocation','Divination','Invocation'];
 const JDR_DAMAGE_TYPES = ['contondant','perforant','tranchant','feu','froid','foudre','acide','poison','nécrotique','sacré','arcanique','psychique'];
 const JDR_PHYSICAL_DAMAGE = ['contondant','perforant','tranchant'];
 const JDR_RANGES = ['Soi','Contact','Allonge','Proche','Moyenne portée','Grande portée','Très grande portée'];
@@ -66,10 +77,9 @@ function jdrCardColorKey(card){
   return classes.length === 1 && JDR_CARD_COLORS[classes[0]] ? classes[0] : 'Neutre';
 }
 
-// Super-types proposés dans l'éditeur (on peut aussi en saisir d'autres).
-// Un super-type qui est une spécialisation, un passé ou un peuple RESTREINT la carte
-// aux personnages qui l'ont (ex. super-type « Brute » = carte du passé de brute).
-const JDR_SUPERTYPE_GROUPS = {
+// « Réservée à » (options de deck) : la carte n'est jouable que par les personnages
+// qui ont l'une de ces spécialisations / passés / peuples (ex. carte du passé de brute).
+const JDR_RESTRICT_GROUPS = {
   'Spécialisations': Object.values(JDR_CLASSES).flat(),
   'Passés': JDR_PASSES,
   'Peuples': JDR_PEUPLES
@@ -87,9 +97,10 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
     id: "trait_de_flamme",           // identifiant unique (minuscules, chiffres, _ -)
     -- Identité (colonne et bandeau de couleur) --
     name: "Trait de flamme",
-    type: "Sort",                    // 1 parmi JDR_CARD_TYPES
-    subtype: "Feu",                  // 1 parmi JDR_SUBTYPES (ou vide)
-    supertypes: ["Mage"],            // plusieurs ; voir JDR_SUPERTYPE_GROUPS
+    type: "Sortilège",               // 1 parmi JDR_CARD_TYPES
+    subtype: "Offensif",             // 1 parmi jdrSubtypesFor(type) (ou vide)
+    supertypes: ["Feu", "Évocation"],// plusieurs parmi JDR_SUPERTYPES
+    restrict: ["Mage"],              // réservée à ces spécialisations / passés / peuples (vide = pas de restriction)
     classes: ["Érudit"],             // qui peut jouer la carte (vide = toutes) ; donne la couleur
     value: 3,                        // valeur (tests, résistance)
     mana: 2,                         // coût en mana de la carte (vide = aucun)
@@ -111,7 +122,7 @@ function jdrBlankAbility(){ return { pa: null, cost: '', triggers: [{ trigger: '
 function jdrBlankSpecial(){ return { enabled: false, name: '', mana: null, cost: '', triggers: [{ trigger: 'freeAction' }], effects: [] }; }
 function jdrBlankCard(){
   return {
-    id: '', name: '', type: 'Manœuvre', subtype: '', supertypes: [], classes: [],
+    id: '', name: '', type: 'Manœuvre', subtype: '', supertypes: [], classes: [], restrict: [],
     value: 1, mana: null, components: { sonore: false, gestuelle: false, materielle: false },
     image_url: '', art: jdrBlankArt(),
     abilities: [], special: jdrBlankSpecial(),
@@ -131,6 +142,18 @@ function jdrNormalizeCard(c){
     o.supertypes = [...(old.specs || []), ...(old.passes || []), ...(old.peuples || [])];
     if(!o.supertypes.length && c.origin) o.supertypes = [c.origin];
   }
+  // listes du 23/10/2026 : « Sort » → « Sortilège » ; anciens sous-types devenus super-types ;
+  // spécialisations / passés / peuples rangés dans « Réservée à »
+  if(o.type === 'Sort') o.type = 'Sortilège';
+  if(!Array.isArray(o.restrict)) o.restrict = [];
+  if(!Array.isArray(o.supertypes)) o.supertypes = [];
+  const restrictAll = Object.values(JDR_RESTRICT_GROUPS).flat().map(jdrNorm);
+  o.restrict = [...new Set([...o.restrict, ...o.supertypes.filter(x => restrictAll.includes(jdrNorm(x)))])];
+  o.supertypes = o.supertypes.filter(x => !restrictAll.includes(jdrNorm(x)));
+  const stIndex = JDR_SUPERTYPES.map(jdrNorm);
+  const oldSub = Array.isArray(c.subtypes) ? c.subtypes : (o.subtype ? [o.subtype] : []);
+  oldSub.forEach(x => { const i = stIndex.indexOf(jdrNorm(x)); if(i >= 0 && !o.supertypes.includes(JDR_SUPERTYPES[i])) o.supertypes.push(JDR_SUPERTYPES[i]); });
+  if(o.subtype && !jdrSubtypesFor(o.type).includes(o.subtype)) o.subtype = '';
   ['requirements','abilities'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
   o.abilities = o.abilities.map(ab => Object.assign(jdrBlankAbility(), ab, { effects: Array.isArray(ab.effects) ? ab.effects : [] }));
   o.special = Object.assign(jdrBlankSpecial(), (c.special && typeof c.special === 'object') ? c.special : {});
@@ -362,13 +385,13 @@ function jdrCardAllowed(card, sheet, effectiveStats){
   };
   if(c.classes.length && !has(c.classes, sheet.classe)) reasons.push('Classe : ' + c.classes.join(', '));
   // super-types qui sont des spécialisations / passés / peuples : le personnage doit en avoir un
-  const inGroup = g => c.supertypes.filter(x => JDR_SUPERTYPE_GROUPS[g].map(jdrNorm).includes(jdrNorm(x)));
+  const inGroup = g => c.restrict.filter(x => JDR_RESTRICT_GROUPS[g].map(jdrNorm).includes(jdrNorm(x)));
   [['Spécialisations','specialisation','Spécialisation'],['Passés','passe','Passé'],['Peuples','peuple','Peuple']].forEach(([g, field, label]) => {
     const need = inGroup(g);
     if(need.length && !has(need, sheet[field])) reasons.push(`${label} : ${need.join(', ')}`);
   });
   // Un sort sans classe ni spécialisation imposée demande de savoir lancer des sorts
-  if(c.type === 'Sort' && !c.classes.length && !inGroup('Spécialisations').length && !jdrCanCastSpells(sheet))
+  if(c.type === 'Sortilège' && !c.classes.length && !inGroup('Spécialisations').length && !jdrCanCastSpells(sheet))
     reasons.push('Sort : réservé aux Érudits, Prêtres, Druides et Bardes');
   const stats = effectiveStats || (sheet && sheet.stats) || {};
   c.requirements.forEach(r => {

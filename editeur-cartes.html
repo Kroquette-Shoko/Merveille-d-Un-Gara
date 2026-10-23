@@ -35,7 +35,6 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 .gen{font-size:.88rem;color:var(--muted);font-style:italic;margin:0}
 .actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line);z-index:2}
 .ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px;margin:0}
-.addst{display:flex;gap:6px;max-width:320px}
 /* Studio d'illustration (cadrage libre, repris de Rimd'Orël) */
 .as-canvas{position:relative;height:300px;background:#0f1419;border-radius:10px;overflow:hidden;touch-action:none;cursor:grab;user-select:none}
 .as-canvas:active{cursor:grabbing}
@@ -78,9 +77,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
         </div>
         <div>
           <p class="sub-h">Super-types (plusieurs possibles)</p>
-          <div id="f-supertypes" style="display:flex;flex-direction:column;gap:8px"></div>
-          <div class="addst" style="margin-top:6px"><input id="st-new" placeholder="Autre super-type…" maxlength="40" aria-label="Autre super-type"><button type="button" id="st-add">Ajouter</button></div>
-          <p class="hint" style="margin-top:4px">Une spécialisation, un passé ou un peuple coché réserve la carte aux personnages qui l'ont.</p>
+          <div class="chips" id="f-supertypes"></div>
         </div>
         <div>
           <p class="sub-h">Classes (qui peut jouer cette carte — vide = toutes)</p>
@@ -139,6 +136,8 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
             <label class="f">Exemplaires max dans un deck<input id="f-max" type="number" min="1" placeholder="illimité"></label>
             <label class="f">Mention en bas de carte<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
           </div>
+          <div><p class="sub-h">Réservée à (spécialisations, passés, peuples — vide = pas de restriction)</p>
+            <div id="f-restrict" style="display:flex;flex-direction:column;gap:8px"></div></div>
           <div><p class="sub-h">Prérequis de caractéristique</p><div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
             <button type="button" id="req-add" style="margin-top:6px">Ajouter un prérequis</button></div>
         </div>
@@ -217,29 +216,28 @@ function chipGroup(box, options, selected, onToggle){
 function toggleIn(list, v, on){ const i = list.indexOf(v); if(on && i < 0) list.push(v); if(!on && i >= 0) list.splice(i, 1); }
 
 function renderSupertypes(){
-  const box = $id('f-supertypes'); box.replaceChildren();
-  const known = Object.values(JDR_SUPERTYPE_GROUPS).flat();
-  const groups = Object.assign({}, JDR_SUPERTYPE_GROUPS);
-  const others = cur.supertypes.filter(s => !known.includes(s));
-  if(others.length) groups['Autres'] = others;
-  Object.entries(groups).forEach(([g, list]) => {
+  chipGroup($id('f-supertypes'), JDR_SUPERTYPES, cur.supertypes, (v, on) => toggleIn(cur.supertypes, v, on));
+}
+function renderRestrict(){
+  const box = $id('f-restrict'); box.replaceChildren();
+  Object.entries(JDR_RESTRICT_GROUPS).forEach(([g, list]) => {
     const chips = el('div', { class:'chips' });
-    chipGroup(chips, list, cur.supertypes, (v, on) => { toggleIn(cur.supertypes, v, on); if(g === 'Autres' && !on) renderSupertypes(); });
+    chipGroup(chips, list, cur.restrict, (v, on) => toggleIn(cur.restrict, v, on));
     box.append(el('div', {}, el('p', { class:'hint', style:'margin:0 0 3px', text: g }), chips));
   });
 }
-$id('st-add').addEventListener('click', () => {
-  const v = $id('st-new').value.trim(); if(!v) return;
-  if(!cur.supertypes.includes(v)) cur.supertypes.push(v);
-  $id('st-new').value = ''; renderSupertypes(); changed();
-});
-$id('st-new').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); $id('st-add').click(); } });
+// Sous-types : seulement ceux autorisés pour le type choisi
+function renderSubtypes(){
+  const allowed = jdrSubtypesFor(cur.type);
+  if(cur.subtype && !allowed.includes(cur.subtype)) cur.subtype = '';
+  $id('f-subtype').replaceChildren(el('option', { value: '', text: 'Aucun' }), ...allowed.map(t => el('option', { value: t, text: t })));
+  $id('f-subtype').value = cur.subtype || '';
+}
 
 $id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
-$id('f-subtype').replaceChildren(el('option', { value: '', text: 'Aucun' }), ...JDR_SUBTYPES.map(t => el('option', { value: t, text: t })));
 $id('f-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); });
 $id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
-$id('f-type').addEventListener('change', e => { cur.type = e.target.value; changed(); });
+$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); changed(); });
 $id('f-subtype').addEventListener('change', e => { cur.subtype = e.target.value; changed(); });
 $id('f-value').addEventListener('input', e => { cur.value = num(e.target.value); changed(); });
 $id('f-mana').addEventListener('input', e => { cur.mana = num(e.target.value); changed(); });
@@ -403,11 +401,11 @@ $id('f-footer').addEventListener('input', e => { cur.footer = e.target.value; ch
 /* ================= Formulaire complet + aperçu ================= */
 function renderForm(){
   $id('f-name').value = cur.name; $id('f-id').value = cur.id; $id('f-id').disabled = !!savedId;
-  $id('f-type').value = cur.type; $id('f-subtype').value = cur.subtype || '';
+  $id('f-type').value = cur.type; renderSubtypes();
   $id('f-value').value = cur.value ?? ''; $id('f-mana').value = cur.mana ?? '';
   ['sonore','gestuelle','materielle'].forEach(k => $id('f-c-' + k).checked = !!cur.components[k]);
   chipGroup($id('f-classes'), Object.keys(JDR_CLASSES), cur.classes, (v, on) => toggleIn(cur.classes, v, on));
-  renderSupertypes();
+  renderSupertypes(); renderRestrict();
   $id('f-image').value = cur.image_url;
   $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
   $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';

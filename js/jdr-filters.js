@@ -19,7 +19,7 @@ function jdrFilters(container, onChange, opts = {}){
       <div class="grid2">
         <label class="f">Sous-type<select data-k="subtype">${opt(JDR_SUBTYPES, 'Tous')}</select></label>
         <label class="f">Classe<select data-k="classe">${opt(Object.keys(JDR_CLASSES), 'Toutes')}</select></label>
-        <label class="f">Super-type<select data-k="supertype">${opt(Object.values(JDR_SUPERTYPE_GROUPS).flat(), 'Tous')}</select></label>
+        <label class="f">Super-type<select data-k="supertype">${opt(JDR_SUPERTYPES, 'Tous')}</select></label>
         <label class="f">Trier par<select data-k="sort">
           <option value="name">Nom</option><option value="value">Valeur</option><option value="mana">Coût en mana</option><option value="pa">Coût en PA</option><option value="type">Type</option></select></label>
       </div>
