@@ -8,9 +8,11 @@
 <link rel="stylesheet" href="css/jdr-ui.css">
 <style>
 /* Layout : 3 colonnes — liste des cartes | formulaire (4 sections) | aperçu collant. Une colonne sur téléphone. */
-.ed{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:16px;align-items:start}
-@media (max-width:1100px){.ed{grid-template-columns:minmax(0,1fr) 280px}.ed .list{grid-column:1/-1}}
-@media (max-width:720px){.ed{grid-template-columns:1fr}.ed .preview{order:-1;position:static}}
+/* Page éditeur : on utilise toute la largeur de l'écran */
+.wrap,.jdr-nav{max-width:1840px}
+.ed{display:grid;grid-template-columns:240px minmax(0,1fr) 420px;gap:20px;align-items:start}
+@media (max-width:1250px){.ed{grid-template-columns:minmax(0,1fr) 400px}.ed .list{grid-column:1/-1}}
+@media (max-width:820px){.ed{grid-template-columns:1fr}.ed .preview{order:-1;position:static}}
 .list{max-height:calc(100vh - 140px);overflow:auto}
 .list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .list li button{width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:8px}
@@ -18,7 +20,7 @@
 .list li .ty{color:var(--muted);font-size:.8rem;font-weight:400}
 @media (max-width:1100px){.list{max-height:220px}}
 .preview{position:sticky;top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.preview .jcard{--w:290px}
+.preview .jcard{--w:min(380px, calc(100vw - 48px))}
 section.part{border:2px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
 section.part>h2{display:flex;align-items:center;gap:10px}
 section.part>h2 .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--panel);font-size:.95rem}
@@ -33,9 +35,11 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 .eff .fields>*{flex:1 1 120px}
 @media (max-width:560px){.eff{grid-template-columns:1fr}}
 .gen{font-size:.88rem;color:var(--muted);font-style:italic;margin:0}
-.ed.crea{grid-template-columns:230px minmax(0,1fr) 470px}
-@media (max-width:1300px){.ed.crea{grid-template-columns:minmax(0,1fr) 440px}.ed.crea .list{grid-column:1/-1}}
-@media (max-width:900px){.ed.crea{grid-template-columns:1fr}.ed.crea .preview{order:-1;position:static}}
+/* Créature : l'aperçu (fiche paysage) prend la plus grande part de la largeur */
+.ed.crea{grid-template-columns:240px minmax(480px,1fr) minmax(0,1.5fr)}
+@media (max-width:1500px){.ed.crea{grid-template-columns:minmax(440px,1fr) minmax(0,1.3fr)}.ed.crea .list{grid-column:1/-1}}
+@media (max-width:1000px){.ed.crea{grid-template-columns:1fr}.ed.crea .preview{order:-1;position:static}}
+.ed.crea .preview{align-items:stretch}
 .capr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;background:var(--panel);border-radius:8px;padding:8px}
 .actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:10px;border-top:1px solid var(--line);z-index:2}
 .ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px;margin:0}
@@ -508,7 +512,7 @@ function renderGen(){
 }
 function renderPreview(){
   const isC = cur.type === 'Créature';
-  $id('preview').innerHTML = jdrCardHTML(cur, isC ? { groups: groups.byId, width: Math.min(460, $id('preview').parentElement.clientWidth || 460) + 'px' } : {});
+  $id('preview').innerHTML = jdrCardHTML(cur, isC ? { groups: groups.byId, width: Math.min(1040, $id('preview').parentElement.clientWidth || 600) + 'px' } : {});
   const col = JDR_CARD_COLORS[jdrCardColorKey(cur)];
   $id('ident').style.setProperty('--cc', col.color); $id('ident').style.setProperty('--ci', col.ink);
   renderGen();
@@ -548,6 +552,7 @@ $id('del').addEventListener('click', async () => {
   if(error){ status(jdrErrorText(error), true); return; }
   dirty = false; await reload(); newCard(); status('Carte supprimée');
 });
+let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(renderPreview, 150); });
 window.addEventListener('beforeunload', e => { if(dirty && JDR_IS_EDITOR){ e.preventDefault(); e.returnValue = ''; } });
 
 async function reload(){
