@@ -131,8 +131,13 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
     image_url: "https://…",
     art: { ox:0, oy:0, scale:100, rot:0, fx:false, fy:false },  // déplacement en % du cadre, zoom %, rotation °, miroirs
     -- Capacités --
-    abilities: [ { pa:1, cost:"Défaussez 1", triggers:[{ trigger:"activated" }], effects:[ {...} ] } ],
-    special: { enabled:false, name:"", mana:null, cost:"", triggers:[{ trigger:"freeAction" }], effects:[] },
+    -- Capacités (23/10/2026) : plus de « moment » (action / action libre…), on paie des points
+       d'action. Seule la réaction reste une option. Par défaut la capacité est en TEXTE LIBRE ;
+       le constructeur d'effets (mode "build") reste disponible pour plus tard (lecture du deck
+       sur le plateau). En jeu, chaque capacité deviendra un bouton, y compris le spécial
+       sauf s'il est marqué « point de règle ».
+    abilities: [ { pa:1, cost:"Défaussez 1", reaction:false, mode:"text", text:"Piochez 2 cartes.", effects:[] } ],
+    special: { enabled:false, name:"", rule:false, mana:null, cost:"", reaction:false, mode:"text", text:"", effects:[] },
     -- Options de deck --
     persistent:false, horsDeck:false, requirements:[{ stat:"corps", min:2 }], maxCopies:null,
     footer: "",                      // mention en bas de carte
@@ -140,8 +145,37 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
   }
 */
 function jdrBlankArt(){ return { ox: 0, oy: 0, scale: 100, rot: 0, fx: false, fy: false }; }
-function jdrBlankAbility(){ return { pa: null, cost: '', triggers: [{ trigger: 'activated' }], effects: [] }; }
-function jdrBlankSpecial(){ return { enabled: false, name: '', mana: null, cost: '', triggers: [{ trigger: 'freeAction' }], effects: [] }; }
+function jdrBlankAbility(){ return { pa: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
+function jdrBlankSpecial(){ return { enabled: false, name: '', rule: false, mana: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
+// Remet une capacité au format actuel (les anciennes cartes avaient un « moment » : triggers)
+//  - « Réaction » → case reaction cochée ; les autres moments (Action, Action libre…) disparaissent
+//  - tout passe en texte libre (les phrases des anciens effets sont mises bout à bout)
+//  - les effets construits sont gardés de côté : on les retrouve en passant au constructeur
+function jdrNormalizeAbility(ab, isSpecial){
+  ab = (ab && typeof ab === 'object') ? ab : {};
+  const o = Object.assign(isSpecial ? jdrBlankSpecial() : jdrBlankAbility(), ab);
+  if(!Array.isArray(o.effects)) o.effects = [];
+  const trig = Array.isArray(ab.triggers) ? ab.triggers.map(t => t && t.trigger).filter(Boolean) : [];
+  if(typeof ab.reaction !== 'boolean') o.reaction = trig.includes('reaction');
+  if(ab.mode !== 'text' && ab.mode !== 'build'){
+    // tout passe en texte libre ; le texte reprend les phrases des anciens effets
+    o.mode = 'text';
+    const lines = [String(ab.text || '').trim(), ...o.effects.map(e => String(jdrEffectText(e) || '').trim())].filter(Boolean);
+    // moment conditionnel d'autrefois (« Lorsque… ») : gardé en tête du texte pour ne rien perdre
+    const cond = trig.filter(t => !['activated','freeAction','reaction','complex','onPlay'].includes(t)).map(t => JDR_TRIGGERS[t]).filter(Boolean);
+    o.text = (cond.length && lines.length ? cond.join(' ou ') + ' : ' : '') + lines.join('\n');
+    // effets construits conservés (retrouvés en passant au constructeur) ; les simples phrases sont retirées
+    if(o.effects.every(e => e && e.type === 'custom')) o.effects = [];
+  }
+  if(typeof o.text !== 'string') o.text = '';
+  // seul moment encore lu par le code : « Tant que cette carte est dans votre deck » (modif. de caractéristiques)
+  if(trig.some(t => JDR_PASSIVE_TRIGGERS.includes(t))) o.triggers = ab.triggers; else delete o.triggers;
+  if(isSpecial){
+    o.enabled = !!o.enabled;
+    if(typeof ab.rule !== 'boolean') o.rule = /point\s+de\s+r[eè]gle/i.test(o.name || '');
+  }
+  return o;
+}
 /* ---------- Créatures (type « Créature ») ----------
    Fiche paysage validée le 23/10/2026. Stockée dans card.creature ; le tableau d'action
    de groupe est préparé à part (table jdr.creature_groups) et attribué par son id. */
@@ -215,14 +249,16 @@ function jdrNormalizeCard(c){
   ['requirements','abilities','keywords'].forEach(k => { if(!Array.isArray(o[k])) o[k] = []; });
   o.rank = JDR_CARD_RANKS.includes(Number(c.rank)) ? Number(c.rank) : null;
   o.keywords = o.keywords.filter(k => k && k.id).map(k => ({ id: String(k.id), name: String(k.name || ''), value: String(k.value ?? '') }));
-  o.abilities = o.abilities.map(ab => Object.assign(jdrBlankAbility(), ab, { effects: Array.isArray(ab.effects) ? ab.effects : [] }));
-  o.special = Object.assign(jdrBlankSpecial(), (c.special && typeof c.special === 'object') ? c.special : {});
+  o.abilities = o.abilities.filter(ab => ab && typeof ab === 'object').map(ab => Object.assign({}, ab));
+  o.special = Object.assign({}, (c.special && typeof c.special === 'object') ? c.special : {});
   // ancien format : capacité cochée « spéciale » → zone spéciale ; pa de la carte → 1re capacité
   const oldSpec = o.abilities.findIndex(ab => ab.special === true);
   if(oldSpec >= 0 && !(c.special && c.special.enabled)){
     const ab = o.abilities.splice(oldSpec, 1)[0];
-    o.special = Object.assign(jdrBlankSpecial(), { enabled: true, name: c.specialName || '', cost: ab.cost || '', triggers: ab.triggers, effects: ab.effects });
+    o.special = { enabled: true, name: c.specialName || '', cost: ab.cost || '', triggers: ab.triggers, effects: ab.effects };
   }
+  o.abilities = o.abilities.map(ab => jdrNormalizeAbility(ab, false));
+  o.special = jdrNormalizeAbility(o.special, true);
   if(c.pa !== undefined && c.pa !== null && c.pa !== '' && o.abilities[0] && (o.abilities[0].pa === null || o.abilities[0].pa === undefined)) o.abilities[0].pa = c.pa;
   o.abilities.forEach(ab => { delete ab.special; });
   ['subtypes','access','origin','pa','specialName'].forEach(k => delete o[k]);
@@ -294,7 +330,7 @@ const JDR_EFFECTS = {
   posture:     { label: 'Adopter cette posture',      fields: [] },
   recover:     { label: 'Récupérer une carte',        fields: ['from'] },
   convert:     { label: 'Convertir (bannir → mana)',  fields: ['convertMode','convertAmount'] },
-  custom:      { label: 'Texte libre',                fields: ['text'] }
+  custom:      { label: 'Phrase libre',               fields: ['text'] }
 };
 const JDR_FROM = { discard: 'de votre défausse', deck: 'de votre deck', banned: 'parmi vos cartes bannies', otherDiscard: "de la défausse d'un autre joueur" };
 
@@ -360,13 +396,17 @@ function jdrAbilityCosts(ab){
   const has = v => v !== null && v !== undefined && v !== '';
   return [has(ab.pa) ? `${ab.pa} PA` : '', has(ab.mana) ? `${ab.mana} mana` : '', ab.cost || ''].filter(Boolean).join(', ');
 }
-// « Action (1 PA, Défaussez 1) : effet. effet. »
+// Corps d'une capacité : le texte libre, ou les phrases des effets construits
+function jdrAbilityBody(ab){
+  if(ab.mode === 'build') return (ab.effects || []).map(jdrEffectText).filter(Boolean).join(' ');
+  return String(ab.text || '').trim();
+}
+// « 1 PA, Défaussez 1 : texte »  ·  « Réaction (1 PA) : texte »  ·  « texte » (sans coût)
 function jdrAbilityText(ab){
-  const trig = (ab.triggers || []).map(t => JDR_TRIGGERS[t.trigger]).filter(Boolean).join(' ou ');
   const costs = jdrAbilityCosts(ab);
-  const body = (ab.effects || []).map(jdrEffectText).filter(Boolean).join(' ');
-  if(trig) return `${trig}${costs ? ` (${costs})` : ''} : ${body}`;
-  return costs ? `Coût : ${costs}. ${body}` : body;
+  const body = jdrAbilityBody(ab);
+  const head = ab.reaction ? `Réaction${costs ? ` (${costs})` : ''}` : costs;
+  return head ? (body ? `${head} : ${body}` : head) : body;
 }
 function jdrCardText(card){
   const parts = (card.abilities || []).map(jdrAbilityText).filter(Boolean);

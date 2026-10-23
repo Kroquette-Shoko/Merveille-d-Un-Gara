@@ -25,11 +25,13 @@ function jdrPrettyAbility(ab, sheet){
   return jdrAbilityText(copy);
 }
 
-// { main: [lignes], special: [lignes] }
+// { main: [{ text, ab }], special: [{ text, rule }] }
+// ab = numéro de la capacité (pour en faire un bouton en jeu), null pour l'ancien texte de carte
 function jdrCardTextLines(card, sheet){
-  const main = (card.abilities || []).map(ab => jdrPrettyAbility(ab, sheet)).filter(Boolean);
-  if(card.text) main.push(card.text);
-  const special = card.special && card.special.enabled ? [jdrPrettyAbility(card.special, sheet)].filter(Boolean) : [];
+  const main = (card.abilities || []).map((ab, i) => ({ text: jdrPrettyAbility(ab, sheet), ab: i })).filter(l => l.text);
+  if(card.text) main.push({ text: card.text, ab: null });
+  const special = card.special && card.special.enabled
+    ? [{ text: jdrPrettyAbility(card.special, sheet), rule: !!card.special.rule }].filter(l => l.text) : [];
   return { main, special };
 }
 
@@ -87,8 +89,8 @@ function jdrCardHTML(card, opts = {}){
         <div class="type"><b>${esc(c.type)}</b>${c.subtype ? ' — ' + esc(c.subtype) : ''}${sup ? ` · ${esc(sup)}` : ''}</div>
       </div>
       ${art}
-      <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p>${esc(l)}</p>`).join('')}</div>
-      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
+      <div class="txt">${kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : ''}${main.map(l => `<p${l.ab !== null ? ` class="abl" data-ab="${l.ab}"` : ''}>${esc(l.text)}</p>`).join('')}</div>
+      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<p${l.rule ? ' class="rule"' : ' class="abl" data-ab="special"'}>${esc(l.text)}</p>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>
   </div>`;

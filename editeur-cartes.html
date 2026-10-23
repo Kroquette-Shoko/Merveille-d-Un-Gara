@@ -39,6 +39,9 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 .eff .fields{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
 .eff .fields>*{flex:1 1 120px}
 @media (max-width:560px){.eff{grid-template-columns:1fr}}
+.modes{display:inline-flex;align-self:start;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.modes .mode{border:0;border-radius:0;background:transparent;color:var(--ink);padding:5px 14px;font-weight:600}
+.modes .mode.on{background:var(--accent);color:var(--on-accent)}
 .gen{font-size:.88rem;color:var(--muted);font-style:italic;margin:0}
 /* Créature : l'aperçu (fiche paysage) prend la plus grande part de la largeur */
 .ed.crea{grid-template-columns:240px minmax(480px,1fr) minmax(0,1.5fr)}
@@ -194,7 +197,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
           <button type="button" id="kw-add">Ajouter le mot-clé</button>
         </div>
         <p class="hint" id="kw-st"></p>
-        <p class="hint">Les quantités acceptent une formule avec les caractéristiques du personnage : <code>2+corps</code>, <code>esprit*2</code>, <code>niveau</code>.</p>
+        <p class="hint">Chaque capacité a un coût en points d'action (PA) ; coche « Réaction » si elle se joue en réaction. Par défaut on l'écrit en texte libre.</p>
         <div id="abilities" style="display:flex;flex-direction:column;gap:10px"></div>
         <button type="button" id="ab-add" style="align-self:start">Ajouter une capacité</button>
       </section>
@@ -469,40 +472,72 @@ const FIELD_UI = {
   text:       e => { const t = el('textarea', { rows: 2 }); t.value = e.text ?? ''; t.addEventListener('input', () => { e.text = t.value; changed(); }); return el('label', { class:'f', style:'flex-basis:100%' }, document.createTextNode('Texte'), t); }
 };
 
-// Bloc d'une capacité : coût principal (PA ou mana), autre coût, moment, effets
-function abilityBlock(ab, title, mainCost, onRemove, rerender){
-  if(!ab.triggers || !ab.triggers.length) ab.triggers = [{ trigger: 'activated' }];
+// Bloc d'une capacité : coût principal (PA ou mana), autre coût, réaction, puis
+//  - TEXTE LIBRE (par défaut) : on écrit la capacité telle qu'elle apparaît sur la carte
+//  - CONSTRUCTEUR : effets construits (servira à la lecture du deck sur le plateau)
+// Plus de « moment » (action, action libre…) : on paie des points d'action ; seule la réaction reste.
+function abilityBlock(ab, title, mainCost, onRemove, rerender, isSpecial){
+  if(ab.mode !== 'build') ab.mode = 'text';
   const costIn = el('input', { type:'number', min:0, max: 30, value: ab[mainCost.key] ?? '', placeholder: 'aucun' });
   costIn.addEventListener('input', () => { ab[mainCost.key] = num(costIn.value); changed(); });
   const other = el('input', { value: ab.cost || '', placeholder: 'ex. Défaussez 1' });
   other.addEventListener('input', () => { ab.cost = other.value; changed(); });
-  const trig = selectOf(Object.assign({ '': '— aucun —' }, JDR_TRIGGERS), ab.triggers[0].trigger || '', v => { ab.triggers[0].trigger = v; changed(); }, 'Moment');
-  const effs = el('div', { style:'display:flex;flex-direction:column;gap:6px' });
-  ab.effects.forEach((e, ei) => {
-    const type = selectOf(Object.fromEntries(Object.entries(JDR_EFFECTS).map(([k, v]) => [k, v.label])), e.type, v => {
-      ab.effects[ei] = Object.assign(jdrBlankEffect(v), { type: v }); rerender(); changed();
-    }, "Type d'effet");
-    const fields = el('div', { class:'fields' }, ...(JDR_EFFECTS[e.type] ? JDR_EFFECTS[e.type].fields : []).map(f => FIELD_UI[f](e)));
-    effs.append(el('div', { class:'eff' }, el('label', { class:'f' }, document.createTextNode('Effet'), type), fields,
-      el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { ab.effects.splice(ei, 1); rerender(); changed(); } })));
-  });
+  const reac = el('input', { type:'checkbox' }); reac.checked = !!ab.reaction;
+  reac.addEventListener('change', () => { ab.reaction = reac.checked; changed(); });
+
+  // Choix du mode : Texte libre / Constructeur d'effets
+  const setMode = m => {
+    if(m === ab.mode) return;
+    if(m === 'build' && !ab.effects.length) ab.effects.push(Object.assign(jdrBlankEffect('custom'), { text: ab.text || '' }));
+    if(m === 'text' && !String(ab.text || '').trim()) ab.text = jdrAbilityBody(Object.assign({}, ab, { mode: 'build' }));
+    ab.mode = m; rerender(); changed();
+  };
+  const modeBtn = (m, label) => el('button', { type:'button', class: 'mode' + (ab.mode === m ? ' on' : ''), 'aria-pressed': ab.mode === m ? 'true' : 'false', text: label, onclick: () => setMode(m) });
+  const modes = el('div', { class:'modes', role:'group', 'aria-label':'Façon d\'écrire la capacité' }, modeBtn('text', 'Texte libre'), modeBtn('build', "Constructeur d'effets"));
+
+  let body;
+  if(ab.mode === 'text'){
+    const t = el('textarea', { rows: 3, placeholder: 'ex. Piochez 2 cartes.' }); t.value = ab.text || '';
+    t.addEventListener('input', () => { ab.text = t.value; changed(); });
+    body = el('label', { class:'f' }, document.createTextNode('Texte de la capacité'), t);
+  } else {
+    const effs = el('div', { style:'display:flex;flex-direction:column;gap:6px' });
+    ab.effects.forEach((e, ei) => {
+      const type = selectOf(Object.fromEntries(Object.entries(JDR_EFFECTS).map(([k, v]) => [k, v.label])), e.type, v => {
+        ab.effects[ei] = Object.assign(jdrBlankEffect(v), { type: v }); rerender(); changed();
+      }, "Type d'effet");
+      const fields = el('div', { class:'fields' }, ...(JDR_EFFECTS[e.type] ? JDR_EFFECTS[e.type].fields : []).map(f => FIELD_UI[f](e)));
+      effs.append(el('div', { class:'eff' }, el('label', { class:'f' }, document.createTextNode('Effet'), type), fields,
+        el('button', { type:'button', class:'ghost', text:'Retirer', onclick: () => { ab.effects.splice(ei, 1); rerender(); changed(); } })));
+    });
+    body = el('div', { style:'display:flex;flex-direction:column;gap:8px' },
+      el('p', { class:'hint', style:'margin:0', text: 'Les quantités acceptent une formule : 2+corps, esprit*2, niveau.' }),
+      effs,
+      el('button', { type:'button', style:'align-self:start', text:'Ajouter un effet', onclick: () => { ab.effects.push(jdrBlankEffect('damage')); rerender(); changed(); } }));
+  }
+
+  let rule = document.createTextNode('');
+  if(isSpecial){
+    const rc = el('input', { type:'checkbox' }); rc.checked = !!ab.rule;
+    rc.addEventListener('change', () => { ab.rule = rc.checked; changed(); });
+    rule = el('label', { class:'chk' }, rc, document.createTextNode('Point de règle (simple rappel : pas de bouton quand la carte sera jouée)'));
+  }
   return el('div', { class:'ab' },
     el('div', { class:'ab-top' }, el('h3', { text: title }), onRemove ? el('button', { type:'button', class:'ghost', text:'Supprimer', onclick: onRemove }) : document.createTextNode('')),
     el('div', { class:'grid3' },
       el('label', { class:'f' }, document.createTextNode(mainCost.label), costIn),
       el('label', { class:'f' }, document.createTextNode('Autre coût'), other),
-      el('label', { class:'f' }, document.createTextNode('Moment'), trig)),
-    el('p', { class:'sub-h', text: 'Effet' }), effs,
-    el('button', { type:'button', style:'align-self:start', text:'Ajouter un effet', onclick: () => { ab.effects.push(jdrBlankEffect('damage')); rerender(); changed(); } }),
+      el('label', { class:'chk', style:'align-self:end;padding-bottom:6px' }, reac, document.createTextNode('Réaction'))),
+    rule, modes, body,
     el('p', { class:'gen', 'data-gen': '1' }));
 }
 function renderAbilities(){
   const box = $id('abilities'); box.replaceChildren();
   cur.abilities.forEach((ab, i) => box.append(abilityBlock(ab, 'Capacité ' + (i + 1), { key:'pa', label:"Coût en points d'action" },
-    () => { cur.abilities.splice(i, 1); renderAbilities(); changed(); }, renderAbilities)));
+    () => { cur.abilities.splice(i, 1); renderAbilities(); changed(); }, renderAbilities, false)));
   applyRights(); renderGen();
 }
-$id('ab-add').addEventListener('click', () => { const ab = jdrBlankAbility(); ab.effects.push(jdrBlankEffect('damage')); cur.abilities.push(ab); renderAbilities(); changed(); });
+$id('ab-add').addEventListener('click', () => { cur.abilities.push(jdrBlankAbility()); renderAbilities(); changed(); });
 
 function renderSpecial(){
   const box = $id('special'); box.replaceChildren();
@@ -511,12 +546,11 @@ function renderSpecial(){
   const nm = el('input', { value: cur.special.name || '', placeholder: 'ex. Surcharge', maxlength: 40 });
   nm.addEventListener('input', () => { cur.special.name = nm.value; changed(); });
   box.append(el('label', { class:'f', style:'margin-bottom:8px' }, document.createTextNode('Nom du spécial (facultatif)'), nm),
-    abilityBlock(cur.special, 'Spécial', { key:'mana', label:'Coût en mana' }, null, renderSpecial));
+    abilityBlock(cur.special, 'Spécial', { key:'mana', label:'Coût en mana' }, null, renderSpecial, true));
   applyRights(); renderGen();
 }
 $id('sp-on').addEventListener('change', e => {
   cur.special.enabled = e.target.checked;
-  if(cur.special.enabled && !cur.special.effects.length) cur.special.effects.push(jdrBlankEffect('damage'));
   renderSpecial(); changed();
 });
 
@@ -627,8 +661,8 @@ function renderForm(){
   renderReqs(); renderKeywords(); renderAbilities(); renderSpecial(); renderCreature(); renderPreview(); artLayout(); applyRights();
 }
 function renderGen(){
-  document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(ajoute un effet)'; });
-  const sp = document.querySelector('#special [data-gen]'); if(sp) sp.textContent = jdrAbilityText(cur.special) || '(ajoute un effet)';
+  document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(capacité vide)'; });
+  const sp = document.querySelector('#special [data-gen]'); if(sp) sp.textContent = jdrAbilityText(cur.special) || '(capacité vide)';
 }
 function renderPreview(){
   const isC = cur.type === 'Créature';
