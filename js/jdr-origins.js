@@ -31,7 +31,7 @@
      voies        [identifiants] : cartes « Voie » de la spécialisation (cartes Passif, sous-type Voie), plusieurs possibles
                   (ancien champ « voie » = une seule carte, converti automatiquement)
      magic        vrai si cette spécialisation peut lancer des sorts
-     abilities    passif de la spécialisation — FACULTATIF (toutes n'en ont pas) ; affiché au-dessus des voies
+     (pas de capacités ni de passif : le passif d'une spécialisation, c'est le travail de ses VOIES)
      improvements [{ level, text }] : améliorations de spécialisation (ex. niveaux 5, 10, 15)
 
    Passé (étape 5) :
@@ -85,8 +85,8 @@ function jdrNormalizeOrigin(row){
   }
   // Capacités (tous les types) ; l'ancien champ « speed » (vitesse) n'existe plus
   o.abilities = arr(o.abilities).map(a => { const x = Object.assign(jdrBlankOriginAbility(), a || {}); x.pa = jdrAbilityPA(x); delete x.speed; return x; });
-  // Spécialisation : passif facultatif — on retire les blocs vides (ancien passif vide créé par défaut)
-  if(o.kind === 'specialisation') o.abilities = o.abilities.filter(a => a.name || a.text || a.cost || a.uses || a.pa !== null);
+  // Spécialisation : pas de passif (24/10/2026) — ce sont les voies qui le donnent
+  if(o.kind === 'specialisation') o.abilities = [];
   if(o.kind === 'peuple' && !JDR_CHAR_SIZES[o.size]) o.size = 'M';
   if(o.kind === 'classe'){
     if(!JDR_CLASS_MAGIC[o.magic]) o.magic = 'aucune';
@@ -158,10 +158,7 @@ function jdrOriginHTML(o, opts = {}){
           ? jdrCardHTML(v, { width: voies.length > 1 ? '170px' : '210px' })
           : `<div class="oa"><div class="oah"><b>${esc(v.name)}</b></div></div>`).join('')}</div>` : '<p class="ie">Aucune voie désignée.</p>'}`;
     const imp = o.improvements.filter(m => m.text).map(m => `<div class="oa"><div class="oah"><b>Niveau ${esc(m.level)}</b></div><p>${esc(m.text)}</p></div>`).join('');
-    // passif (facultatif) AU-DESSUS des voies ; rien d'affiché si la spécialisation n'en a pas
-    const passifHTML = o.abilities.some(a => a.name || a.text) ? `<div class="osec">Passif</div>${abilHTML(o.abilities, '')}` : '';
     body = `<div class="im">${c ? 'Classe : ' + esc(c.name) : 'Classe non choisie'} · ${o.magic ? 'peut utiliser la magie (Sortilège)' : 'pas de magie (Sortilège)'}</div>
-      ${passifHTML}
 ${voiesHTML}
       ${imp ? `<div class="osec">Améliorations de spécialisation</div>${imp}` : ''}`;
   }
