@@ -439,7 +439,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
       <button type="button" tabindex="-1">Mesurer<kbd>M</kbd></button>
       <button type="button" tabindex="-1">Ping<kbd>Alt + clic</kbd></button>
       <button type="button" tabindex="-1">Ping + centrer les joueurs (MJ)<kbd>Maj+Alt+clic</kbd></button>
-      <button type="button" tabindex="-1">Déplacer la vue<kbd>clic droit glissé</kbd></button>
+      <button type="button" tabindex="-1">Déplacer la vue<kbd>clic molette glissé</kbd></button>
       <button type="button" tabindex="-1">Menu d'un pion<kbd>clic droit</kbd></button>
       <button type="button" tabindex="-1">Réglages d'un pion<kbd>double-clic</kbd></button>
       <button type="button" tabindex="-1">Supprimer (MJ)<kbd>Suppr</kbd></button></div></div>
@@ -1579,7 +1579,10 @@ let lastTap = { id: null, t: 0 };
 B.addEventListener('pointerdown', e => {
   if(e.target.closest('.msg>div, .calib')) return;
   closeCtx();
-  if(e.button === 1 || e.button === 2){ pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false, right: e.button === 2, target: e.target }; B.classList.add('panning'); B.setPointerCapture(e.pointerId); return; }
+  // Faire défiler la carte : UNIQUEMENT avec le clic molette (bouton du milieu) — sur écran tactile, en glissant le doigt sur une zone vide
+  if(e.button === 1){ e.preventDefault(); pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; B.classList.add('panning'); B.setPointerCapture(e.pointerId); return; }
+  // Clic droit : menu du pion (au relâchement), la carte ne bouge pas
+  if(e.button === 2){ rclick = { target: e.target }; return; }
   if(e.button !== 0) return;
   const p = toWorld(e.clientX, e.clientY);
   if(tool === 'ping' || e.altKey){ const pl = { scene: scene && scene.id, x: p.x, y: p.y, color: userColor(me.id), who: myName, focus: isGM && e.shiftKey }; showPing(pl); send('ping', pl); return; }
@@ -1600,8 +1603,11 @@ B.addEventListener('pointerdown', e => {
   if(it && e.target.dataset.handle === 'rotate'){ rotate = { id: it.id }; B.setPointerCapture(e.pointerId); return; }
   if(it && canMove(it)){ select(it.id); drag = { id: it.id, dx: p.x - it.data.x, dy: p.y - it.data.y, moved: false }; B.setPointerCapture(e.pointerId); return; }
   if(isGM && it && it.layer === layer) select(it.id); else select(null);
-  pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; B.classList.add('panning'); B.setPointerCapture(e.pointerId);
+  if(e.pointerType === 'touch'){ pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; B.classList.add('panning'); B.setPointerCapture(e.pointerId); }
 });
+// le clic molette ne doit pas lancer le défilement automatique du navigateur (Windows) ni ouvrir de lien
+B.addEventListener('mousedown', e => { if(e.button === 1) e.preventDefault(); });
+B.addEventListener('auxclick', e => { if(e.button === 1) e.preventDefault(); });
 B.addEventListener('pointermove', e => {
   const p = toWorld(e.clientX, e.clientY);
   if(pan){ if(Math.abs(e.clientX - pan.x) + Math.abs(e.clientY - pan.y) > 4) pan.moved = true; view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; applyView(); return; }
@@ -1622,9 +1628,10 @@ B.addEventListener('pointermove', e => {
   if(ring !== fx.rings){ fx.rings = ring; drawFx(); }
 });
 async function endPointer(e){
-  if(pan){ const pn = pan; pan = null; B.classList.remove('panning');
-    if(pn.right && !pn.moved){ const itEl = pn.target.closest && pn.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
-      if(it && (isGM || controls(it))){ if(isGM && it.layer === layer) select(it.id); openCtx(it, e.clientX, e.clientY); } } }
+  if(pan){ pan = null; B.classList.remove('panning'); }
+  if(rclick && e.button === 2){ const rc = rclick; rclick = null;
+    const itEl = rc.target.closest && rc.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
+    if(it && (isGM || controls(it))){ if(isGM && it.layer === layer) select(it.id); openCtx(it, e.clientX, e.clientY); } }
   if(drag){ const d = drag; drag = null; const it = items.get(d.id);
     if(it && d.moved){ send('drag', { id: it.id, d: { x: it.data.x, y: it.data.y }, scene: scene.id });
       const { error } = await jdrSb.from('board_items').update({ data: it.data }).eq('id', it.id); if(error) toast(jdrErrorText(error)); } }
