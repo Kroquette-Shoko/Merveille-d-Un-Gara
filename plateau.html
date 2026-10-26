@@ -14,7 +14,7 @@
    - bandeau des scènes en haut (MJ) avec le marqueur « Joueurs »
    - barre latérale droite à onglets : Discussion, Images (MJ), Journal, Musique, Réglages
    - joueurs connectés en bas à gauche ; zoom en bas à droite
-   - clic droit sur un élément = menu ; double-clic = réglages du pion
+   - clic droit sur un élément = menu (dont « Réglages du pion… »)
    Couleurs : interface sombre (forcée, même en thème clair) ; la scène garde sa couleur de fond.
    ============================================================ */
 :root, :root:not([data-theme="light"]), :root[data-theme="light"], :root[data-theme="dark"]{
@@ -444,7 +444,6 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
       <button type="button" tabindex="-1">Sélectionner plusieurs objets<kbd>clic gauche glissé</kbd></button>
       <button type="button" tabindex="-1">Ajouter / retirer de la sélection<kbd>Maj + clic</kbd></button>
       <button type="button" tabindex="-1">Menu d'un pion<kbd>clic droit</kbd></button>
-      <button type="button" tabindex="-1">Réglages d'un pion<kbd>double-clic</kbd></button>
       <button type="button" tabindex="-1">Supprimer (MJ)<kbd>Suppr</kbd></button></div></div>
   <div class="sep"></div>
   <div class="tw"><a class="tbtn" id="quit" href="index.html" title="Quitter la table" aria-label="Quitter la table" style="display:grid;place-items:center;width:40px;height:40px;color:var(--uim)">
@@ -526,7 +525,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <div class="msg" id="msg" hidden><div id="msg-in"></div></div>
 <div class="toastp" id="toastp" hidden role="status"></div>
 
-<!-- Réglages d'un pion (double-clic) -->
+<!-- Réglages d'un pion (menu clic droit → « Réglages du pion… ») -->
 <dialog class="dlg" id="d-tok" aria-labelledby="d-tok-h">
   <div class="bd">
     <h2 id="d-tok-h">Réglages du pion</h2>
@@ -1562,7 +1561,7 @@ function openCtx(it, cx, cy){
 }
 document.addEventListener('pointerdown', e => { if(!e.target.closest('#ctx')) closeCtx(); }, true);
 
-/* ======================= Réglages du pion (double-clic) ======================= */
+/* ======================= Réglages du pion (menu clic droit) ======================= */
 let tokEdit = null;
 function openTok(it){
   if(!isGM) return; tokEdit = it; const d = it.data, s = scale();
@@ -1597,8 +1596,6 @@ function drawMarq(){
   const x = Math.min(marq.x0, marq.x1), y = Math.min(marq.y0, marq.y1);
   Object.assign(r.style, { left: x + 'px', top: y + 'px', width: Math.abs(marq.x1 - marq.x0) + 'px', height: Math.abs(marq.y1 - marq.y0) + 'px' });
 }
-// Double-clic détecté à la main : la capture du pointeur (pour glisser) envoie le « dblclick » natif au plateau, pas au pion
-let lastTap = { id: null, t: 0 };
 B.addEventListener('pointerdown', e => {
   if(e.target.closest('.msg>div, .calib')) return;
   closeCtx();
@@ -1610,13 +1607,6 @@ B.addEventListener('pointerdown', e => {
   const p = toWorld(e.clientX, e.clientY);
   if(tool === 'ping' || e.altKey){ const pl = { scene: scene && scene.id, x: p.x, y: p.y, color: userColor(me.id), who: myName, focus: isGM && e.shiftKey }; showPing(pl); send('ping', pl); return; }
   const itEl = e.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
-  if(it && tool === 'select' && !e.target.dataset.handle){ const now = performance.now();
-    if(lastTap.id === it.id && now - lastTap.t < 350){ lastTap = { id: null, t: 0 };
-      if(it.data.journal && journal.has(it.data.journal)) openWin(it.data.journal);
-      else if(isGM) openTok(it);
-      else if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener');
-      return; }
-    lastTap = { id: it.id, t: now }; }
   if(tool === 'measure' || tool === 'calib'){
     const a = it && it.layer === 'tokens' ? { x: it.data.x + it.data.w / 2, y: it.data.y + it.data.h / 2 } : p;
     meas = { a, b: a, color: tool === 'calib' ? '#ffd257' : userColor(me.id), who: tool === 'calib' ? '' : myName, calib: tool === 'calib', uid: me.id, scene: scene && scene.id };
