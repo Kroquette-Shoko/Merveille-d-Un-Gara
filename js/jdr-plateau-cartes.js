@@ -320,6 +320,22 @@ const PC = (() => {
     else log(`${nameOf(ch)} prend ${k} Risque${k > 1 ? 's' : ''} : ${k > 1 ? 'ils sont mélangés' : 'il est mélangé'} ${where === 'top' ? 'sur le dessus de' : 'dans'} sa pioche`);
     if(where === 'hand') await autoRisk(ch);
   }
+  // « Prendre un risque » (bandeau) : le joueur choisit le niveau de risque ; les Risques sont pris sur le dessus
+  // du deck des Risques et mélangés dans son deck (sa pioche).
+  function askRisk(ch){
+    if(!guard(ch)) return;
+    document.getElementById('rkdlg')?.remove();
+    const go = async n => { d.close(); await addRisks(ch, n, 'shuffle'); };
+    const opt = (lab, n, help) => el('button', { type: 'button', class: 'rk-opt', onclick: () => go(n) }, el('b', { text: lab }), el('span', { text: help }));
+    const d = el('dialog', { class: 'dlg', id: 'rkdlg', style: 'width:min(420px, calc(100vw - 24px))' },
+      el('div', { class: 'bd' }, el('h2', { text: `⚠ ${nameOf(ch)} prend un risque` }),
+        el('p', { class: 'hint', style: 'margin:0', text: 'Les Risques sont tirés du deck des Risques et mélangés dans ton deck.' }),
+        el('div', { class: 'rk-opts' },
+          opt('Risqué', 1, '1 Risque'), opt('Très risqué', 3, '3 Risques'), opt('Extrêmement risqué', 5, '5 Risques')),
+        el('div', { class: 'row', style: 'justify-content:flex-end' }, el('button', { type: 'button', text: 'Annuler', onclick: () => d.close() }))));
+    d.addEventListener('close', () => setTimeout(() => d.remove(), 0));
+    document.body.append(d); d.showModal();
+  }
   async function removeRisks(ch){
     let n = 0; const ok = await mutate(ch, d => { n = 0; Object.keys(ZONES).forEach(z => { const k = d[z].filter(c => !isRisk(c)); n += d[z].length - k.length; d[z] = k; }); if(!n) return false; });
     if(ok) log(`${myCharName()} retire ${n} Risque${n > 1 ? 's' : ''} du deck de ${nameOf(ch)}`); else toast(`Aucun Risque dans le deck de ${nameOf(ch)}.`);
@@ -488,6 +504,7 @@ const PC = (() => {
       head.append(el('button', { type: 'button', text: 'Piocher une carte', disabled: blockedForMe(cur), onclick: () => draw(cur, 1) }));
       if(ctl) head.append(el('button', { type: 'button', class: locked ? 'danger' : '', text: locked ? `Fin de tour : défausser ${ex}` : 'Fin de tour',
         title: 'Défausser jusqu’à garder autant de cartes que l’Anticipation, puis terminer le tour', onclick: () => typeof TO !== 'undefined' && TO.endTurn(cur) }));
+      if(ctl) head.append(el('button', { type: 'button', class: 'trrisk', text: '⚠ Prendre un risque', title: 'Mélanger des Risques du deck des Risques dans son deck', disabled: blockedForMe(cur), onclick: () => askRisk(cur) }));
       const more = el('button', { type: 'button', text: '⋯', title: 'Autres actions', 'aria-label': 'Autres actions' });
       more.addEventListener('click', e => menu(e.clientX, e.clientY, [
         ['Mélanger la pioche', () => shuffleDraw(cur)],

@@ -227,9 +227,10 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 
 /* ---------- Main et piles de cartes (bandeau du bas) ---------- */
 .tray{position:fixed;left:0;right:var(--sbw);bottom:0;z-index:22;background:rgba(30,30,34,.95);border-top:1px solid var(--uil);display:flex;flex-direction:column;transition:right .2s}
-.trh{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 64px;flex-wrap:wrap}
-.trh select{width:auto;max-width:200px;padding:3px 6px}
-.trh button{padding:3px 10px;font-size:.85rem}
+.trh{display:flex;align-items:center;gap:6px;padding:6px 10px 6px 64px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+.trh > *{flex:0 0 auto}
+.trh select{width:auto;max-width:170px;padding:3px 6px}
+.trh button{padding:3px 9px;font-size:.85rem;white-space:nowrap}
 .trh .trtog{width:30px;padding:3px 0}
 .trc{color:var(--uim);font-size:.85rem}
 .tray.closed .trb{display:none}
@@ -251,6 +252,11 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .pile .cback{width:70px}
 .piles{display:flex;gap:6px}
 /* Bloc du personnage, avant la main : portrait + étoile des PA + triangle des actions spéciales · Opp / Ant / En jeu · Deck */
+.trh .trrisk{border-color:#8a3a2c;color:#ffb9a8}
+.rk-opts{display:flex;flex-direction:column;gap:8px}
+.rk-opt{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;text-align:left;border-radius:10px}
+.rk-opt span{color:var(--uim);font-size:.9rem}
+.rk-opt:nth-child(1){border-color:#b88a2c}.rk-opt:nth-child(2){border-color:#c9602c}.rk-opt:nth-child(3){border-color:#d8262f;background:rgba(216,38,47,.12)}
 .tme{display:flex;align-items:flex-end;gap:10px;flex:0 0 auto}
 .tme-avw{position:relative;width:132px;height:140px;flex:0 0 auto}
 .tme-av{position:absolute;left:0;bottom:4px;width:118px;height:118px;border-radius:50%;overflow:hidden;background:var(--ui3);border:3px solid var(--uil);display:grid;place-items:center;box-shadow:0 3px 10px rgba(0,0,0,.45)}
