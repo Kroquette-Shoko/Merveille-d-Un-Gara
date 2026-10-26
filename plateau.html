@@ -100,6 +100,14 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .pg:hover .pa{display:flex}
 .pg .pa button{padding:2px 6px;font-size:.75rem;background:rgba(20,20,24,.85)}
 .pg.add{justify-content:center;align-items:center;border:2px dashed var(--uil);border-radius:7px;color:var(--uim);height:78px;font-size:1.5rem}
+.pg.gather{flex:0 0 110px;justify-content:center;align-items:center;height:78px;border:2px solid var(--acc);border-radius:7px;background:transparent;color:var(--uit);font-size:.85rem;font-weight:700;text-align:center}
+.pg.dragging{opacity:.4}
+.pg.drop-b .th{box-shadow:-5px 0 0 var(--acc2)} .pg.drop-a .th{box-shadow:5px 0 0 var(--acc2)} .pg.drop-in .th{outline:3px solid var(--acc2);outline-offset:1px}
+.pg .rib{cursor:grab}
+.pg .pnin{font-size:.85rem;padding:2px 4px}
+.pdots{position:absolute;left:4px;top:54px;display:flex;gap:3px;flex-wrap:wrap;max-width:124px}
+.pdot{width:20px;height:20px;border-radius:50%;background:var(--pc);color:#fff;font-size:.68rem;font-weight:800;display:grid;place-items:center;border:2px solid var(--ui);cursor:grab}
+.pdot.off{opacity:.55}
 
 /* ---------- Barre latérale (droite) ---------- */
 .side{position:fixed;right:0;top:0;bottom:0;width:var(--sbw);z-index:25;background:var(--ui);border-left:1px solid var(--uil);display:flex;flex-direction:column;transition:width .2s;overflow:hidden}
@@ -137,6 +145,60 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .jr b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jr small{color:var(--uim)}
 .jr button{padding:4px 8px;font-size:.8rem}
+
+/* Journal : arborescence */
+.jtop{display:flex;gap:6px;align-items:center}
+.jaddw{position:relative;flex:0 0 auto}
+.jaddm{position:absolute;right:0;top:calc(100% + 4px);z-index:5;min-width:220px;background:var(--ui);border:1px solid var(--uil);border-radius:10px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.jaddm button{border:0;background:transparent;text-align:left;padding:7px 10px;border-radius:7px}
+.jaddm button:hover{background:var(--ui3)}
+.jtree{display:flex;flex-direction:column;gap:2px;min-height:60px}
+.jf{border-radius:8px}
+.jf>.fhd{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:8px;cursor:pointer;font-weight:700;color:var(--uit);user-select:none}
+.jf>.fhd:hover{background:var(--ui2)}
+.jf>.fhd .ar{width:14px;color:var(--uim);transition:transform .15s}
+.jf.open>.fhd .ar{transform:rotate(90deg)}
+.jf>.fhd .n{font-weight:400;color:var(--uim);font-size:.8rem}
+.jf>.fhd .fa{margin-left:auto;display:none;gap:2px}
+.jf>.fhd:hover .fa{display:flex}
+.jf>.fhd .fa button{padding:1px 6px;font-size:.75rem;background:transparent;border-color:transparent}
+.jf>.fbody{display:none;flex-direction:column;gap:2px;padding-left:14px}
+.jf.open>.fbody{display:flex}
+.jf.drop>.fhd,.jtree.drop{outline:2px dashed var(--acc2);outline-offset:-2px}
+.je{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;cursor:pointer}
+.je:hover{background:var(--ui2)}
+.je .av{flex:0 0 30px;width:30px;height:30px;border-radius:6px;background:#4b4b55 center/cover no-repeat;display:grid;place-items:center;font-size:.85rem;font-weight:800;color:#fff}
+.je.pnj .av{border-radius:50%}
+.je .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.je .bd{font-size:.7rem;color:var(--uim);border:1px solid var(--uil);border-radius:999px;padding:0 6px;white-space:nowrap}
+.je .bd.sh{color:#7fd1a8;border-color:#3f7a5d}
+.je[draggable="true"]{cursor:grab}
+.jnew{display:flex;gap:6px}
+/* Fenêtres flottantes (fiches du journal) */
+.win{position:fixed;z-index:40;width:420px;max-width:calc(100vw - 20px);max-height:calc(100vh - 40px);background:var(--ui);border:1px solid var(--uil);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.6);display:flex;flex-direction:column}
+.win.wide{width:680px}
+.win .wh{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--uil);cursor:move;user-select:none}
+.win .wh .av{width:28px;height:28px;border-radius:50%;background:#4b4b55 center/cover no-repeat;flex:0 0 28px}
+.win .wh b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.win .wh button{padding:2px 8px;background:transparent;border-color:transparent}
+.win .wtabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--uil)}
+.win .wtabs button{border:0;border-radius:7px 7px 0 0;background:transparent;padding:6px 12px;color:var(--uim)}
+.win .wtabs button.on{background:var(--ui3);color:#fff}
+.win .wb{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.win .wf{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-top:1px solid var(--uil)}
+.win .pimg{width:100%;max-height:260px;object-fit:contain;border-radius:8px;background:#1d1d21}
+.win .stg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.win .hpb{display:flex;gap:6px;align-items:end}
+.win .rich{white-space:normal;line-height:1.45}
+.win .rich ul.pts{margin:.3em 0;padding-left:1.2em}
+.win table.share{width:100%;border-collapse:collapse;font-size:.92rem}
+.win table.share th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--uim);text-align:center;padding:4px}
+.win table.share td{padding:5px 4px;border-top:1px solid var(--uil);text-align:center}
+.win table.share td:first-child{text-align:left}
+.win .crea{overflow:auto;border-radius:8px}
+.beasts{display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow:auto}
+.beasts button{display:flex;gap:8px;align-items:center;text-align:left}
+.beasts .av{width:34px;height:34px;border-radius:50%;background:#4b4b55 center/cover no-repeat;flex:0 0 34px}
 
 /* ---------- Joueurs connectés (bas gauche) ---------- */
 .plist{position:fixed;left:10px;bottom:10px;z-index:20;display:flex;gap:8px;align-items:flex-end}
@@ -252,10 +314,20 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     <div class="lib" id="lib"></div>
   </section>
   <section class="spane" data-pane="journal" aria-label="Journal">
-    <h2>Personnages</h2>
-    <div class="jl" id="jl"></div>
-    <h2 style="margin-top:8px">Documents</h2>
-    <p class="hint" style="margin:0">Fiches de PNJ, notes du MJ et règles du jeu : arrivent à une prochaine étape.</p>
+    <div class="jtop">
+      <input type="search" id="j-q" placeholder="Rechercher dans le journal…" aria-label="Rechercher dans le journal">
+      <div class="jaddw" id="j-addw" hidden>
+        <button type="button" class="primary" id="j-add" aria-haspopup="menu">+ Ajouter</button>
+        <div class="jaddm" id="j-addm" hidden role="menu">
+          <button type="button" data-new="pnj">Nouveau PNJ</button>
+          <button type="button" data-new="beast">PNJ depuis le bestiaire…</button>
+          <button type="button" data-new="doc">Nouveau document</button>
+          <button type="button" data-new="folder">Nouveau dossier</button>
+        </div>
+      </div>
+    </div>
+    <div class="jtree" id="jtree" aria-label="Contenu du journal"></div>
+    <p class="hint" id="j-hint" style="margin:0"></p>
   </section>
   <section class="spane" data-pane="music" aria-label="Musique">
     <h2>Musique</h2>
@@ -310,6 +382,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <script src="js/jdr-supabase.js"></script>
 <script src="js/jdr-rules.js"></script>
 <script src="js/jdr-ui.js"></script>
+<script src="js/jdr-card-render.js"></script>
 <script>
 /* ======================= État ======================= */
 const CAMP = new URLSearchParams(location.search).get('campagne');
@@ -340,8 +413,10 @@ try{ Object.assign(opt, JSON.parse(localStorage.getItem('jdr-plateau-opt') || '{
 function saveOpt(){ try{ localStorage.setItem('jdr-plateau-opt', JSON.stringify(opt)); }catch(e){} }
 
 /* ======================= Droits ======================= */
-const canMove = it => isGM ? (it.layer === layer && !it.data.locked) : (it.layer === 'tokens' && it.owner_id === me.id && !it.data.locked);
-const controls = it => isGM || (it.layer === 'tokens' && it.owner_id === me.id);
+// joueur : ses pions + ceux des PNJ du journal qu'il contrôle
+const mine = it => it.layer === 'tokens' && (it.owner_id === me.id || controlsEntry(it.data.journal));
+const canMove = it => isGM ? (it.layer === layer && !it.data.locked) : (mine(it) && !it.data.locked);
+const controls = it => isGM || mine(it);
 
 /* ======================= Vue ======================= */
 function boardRect(){ return $id('board').getBoundingClientRect(); }
@@ -479,7 +554,10 @@ function subscribe(){
     .on('broadcast', { event: 'hide' }, ({ payload }) => { if(!isGM && items.has(payload.id)){ items.delete(payload.id); removeItemEl(payload.id); } })
     .on('broadcast', { event: 'measure' }, ({ payload }) => { if(!scene || payload.scene !== scene.id) return; if(payload.clear) fx.measures.delete(payload.uid); else fx.measures.set(payload.uid, payload); drawFx(); })
     .on('broadcast', { event: 'ping' }, ({ payload }) => { if(scene && payload.scene === scene.id) showPing(Object.assign({}, payload, { focus: payload.focus && !isGM })); })
-    .on('presence', { event: 'sync' }, renderPlayers)
+    .on('postgres_changes', { event: '*', schema: 'jdr', table: 'journal', filter: 'campaign_id=eq.' + CAMP }, onJournalChange)
+    .on('broadcast', { event: 'journal-refresh' }, () => { if(!isGM) loadJournal(); })
+    .on('broadcast', { event: 'show-entry' }, async ({ payload }) => { if(isGM) return; await loadJournal(); if(journal.has(payload.id)){ openWin(payload.id); toast('Le MJ te montre une fiche'); } })
+    .on('presence', { event: 'sync' }, () => { renderPlayers(); renderStrip(); })
     .subscribe(async st => {
       if(st === 'SUBSCRIBED') await channel.track({ name: myName, gm: isGM, at: Date.now() });
       if(st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') toast('Temps réel indisponible : recharge la page si les autres ne bougent plus.');
@@ -492,14 +570,24 @@ function onItemChange({ eventType, new: n, old: o }){
   const it = normItem(n); items.set(it.id, it); renderItem(it);
 }
 function onSceneChange({ eventType, new: n, old: o }){
-  if(eventType === 'DELETE'){ scenes = scenes.filter(s => s.id !== o.id); renderStrip(); if(scene && scene.id === o.id){ scene = null; loadScene(isGM ? (scenes[0] || {}).id : camp.active_scene); } return; }
+  if(eventType === 'DELETE'){ scenes = scenes.filter(s => s.id !== o.id); renderStrip(); if(scene && scene.id === o.id){ scene = null; loadScene(isGM ? (sortedScenes()[0] || {}).id : sceneOf(me.id)); } return; }
   const i = scenes.findIndex(s => s.id === n.id); if(i >= 0) scenes[i] = n; else scenes.push(n);
   if(scene && scene.id === n.id){ scene = n; applyScene(); }
   renderStrip();
 }
+// Scène d'un joueur : celle où le MJ l'a envoyé seul, sinon celle du marqueur « JOUEURS »
+function sceneOf(uid){ const ps = (camp && camp.player_scenes) || {}; return ps[uid] && scenes.some(s => s.id === ps[uid]) ? ps[uid] : camp.active_scene; }
 function onCampChange({ new: n }){
-  const was = camp.active_scene; camp = Object.assign(camp, n); renderStrip();
-  if(!isGM && n.active_scene !== was){ loadScene(n.active_scene); toast('Le MJ change de scène'); }
+  camp = Object.assign(camp, n); renderStrip();
+  if(!isGM){ const target = sceneOf(me.id); if(!scene || target !== scene.id){ loadScene(target); toast('Le MJ t’emmène sur une autre scène'); } }
+}
+
+function onJournalChange({ eventType, new: n, old: o }){
+  if(eventType === 'DELETE'){ if(o && journal.has(o.id)){ journal.delete(o.id); const w = wins.get(o.id); if(w) closeWin(w); renderJournal(); } return; }
+  const e = normEntry(n); const was = journal.get(e.id);
+  if(!isGM && !(e.visible_all || e.visible_to.includes(me.id) || e.controlled_by.includes(me.id))){ if(was){ journal.delete(e.id); const w = wins.get(e.id); if(w) closeWin(w); renderJournal(); } return; }
+  journal.set(e.id, e); renderJournal(); const w = wins.get(e.id); if(w) renderWin(w);
+  if(e.data.creature && !creatures) loadCreatures().then(() => { const w2 = wins.get(e.id); if(w2) renderWin(w2); });
 }
 
 /* ======================= Joueurs connectés ======================= */
@@ -507,34 +595,122 @@ function renderPlayers(){
   const st = channel && channel.presenceState ? channel.presenceState() : {};
   const list = Object.entries(st).map(([uid, metas]) => Object.assign({ uid }, (metas && metas[0]) || {}))
     .sort((a, b) => (b.gm ? 1 : 0) - (a.gm ? 1 : 0) || String(a.name).localeCompare(String(b.name), 'fr'));
-  $id('plist').replaceChildren(...list.map(p => el('div', { class: 'pav', title: (p.name || 'Joueur') + (p.gm ? ' (maître du jeu)' : '') },
-    el('div', { class: 'c', style: `--pc:${userColor(p.uid)}` }, document.createTextNode((p.name || '?')[0].toUpperCase()), ...(p.gm ? [el('i', { text: 'MJ' })] : [])),
-    el('span', { text: p.name || 'Joueur' }))));
+  $id('plist').replaceChildren(...list.map(p => {
+    const canDrag = isGM && !p.gm;   // MJ : glisser un joueur sur une scène du bandeau l'y envoie seul
+    const sc = scenes.find(x => x.id === sceneOf(p.uid));
+    const a = el('div', { class: 'pav', draggable: canDrag ? 'true' : 'false',
+      title: (p.name || 'Joueur') + (p.gm ? ' (maître du jeu)' : sc ? ` — sur « ${sc.name} »` + (canDrag ? ' (glisse-le sur une scène du bandeau)' : '') : '') },
+      el('div', { class: 'c', style: `--pc:${userColor(p.uid)}` }, document.createTextNode((p.name || '?')[0].toUpperCase()), ...(p.gm ? [el('i', { text: 'MJ' })] : [])),
+      el('span', { text: p.name || 'Joueur' }));
+    if(canDrag) a.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-player', p.uid); e.dataTransfer.effectAllowed = 'move'; if($id('pages').classList.contains('closed')){ $id('pages').classList.remove('closed'); renderStrip(); } });
+    return a; }));
 }
 
-/* ======================= Scènes (bandeau du MJ) ======================= */
+/* ======================= Scènes (bandeau du MJ) =======================
+   - glisser une scène sur une autre : la range avant / après (ordre = data.order)
+   - double-clic sur le nom : renommer ; ⧉ : dupliquer (avec la carte et les pions) ; ⚙ : réglages
+   - marqueur « JOUEURS » : le glisser sur une scène y emmène tout le groupe
+   - pastilles des joueurs : en glisser une sur une scène y envoie CE joueur seul ; « Rassembler » ramène tout le monde au marqueur */
+const sortedScenes = () => scenes.slice().sort((a, b) => (Number(a.data.order) || 0) - (Number(b.data.order) || 0));
+function playerList(){                          // joueurs de la partie (propriétaires des personnages)
+  const st = channel && channel.presenceState ? channel.presenceState() : {};
+  const m = new Map();
+  chars.forEach(c => { const p = m.get(c.owner_id) || { uid: c.owner_id, chars: [] }; p.chars.push(c.name || 'Sans nom'); m.set(c.owner_id, p); });
+  return [...m.values()].map(p => Object.assign(p, { name: (st[p.uid] && st[p.uid][0] && st[p.uid][0].name) || playerNames[p.uid] || p.chars[0], online: !!st[p.uid] }));
+}
+let playerNames = {};
+function dndTypes(e){ return [...(e.dataTransfer ? e.dataTransfer.types : [])]; }
 function renderStrip(){
   if(!isGM) return;
-  const S = $id('strip');
-  const cards = scenes.map(s => {
-    const card = el('div', { class: 'pg' + (scene && scene.id === s.id ? ' cur' : ''), title: s.name, onclick: e => { if(!e.target.closest('button')) loadScene(s.id); } },
-      el('div', { class: 'th', style: thumbs[s.id] ? `background-image:url("${thumbs[s.id].replace(/"/g, '%22')}")` : `background-color:${s.data.bg || '#1d252b'}` }),
-      el('div', { class: 'pn', text: s.name }));
-    if(s.id === camp.active_scene) card.append(el('span', { class: 'rib', text: 'JOUEURS' }));
+  const S = $id('strip'), pl = playerList();
+  const split = Object.keys(camp.player_scenes || {}).length > 0;
+  const cards = sortedScenes().map(s => {
+    const card = el('div', { class: 'pg' + (scene && scene.id === s.id ? ' cur' : ''), title: s.name + ' — clic sur l’image : y aller (toi seul) ; glisser : ranger', draggable: 'true', 'data-scene': s.id,
+      onclick: e => { if(!e.target.closest('button, input, .pdot, .rib, .pn')) loadScene(s.id); } },   // le nom sert à renommer (double-clic)
+      el('div', { class: 'th', style: thumbs[s.id] ? `background-image:url("${thumbs[s.id].replace(/"/g, '%22')}")` : `background-color:${s.data.bg || '#1d252b'}` }));
+    const nm = el('div', { class: 'pn', text: s.name, title: 'Double-clic pour renommer' });
+    nm.addEventListener('dblclick', e => { e.stopPropagation(); renameScene(s, nm); });
+    card.append(nm);
+    if(s.id === camp.active_scene){
+      const rib = el('span', { class: 'rib', text: 'JOUEURS', draggable: 'true', title: 'Glisse ce marqueur sur une autre scène pour y emmener le groupe' });
+      rib.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/x-ribbon', '1'); e.dataTransfer.effectAllowed = 'move'; });
+      card.append(rib);
+    }
+    // pastilles des joueurs présents sur cette scène
+    const here = pl.filter(p => sceneOf(p.uid) === s.id);
+    if(here.length) card.append(el('div', { class: 'pdots' }, ...here.map(p => {
+      const d = el('span', { class: 'pdot' + (p.online ? '' : ' off'), draggable: 'true', title: `${p.name} (${p.chars.join(', ')}) — glisse sur une autre scène pour l'y envoyer seul`, style: `--pc:${userColor(p.uid)}`, text: (p.name || '?')[0].toUpperCase() });
+      d.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/x-player', p.uid); e.dataTransfer.effectAllowed = 'move'; });
+      return d; })));
     card.append(el('div', { class: 'pa' },
-      ...(s.id !== camp.active_scene ? [el('button', { type: 'button', text: 'Joueurs ici', title: 'Afficher cette scène chez les joueurs', onclick: () => showToPlayers(s) })] : []),
-      el('button', { type: 'button', text: '⚙', title: 'Réglages de la scène', onclick: async () => { if(!scene || scene.id !== s.id) await loadScene(s.id); openPane('settings'); } })));
+      ...(s.id !== camp.active_scene ? [el('button', { type: 'button', text: 'Groupe ici', title: 'Y emmener tout le groupe (comme glisser le marqueur)', onclick: () => showToPlayers(s) })] : []),
+      el('button', { type: 'button', text: '⧉', title: 'Dupliquer la scène (carte et pions)', 'aria-label': 'Dupliquer la scène', onclick: () => duplicateScene(s) }),
+      el('button', { type: 'button', text: '⚙', title: 'Réglages de la scène', 'aria-label': 'Réglages de la scène', onclick: async () => { if(!scene || scene.id !== s.id) await loadScene(s.id); openPane('settings'); } })));
+    // glisser-déposer : ranger, marqueur, joueur seul
+    card.addEventListener('dragstart', e => { if(e.target !== card) return; e.dataTransfer.setData('text/x-scene', s.id); e.dataTransfer.effectAllowed = 'move'; card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    card.addEventListener('dragover', e => { const t = dndTypes(e); if(t.includes('text/x-scene') || t.includes('text/x-ribbon') || t.includes('text/x-player')){ e.preventDefault();
+      const after = e.clientX > card.getBoundingClientRect().left + card.offsetWidth / 2;
+      card.classList.toggle('drop-b', t.includes('text/x-scene') && !after); card.classList.toggle('drop-a', t.includes('text/x-scene') && after); card.classList.toggle('drop-in', !t.includes('text/x-scene')); } });
+    card.addEventListener('dragleave', () => card.classList.remove('drop-a', 'drop-b', 'drop-in'));
+    card.addEventListener('drop', e => { e.preventDefault(); card.classList.remove('drop-a', 'drop-b', 'drop-in');
+      const sid = e.dataTransfer.getData('text/x-scene'), pid = e.dataTransfer.getData('text/x-player');
+      if(sid){ if(sid !== s.id) moveScene(sid, s.id, e.clientX > card.getBoundingClientRect().left + card.offsetWidth / 2); }
+      else if(e.dataTransfer.getData('text/x-ribbon')) showToPlayers(s);
+      else if(pid) sendPlayer(pid, s); });
     return card;
   });
   cards.push(el('button', { type: 'button', class: 'pg add', title: 'Nouvelle scène', 'aria-label': 'Nouvelle scène', text: '+', onclick: newScene }));
+  if(split) cards.push(el('button', { type: 'button', class: 'pg gather', title: 'Ramener tous les joueurs sur la scène du marqueur JOUEURS', onclick: gatherAll, text: 'Rassembler tout le monde' }));
   S.replaceChildren(...cards);
   $id('pgtab').textContent = (scene ? scene.name : 'Scènes') + ($id('pages').classList.contains('closed') ? ' ▾' : ' ▴');
 }
 $id('pgtab').addEventListener('click', () => { $id('pages').classList.toggle('closed'); renderStrip(); });
+async function saveCamp(patch){
+  const { error } = await jdrSb.from('campaigns').update(patch).eq('id', CAMP);
+  if(error){ toast(jdrErrorText(error)); return false; }
+  Object.assign(camp, patch); renderStrip(); return true;
+}
 async function showToPlayers(s){
-  const { error } = await jdrSb.from('campaigns').update({ active_scene: s.id }).eq('id', CAMP);
+  if(await saveCamp({ active_scene: s.id })) postMsg('system', `Le MJ emmène le groupe sur la scène « ${s.name} »`);
+}
+async function sendPlayer(uid, s){
+  const ps = Object.assign({}, camp.player_scenes || {});
+  if(s.id === camp.active_scene) delete ps[uid]; else ps[uid] = s.id;
+  const p = playerList().find(x => x.uid === uid);
+  if(await saveCamp({ player_scenes: ps })) toast(`${p ? p.name : 'Le joueur'} est envoyé seul sur « ${s.name} »`);
+}
+async function gatherAll(){
+  const s = scenes.find(x => x.id === camp.active_scene);
+  if(await saveCamp({ player_scenes: {} })) postMsg('system', `Le MJ rassemble le groupe sur la scène « ${s ? s.name : '…'} »`);
+}
+async function moveScene(id, targetId, after){
+  const list = sortedScenes().filter(x => x.id !== id); const moved = scenes.find(x => x.id === id);
+  const i = list.findIndex(x => x.id === targetId); list.splice(after ? i + 1 : i, 0, moved);
+  const changed = [];
+  list.forEach((x, k) => { if(Number(x.data.order) !== k){ x.data = Object.assign({}, x.data, { order: k }); changed.push(x); } });
+  renderStrip();
+  for(const x of changed){ const { error } = await jdrSb.from('scenes').update({ data: x.data }).eq('id', x.id); if(error){ toast(jdrErrorText(error)); break; } }
+}
+function renameScene(s, nmEl){
+  const inp = el('input', { value: s.name, maxlength: 80, class: 'pnin', 'aria-label': 'Nom de la scène' });
+  nmEl.replaceWith(inp); inp.focus(); inp.select();
+  let done = false;
+  const finish = async ok => { if(done) return; done = true; const v = inp.value.trim();
+    if(ok && v && v !== s.name){ const { error } = await jdrSb.from('scenes').update({ name: v }).eq('id', s.id); if(error) toast(jdrErrorText(error)); else s.name = v; }
+    renderStrip(); if(scene && scene.id === s.id) applyScene(); };
+  inp.addEventListener('keydown', e => { if(e.key === 'Enter') finish(true); if(e.key === 'Escape') finish(false); e.stopPropagation(); });
+  inp.addEventListener('blur', () => finish(true));
+  inp.addEventListener('click', e => e.stopPropagation());
+}
+async function duplicateScene(s){
+  const order = Math.max(...scenes.map(x => Number(x.data.order) || 0)) + 1;
+  const { data: ns, error } = await jdrSb.from('scenes').insert({ campaign_id: CAMP, name: (s.name + ' (copie)').slice(0, 80), data: Object.assign({}, s.data, { order }) }).select().single();
   if(error){ toast(jdrErrorText(error)); return; }
-  camp.active_scene = s.id; renderStrip(); postMsg('system', `Le MJ affiche la scène « ${s.name} »`);
+  scenes.push(ns); thumbs[ns.id] = thumbs[s.id];
+  const { data: its } = await jdrSb.from('board_items').select('layer,owner_id,character_id,data').eq('scene_id', s.id);
+  if(its && its.length){ const { error: e2 } = await jdrSb.from('board_items').insert(its.map(r => ({ layer: r.layer, owner_id: r.owner_id, character_id: r.character_id, data: r.data, scene_id: ns.id }))); if(e2) toast(jdrErrorText(e2)); }
+  renderStrip(); toast(`Scène dupliquée : « ${ns.name} »`);
 }
 function applyScene(){
   $id('board').style.setProperty('--scene-bg', (scene && scene.data.bg) || '#1d252b');
@@ -558,7 +734,8 @@ async function loadScene(id){
   renderAll(); fitAll(); renderJournal();
 }
 async function newScene(){
-  const { data, error } = await jdrSb.from('scenes').insert({ campaign_id: CAMP, name: 'Scène ' + (scenes.length + 1), data: { scale: DEFAULT_SCALE, bg: '#1d252b' } }).select().single();
+  const order = scenes.length ? Math.max(...scenes.map(x => Number(x.data.order) || 0)) + 1 : 0;
+  const { data, error } = await jdrSb.from('scenes').insert({ campaign_id: CAMP, name: 'Scène ' + (scenes.length + 1), data: { scale: DEFAULT_SCALE, bg: '#1d252b', order } }).select().single();
   if(error){ toast(jdrErrorText(error)); return; }
   scenes.push(data);
   if(!camp.active_scene){ await jdrSb.from('campaigns').update({ active_scene: data.id }).eq('id', CAMP); camp.active_scene = data.id; }
@@ -680,10 +857,11 @@ async function placeImage(url, name, cx, cy){
   if(it){ select(it.id); toast(`Ajouté sur la couche « ${LAYER_NAME[L]} »`); }
 }
 const B = $id('board');
-B.addEventListener('dragover', e => { if(isGM && [...e.dataTransfer.types].some(t => t === 'text/x-jdr-img' || t === 'Files')){ e.preventDefault(); B.classList.add('dropping'); } });
+B.addEventListener('dragover', e => { if(isGM && [...e.dataTransfer.types].some(t => t === 'text/x-jdr-img' || t === 'text/x-journal' || t === 'Files')){ e.preventDefault(); B.classList.add('dropping'); } });
 B.addEventListener('dragleave', () => B.classList.remove('dropping'));
 B.addEventListener('drop', async e => {
   B.classList.remove('dropping'); if(!isGM) return; e.preventDefault();
+  const jid = e.dataTransfer.getData('text/x-journal'); if(jid) return placeEntry(jid, e.clientX, e.clientY);
   const raw = e.dataTransfer.getData('text/x-jdr-img');
   if(raw){ const { url, name } = JSON.parse(raw); return placeImage(url, name, e.clientX, e.clientY); }
   const f = [...e.dataTransfer.files].find(x => /^image\//.test(x.type)); if(!f) return;
@@ -691,19 +869,289 @@ B.addEventListener('drop', async e => {
 });
 $id('b-addimg').addEventListener('click', () => openPane('images'));
 
-/* ---------- Journal : personnages ---------- */
+/* ---------- Journal : personnages joueurs, PNJ, documents (façon Roll20) ----------
+   Entrées = table jdr.journal ; notes MJ = jdr.journal_secret (MJ seulement).
+   Dossiers : champ « folder » des entrées ; dossiers encore vides gardés dans ce navigateur (MJ).
+   Glisser une entrée : sur un dossier = la ranger ; sur la carte = poser son pion (lié : data.journal). */
+let journal = new Map(), secrets = {}, creatures = null;
+const JKEY = k => `jdr-j-${k}-${CAMP}`;
+let openFolds = new Set(); let extraFolders = [];
+try{ openFolds = new Set(JSON.parse(localStorage.getItem(JKEY('open')) || '["__pj"]')); extraFolders = JSON.parse(localStorage.getItem(JKEY('folders')) || '[]'); }catch(e){}
+const saveFolds = () => { try{ localStorage.setItem(JKEY('open'), JSON.stringify([...openFolds])); localStorage.setItem(JKEY('folders'), JSON.stringify(extraFolders)); }catch(e){} };
+const canEdit = e => isGM || (e.controlled_by || []).includes(me.id);
+const controlsEntry = id => { const e = id && journal.get(id); return !!e && (e.controlled_by || []).includes(me.id); };
+function normEntry(r){ return Object.assign({}, r, { data: Object.assign({ img: '', notes: '', creature: '', stats: {}, hp: {}, text: '' }, r.data || {}), visible_to: r.visible_to || [], controlled_by: r.controlled_by || [] }); }
+async function loadJournal(){
+  const { data, error } = await jdrSb.from('journal').select('*').eq('campaign_id', CAMP).order('sort');
+  if(error){ $id('j-hint').textContent = 'Journal indisponible : ' + jdrErrorText(error); return; }
+  journal = new Map((data || []).map(r => [r.id, normEntry(r)]));
+  if(isGM){ const { data: sec } = await jdrSb.from('journal_secret').select('entry_id,notes').eq('campaign_id', CAMP); secrets = Object.fromEntries((sec || []).map(x => [x.entry_id, x.notes])); }
+  if([...journal.values()].some(e => e.data.creature)) await loadCreatures();
+  renderJournal(); wins.forEach(w => renderWin(w));
+}
+async function loadCreatures(){
+  if(creatures) return creatures;
+  try{ const c = await jdrLoadCards(); creatures = c.list.filter(x => x.type === 'Créature'); }catch(e){ creatures = []; }
+  return creatures;
+}
+function jRow(e){
+  const shared = e.visible_all ? 'Tous' : e.visible_to.length ? e.visible_to.length + ' joueur' + (e.visible_to.length > 1 ? 's' : '') : '';
+  const row = el('div', { class: 'je ' + e.kind, 'data-entry': e.id, draggable: isGM ? 'true' : 'false', title: isGM ? 'Clic : ouvrir — glisser : sur un dossier pour ranger, sur la carte pour poser le pion' : 'Ouvrir' },
+    el('span', { class: 'av', style: e.data.img ? `background-image:url("${String(e.data.img).replace(/"/g, '%22')}")` : '', text: e.data.img ? '' : (e.kind === 'doc' ? '📜' : (e.name || '?')[0].toUpperCase()) }),
+    el('span', { class: 'nm', text: e.name }));
+  if(isGM && shared) row.append(el('span', { class: 'bd sh', text: '👁 ' + shared, title: 'Visible par les joueurs' }));
+  if(e.controlled_by.length) row.append(el('span', { class: 'bd', text: '🎮', title: 'Contrôlé par un joueur' }));
+  row.addEventListener('click', () => openWin(e.id));
+  row.addEventListener('dragstart', ev => { ev.dataTransfer.setData('text/x-journal', e.id); ev.dataTransfer.effectAllowed = 'copyMove'; });
+  return row;
+}
+function jFolder(key, label, rows, opts = {}){
+  const f = el('div', { class: 'jf' + (openFolds.has(key) || opts.forceOpen ? ' open' : '') });
+  const hd = el('div', { class: 'fhd', role: 'button', tabindex: '0', 'aria-expanded': String(f.classList.contains('open')) },
+    el('span', { class: 'ar', text: '▸' }), document.createTextNode(label), el('span', { class: 'n', text: `(${rows.length})` }));
+  if(opts.actions) hd.append(el('span', { class: 'fa' }, ...opts.actions));
+  const toggle = () => { f.classList.toggle('open'); if(f.classList.contains('open')) openFolds.add(key); else openFolds.delete(key); hd.setAttribute('aria-expanded', String(f.classList.contains('open'))); saveFolds(); };
+  hd.addEventListener('click', ev => { if(!ev.target.closest('button, input')) toggle(); });
+  hd.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggle(); } });
+  if(opts.folder !== undefined && isGM){   // dépôt d'une entrée sur ce dossier
+    hd.addEventListener('dragover', ev => { if(dndTypes(ev).includes('text/x-journal')){ ev.preventDefault(); f.classList.add('drop'); } });
+    hd.addEventListener('dragleave', () => f.classList.remove('drop'));
+    hd.addEventListener('drop', ev => { ev.preventDefault(); ev.stopPropagation(); f.classList.remove('drop'); const id = ev.dataTransfer.getData('text/x-journal'); if(id) moveEntry(id, opts.folder); });
+  }
+  f.append(hd, el('div', { class: 'fbody' }, ...(rows.length ? rows : [el('div', { class: 'hint', style: 'padding:4px 6px;font-size:.85rem', text: opts.empty || 'Vide' })])));
+  return f;
+}
 function renderJournal(){
+  if(!me) return;
+  const q = jdrNorm($id('j-q').value || ''); const match = n => !q || jdrNorm(n).includes(q);
+  const T = $id('jtree'); const parts = [];
+  // 1. Personnages joueurs (fiches de la partie)
   const onBoard = new Map([...items.values()].filter(i => i.character_id).map(i => [i.character_id, i]));
-  $id('jl').replaceChildren(...(chars.length ? chars.map(c => {
+  const pjRows = chars.filter(c => match(c.name || '')).map(c => {
     const d = c.data || {}, tok = onBoard.get(c.id);
-    const who = [d.peuple, d.classe].filter(Boolean).join(' · ');
-    return el('div', { class: 'jr' },
-      el('div', { class: 'av', style: `--oc:${userColor(c.owner_id)};${d.portrait ? `background-image:url("${String(d.portrait).replace(/"/g, '%22')}")` : ''}`, text: d.portrait ? '' : (c.name || '?')[0].toUpperCase() }),
-      el('div', { class: 'tx' }, el('b', { text: c.name || 'Sans nom' }), el('small', { text: who || 'Personnage' })),
-      el('a', { href: 'fiche-personnage.html?id=' + encodeURIComponent(c.id), target: '_blank', rel: 'noopener', text: 'Fiche' }),
-      tok ? el('button', { type: 'button', text: 'Voir', title: 'Centrer la vue sur son pion', onclick: () => { centerOn(tok.data.x + tok.data.w / 2, tok.data.y + tok.data.h / 2); select(tok.id); } })
-          : (isGM ? el('button', { type: 'button', text: 'Poser', title: 'Poser son pion au centre', onclick: () => placeChars([c]) }) : document.createTextNode('')));
-  }) : [el('p', { class: 'hint', style: 'margin:0', text: 'Aucun personnage dans cette partie pour l’instant.' })]));
+    return el('div', { class: 'je pnj' },
+      el('span', { class: 'av', style: `box-shadow:0 0 0 2px ${userColor(c.owner_id)};${d.portrait ? `background-image:url("${String(d.portrait).replace(/"/g, '%22')}")` : ''}`, text: d.portrait ? '' : (c.name || '?')[0].toUpperCase() }),
+      el('span', { class: 'nm', text: c.name || 'Sans nom', title: [d.peuple, d.classe].filter(Boolean).join(' · ') }),
+      el('a', { href: 'fiche-personnage.html?id=' + encodeURIComponent(c.id), target: '_blank', rel: 'noopener', text: 'Fiche', style: 'font-size:.85rem' }),
+      tok ? el('button', { type: 'button', text: 'Voir', style: 'padding:2px 8px;font-size:.8rem', onclick: () => { centerOn(tok.data.x + tok.data.w / 2, tok.data.y + tok.data.h / 2); select(tok.id); } })
+          : (isGM ? el('button', { type: 'button', text: 'Poser', style: 'padding:2px 8px;font-size:.8rem', onclick: () => placeChars([c]) }) : document.createTextNode('')));
+  });
+  parts.push(jFolder('__pj', 'Personnages joueurs', pjRows, { empty: 'Aucun joueur dans la partie', forceOpen: !!q }));
+  // 2. Dossiers puis entrées à la racine
+  const all = [...journal.values()].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, 'fr'));
+  const folders = [...new Set([...all.map(e => e.folder).filter(Boolean), ...(isGM ? extraFolders : [])])].sort((a, b) => a.localeCompare(b, 'fr'));
+  folders.forEach(fname => {
+    const rows = all.filter(e => e.folder === fname && match(e.name)).map(jRow);
+    if(q && !rows.length) return;
+    parts.push(jFolder('f:' + fname, fname, rows, { folder: fname, forceOpen: !!q, empty: isGM ? 'Glisse une entrée ici' : 'Vide',
+      actions: isGM ? [el('button', { type: 'button', text: '✎', title: 'Renommer le dossier', onclick: () => renameFolder(fname) })] : null }));
+  });
+  all.filter(e => !e.folder && match(e.name)).forEach(e => parts.push(jRow(e)));
+  if(!all.length && !isGM) parts.push(el('p', { class: 'hint', style: 'margin:6px 0 0', text: 'Le MJ n’a encore rien partagé avec toi.' }));
+  T.replaceChildren(...parts);
+  $id('j-hint').textContent = isGM ? 'Glisse une entrée sur un dossier pour la ranger, ou sur la carte pour poser son pion. Dépose-la ici, hors dossier, pour la sortir du dossier.' : '';
+}
+$id('j-q').addEventListener('input', renderJournal);
+// dépôt à la racine (hors dossier)
+$id('jtree').addEventListener('dragover', e => { if(isGM && dndTypes(e).includes('text/x-journal') && !e.target.closest('.jf')){ e.preventDefault(); $id('jtree').classList.add('drop'); } });
+$id('jtree').addEventListener('dragleave', () => $id('jtree').classList.remove('drop'));
+$id('jtree').addEventListener('drop', e => { $id('jtree').classList.remove('drop'); if(e.target.closest('.jf')) return; const id = e.dataTransfer.getData('text/x-journal'); if(id){ e.preventDefault(); moveEntry(id, ''); } });
+
+async function saveEntry(e, patch){
+  Object.assign(e, patch); renderJournal(); wins.forEach(w => { if(w.id === e.id) renderWinHead(w); });
+  const { error } = await jdrSb.from('journal').update(patch).eq('id', e.id);
+  if(error){ toast(jdrErrorText(error)); return false; }
+  return true;
+}
+const debounced = new Map(), pending = new Map();
+// enregistrement groupé après 0,6 s sans frappe (les changements de plusieurs champs sont cumulés)
+function saveLater(e, patch){ Object.assign(e, patch); pending.set(e.id, Object.assign(pending.get(e.id) || {}, patch));
+  clearTimeout(debounced.get(e.id)); debounced.set(e.id, setTimeout(() => { const p = pending.get(e.id); pending.delete(e.id); if(p) saveEntry(e, p); }, 600)); }
+async function moveEntry(id, folder){
+  const e = journal.get(id); if(!e || e.folder === folder) return;
+  const sort = Math.max(0, ...[...journal.values()].filter(x => x.folder === folder).map(x => x.sort)) + 1;
+  if(folder) openFolds.add('f:' + folder); saveFolds();
+  await saveEntry(e, { folder, sort });
+}
+async function renameFolder(old){
+  const box = $id('jtree'); const inp = el('input', { value: old, maxlength: 120, 'aria-label': 'Nouveau nom du dossier' });
+  const row = el('div', { class: 'jnew' }, inp, el('button', { type: 'button', class: 'primary', text: 'OK', onclick: () => go() }), el('button', { type: 'button', text: 'Annuler', onclick: renderJournal }));
+  box.prepend(row); inp.focus(); inp.select();
+  const go = async () => { const v = inp.value.trim(); if(!v || v === old){ renderJournal(); return; }
+    extraFolders = extraFolders.map(f => f === old ? v : f); if(openFolds.has('f:' + old)){ openFolds.delete('f:' + old); openFolds.add('f:' + v); } saveFolds();
+    for(const e of [...journal.values()].filter(x => x.folder === old)) await saveEntry(e, { folder: v });
+    renderJournal(); };
+  inp.addEventListener('keydown', ev => { if(ev.key === 'Enter') go(); if(ev.key === 'Escape') renderJournal(); });
+}
+// Menu « + Ajouter »
+$id('j-add').addEventListener('click', () => { $id('j-addm').hidden = !$id('j-addm').hidden; });
+document.addEventListener('pointerdown', e => { if(!e.target.closest('#j-addw')) $id('j-addm').hidden = true; });
+$id('j-addm').addEventListener('click', async e => {
+  const b = e.target.closest('[data-new]'); if(!b) return; $id('j-addm').hidden = true;
+  const k = b.dataset.new;
+  if(k === 'folder'){
+    const inp = el('input', { placeholder: 'Nom du dossier (ex. Taverne du Corbeau)', maxlength: 120, 'aria-label': 'Nom du dossier' });
+    const go = () => { const v = inp.value.trim(); if(v && !extraFolders.includes(v)){ extraFolders.push(v); openFolds.add('f:' + v); saveFolds(); } renderJournal(); };
+    $id('jtree').prepend(el('div', { class: 'jnew' }, inp, el('button', { type: 'button', class: 'primary', text: 'Créer', onclick: go })));
+    inp.focus(); inp.addEventListener('keydown', ev => { if(ev.key === 'Enter') go(); if(ev.key === 'Escape') renderJournal(); });
+    return;
+  }
+  if(k === 'beast') return openBeastPicker();
+  createEntry({ kind: k, name: k === 'doc' ? 'Nouveau document' : 'Nouveau PNJ' });
+});
+async function createEntry(row){
+  const sort = Math.max(0, ...[...journal.values()].map(x => x.sort)) + 1;
+  const { data, error } = await jdrSb.from('journal').insert(Object.assign({ campaign_id: CAMP, sort, data: {} }, row)).select().single();
+  if(error){ toast(jdrErrorText(error)); return null; }
+  const e = normEntry(data); journal.set(e.id, e); renderJournal(); openWin(e.id); return e;
+}
+async function openBeastPicker(){
+  await loadCreatures();
+  const w = makeWin('__beasts', 'Bestiaire : choisir une créature', '');
+  const q = el('input', { type: 'search', placeholder: 'Rechercher une créature…', 'aria-label': 'Rechercher une créature' });
+  const list = el('div', { class: 'beasts' });
+  const draw = () => { const n = jdrNorm(q.value);
+    const rows = creatures.filter(c => !n || jdrNorm(c.name).includes(n)).map(c => el('button', { type: 'button', onclick: async () => { closeWin(w);
+        await createEntry({ kind: 'pnj', name: c.name, data: { img: c.image_url || '', creature: c.id } }); } },
+      el('span', { class: 'av', style: c.image_url ? `background-image:url("${c.image_url.replace(/"/g, '%22')}")` : '' }), el('span', { text: c.name })));
+    list.replaceChildren(...(rows.length ? rows : [el('p', { class: 'hint', style: 'margin:0', text: creatures.length ? 'Aucune créature ne correspond.' : 'Le bestiaire est vide (Maître du jeu → Éditeur → Bestiaire).' })])); };
+  q.addEventListener('input', draw); draw();
+  w.body.replaceChildren(el('p', { class: 'hint', style: 'margin:0', text: 'Crée un PNJ lié à une créature du bestiaire : sa fiche s’affiche dans le journal, et tu ajoutes tes notes.' }), q, list);
+  w.foot.hidden = true; w.tabs.hidden = true; q.focus();
+}
+
+/* ---------- Fenêtres flottantes ---------- */
+const wins = new Map(); let winZ = 40, winN = 0;
+function makeWin(id, title, img){
+  if(wins.has(id)){ const w = wins.get(id); w.el.style.zIndex = ++winZ; return w; }
+  const head = el('div', { class: 'wh' }, el('span', { class: 'av' }), el('b', { text: title }));
+  const close = el('button', { type: 'button', text: '✕', 'aria-label': 'Fermer' }); head.append(close);
+  const tabs = el('div', { class: 'wtabs', role: 'tablist' }), body = el('div', { class: 'wb' }), foot = el('div', { class: 'wf' });
+  const box = el('div', { class: 'win', role: 'dialog', 'aria-label': title, style: `left:${Math.min(innerWidth - 440, 90 + (winN % 6) * 28)}px;top:${70 + (winN % 6) * 28}px;z-index:${++winZ}` }, head, tabs, body, foot);
+  winN++;
+  const w = { id, el: box, head, tabs, body, foot, tab: null };
+  close.addEventListener('click', () => closeWin(w));
+  box.addEventListener('pointerdown', () => { box.style.zIndex = ++winZ; });
+  head.addEventListener('pointerdown', e => { if(e.target.closest('button')) return; const r = box.getBoundingClientRect(); const dx = e.clientX - r.left, dy = e.clientY - r.top;
+    const mv = ev => { box.style.left = Math.max(0, Math.min(innerWidth - 80, ev.clientX - dx)) + 'px'; box.style.top = Math.max(0, Math.min(innerHeight - 40, ev.clientY - dy)) + 'px'; };
+    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); });
+  document.body.append(box); wins.set(id, w); return w;
+}
+function closeWin(w){ w.el.remove(); wins.delete(w.id); }
+function openWin(id){
+  const e = journal.get(id); if(!e) return;
+  const w = makeWin(id, e.name); if(!w.tab) w.tab = e.kind === 'doc' ? 'doc' : 'fiche';
+  if(e.data.creature && !creatures){ loadCreatures().then(() => renderWin(w)); }
+  renderWin(w);
+}
+function renderWinHead(w){
+  const e = journal.get(w.id); if(!e) return;
+  w.head.querySelector('b').textContent = e.name;
+  w.head.querySelector('.av').style.backgroundImage = e.data.img ? `url("${String(e.data.img).replace(/"/g, '%22')}")` : '';
+}
+function renderWin(w){
+  const e = journal.get(w.id); if(!e){ if(!String(w.id).startsWith('__')) closeWin(w); return; }
+  if(w.el.contains(document.activeElement) && document.activeElement.matches('textarea, input:not([type]), input[type=text], input[type=number], input[type=search]')) return;   // ne pas couper une saisie
+  renderWinHead(w);
+  const ed = canEdit(e);
+  const tabsDef = (e.kind === 'doc' ? [['doc', 'Document']] : [['fiche', 'Fiche'], ['notes', 'Notes']]).concat(isGM ? [['mj', 'Notes MJ'], ['partage', 'Partage']] : []);
+  if(!tabsDef.some(t => t[0] === w.tab)) w.tab = tabsDef[0][0];
+  w.tabs.replaceChildren(...tabsDef.map(([k, t]) => el('button', { type: 'button', role: 'tab', class: w.tab === k ? 'on' : '', 'aria-selected': String(w.tab === k), text: t, onclick: () => { w.tab = k; renderWin(w); } })));
+  const crea = e.data.creature && creatures ? creatures.find(c => c.id === e.data.creature) : null;
+  w.el.classList.toggle('wide', w.tab === 'fiche' && !!crea);
+  const field = (label, val, on, attrs = {}) => { const i = el('input', Object.assign({ value: val ?? '', disabled: !ed }, attrs)); i.addEventListener('input', () => on(i.value)); return el('label', { class: 'f' }, document.createTextNode(label), i); };
+  const area = (label, val, on, rows) => { const t = el('textarea', { rows: rows || 8, disabled: !ed && label !== 'Notes MJ (toi seul)' }); t.value = val || ''; t.addEventListener('input', () => on(t.value));
+    return el('div', { style: 'display:flex;flex-direction:column;gap:4px' }, el('label', { class: 'f' }, document.createTextNode(label), t), el('div', { style: 'display:flex;gap:6px;align-items:center' }, jdrBulletButton(t), el('span', { class: 'hint', text: '« - » en début de ligne = point de liste' }))); };
+  const imgBlock = () => { const kids = [];
+    if(e.data.img) kids.push(el('img', { class: 'pimg', src: e.data.img, alt: '' }));
+    if(ed){ const u = field('Image (adresse)', e.data.img, v => saveLater(e, { data: Object.assign({}, e.data, { img: v.trim() }) }), { placeholder: 'https://…' });
+      const row = el('div', { style: 'display:flex;gap:6px;align-items:end' }, u);
+      if(isGM){ const f = el('input', { type: 'file', accept: 'image/*', hidden: true });
+        f.addEventListener('change', async () => { const file = f.files[0]; if(!file) return; try{ toast('Envoi de l’image…'); const url = await upload(file); libTile(url, file.name.replace(/\.[^.]+$/, '')); await saveEntry(e, { data: Object.assign({}, e.data, { img: url }) }); renderWin(w); }catch(err){ toast(jdrErrorText(err)); } });
+        row.append(el('button', { type: 'button', text: 'Envoyer…', onclick: () => f.click() }), f); }
+      kids.push(row); }
+    return kids; };
+  let body = [];
+  if(w.tab === 'fiche'){
+    body.push(...imgBlock(), field('Nom', e.name, v => { if(v.trim()) saveLater(e, { name: v.trim().slice(0, 120) }); }, { maxlength: 120 }));
+    if(isGM){ const sel = el('select', {}, el('option', { value: '', text: '— aucune (fiche simple) —' }), ...(creatures || []).map(c => el('option', { value: c.id, text: c.name })));
+      sel.value = e.data.creature || '';
+      sel.addEventListener('focus', async () => { if(!creatures){ await loadCreatures(); renderWin(w); } }, { once: true });
+      sel.addEventListener('change', async () => { await saveEntry(e, { data: Object.assign({}, e.data, { creature: sel.value }) }); renderWin(w); });
+      body.push(el('label', { class: 'f' }, document.createTextNode('Créature du bestiaire liée'), sel)); }
+    if(crea){ const cb = el('div', { class: 'crea' }); cb.innerHTML = jdrCreatureHTML(crea, { width: '640px' }); body.push(cb); }
+    else {
+      const st = e.data.stats || {}; const setSt = (k, v) => saveLater(e, { data: Object.assign({}, e.data, { stats: Object.assign({}, e.data.stats, { [k]: v === '' ? '' : Number(v) }) }) });
+      body.push(el('div', { class: 'stg' }, ...[['corps','Corps'],['esprit','Esprit'],['charme','Charme'],['resistance','Résistance'],['armor','Armure']].map(([k, l]) => field(l, st[k], v => setSt(k, v), { type: 'number' }))));
+      const hp = e.data.hp || {}; const cur = el('input', { type: 'number', value: hp.cur ?? '', disabled: !ed, 'aria-label': 'Points de vie restants' });
+      const setHp = patch => saveLater(e, { data: Object.assign({}, e.data, { hp: Object.assign({}, e.data.hp, patch) }) });
+      cur.addEventListener('input', () => setHp({ cur: cur.value === '' ? '' : Number(cur.value) }));
+      const bump = d => { const v = Math.max(0, (Number(cur.value) || 0) + d); cur.value = v; setHp({ cur: v }); };
+      body.push(el('div', { class: 'hpb' }, field('Points de vie (max)', hp.max, v => setHp({ max: v === '' ? '' : Number(v) }), { type: 'number' }),
+        el('label', { class: 'f' }, document.createTextNode('Restants'), cur),
+        ...(ed ? [el('button', { type: 'button', text: '−1', onclick: () => bump(-1) }), el('button', { type: 'button', text: '+1', onclick: () => bump(1) })] : [])));
+    }
+  } else if(w.tab === 'notes'){
+    if(ed) body.push(area('Notes (visibles par ceux qui voient cette fiche)', e.data.notes, v => saveLater(e, { data: Object.assign({}, e.data, { notes: v }) }), 12));
+    else body.push(e.data.notes ? el('div', { class: 'rich' }) : el('p', { class: 'hint', style: 'margin:0', text: 'Aucune note.' }));
+    if(!ed && e.data.notes) body[0].innerHTML = jdrRichText(e.data.notes);
+  } else if(w.tab === 'doc'){
+    body.push(...imgBlock());
+    if(isGM) body.push(field('Titre', e.name, v => { if(v.trim()) saveLater(e, { name: v.trim().slice(0, 120) }); }, { maxlength: 120 }));
+    if(ed) body.push(area('Texte du document', e.data.text, v => saveLater(e, { data: Object.assign({}, e.data, { text: v }) }), 12));
+    else if(e.data.text){ const r = el('div', { class: 'rich' }); r.innerHTML = jdrRichText(e.data.text); body.push(r); }
+    if(e.data.img){ const z = body.find(x => x.classList && x.classList.contains('pimg')); if(z){ z.style.cursor = 'zoom-in'; z.title = 'Ouvrir l’image en grand'; z.addEventListener('click', () => window.open(e.data.img, '_blank', 'noopener')); } }
+  } else if(w.tab === 'mj'){
+    const t = el('textarea', { rows: 14, placeholder: 'Ce que les joueurs ne doivent pas savoir…' }); t.value = secrets[e.id] || '';
+    let tm; t.addEventListener('input', () => { secrets[e.id] = t.value; clearTimeout(tm); tm = setTimeout(async () => {
+      const { error } = await jdrSb.from('journal_secret').upsert({ entry_id: e.id, campaign_id: CAMP, notes: t.value }); if(error) toast(jdrErrorText(error)); }, 600); });
+    body.push(el('p', { class: 'hint', style: 'margin:0', text: '🔒 Notes MJ : jamais envoyées aux joueurs, même s’ils voient cette fiche.' }), t, el('div', { style: 'display:flex;gap:6px;align-items:center' }, jdrBulletButton(t)));
+  } else if(w.tab === 'partage'){
+    const pl = playerList();
+    const all = el('input', { type: 'checkbox' }); all.checked = e.visible_all;
+    all.addEventListener('change', async () => { await saveEntry(e, { visible_all: all.checked }); send('journal-refresh', {}); renderWin(w); });
+    const tbl = el('table', { class: 'share' }, el('thead', {}, el('tr', {}, el('th', { text: 'Joueur' }), el('th', { text: 'Voit' }), el('th', { text: 'Contrôle' }))));
+    const tb = el('tbody'); tbl.append(tb);
+    pl.forEach(p => {
+      const v = el('input', { type: 'checkbox', 'aria-label': 'Visible par ' + p.name }); v.checked = e.visible_all || e.visible_to.includes(p.uid); v.disabled = e.visible_all;
+      const c = el('input', { type: 'checkbox', 'aria-label': 'Contrôlé par ' + p.name }); c.checked = e.controlled_by.includes(p.uid);
+      v.addEventListener('change', async () => { const set = new Set(e.visible_to); v.checked ? set.add(p.uid) : set.delete(p.uid); await saveEntry(e, { visible_to: [...set] }); send('journal-refresh', {}); });
+      c.addEventListener('change', async () => { const set = new Set(e.controlled_by); c.checked ? set.add(p.uid) : set.delete(p.uid); await saveEntry(e, { controlled_by: [...set] }); send('journal-refresh', {}); });
+      tb.append(el('tr', {}, el('td', {}, el('span', { style: `display:inline-block;width:10px;height:10px;border-radius:50%;background:${userColor(p.uid)};margin-right:6px` }), document.createTextNode(`${p.name} — ${p.chars.join(', ')}`)), el('td', {}, v), el('td', {}, c)));
+    });
+    body.push(el('label', { class: 'chk' }, all, document.createTextNode(' Visible par tous les joueurs')),
+      pl.length ? tbl : el('p', { class: 'hint', style: 'margin:0', text: 'Aucun joueur dans la partie pour l’instant.' }),
+      el('p', { class: 'hint', style: 'margin:0', text: '« Contrôle » : le joueur voit la fiche, peut la modifier (sauf les notes MJ) et déplacer les pions de ce PNJ.' }));
+  }
+  w.body.replaceChildren(...body);
+  // Pied de fenêtre : actions
+  const foot = [];
+  if(isGM){
+    foot.push(el('button', { type: 'button', text: 'Poser sur la carte', onclick: () => { const b = boardRect(); placeEntry(e.id, b.left + b.width / 2, b.top + b.height / 2); } }));
+    foot.push(el('button', { type: 'button', text: 'Montrer aux joueurs', title: 'La rend visible par tous et l’ouvre sur leur écran', onclick: async () => {
+      if(!e.visible_all) await saveEntry(e, { visible_all: true }); send('journal-refresh', {}); send('show-entry', { id: e.id }); toast('Fiche montrée aux joueurs'); renderWin(w); } }));
+    foot.push(el('button', { type: 'button', text: 'Dupliquer', onclick: async () => { await createEntry({ kind: e.kind, name: (e.name + ' (copie)').slice(0, 120), folder: e.folder, data: structuredClone(e.data) }); } }));
+    let arm = false;
+    foot.push(el('button', { type: 'button', class: 'danger', text: 'Supprimer', onclick: async ev => {
+      if(!arm){ arm = true; ev.target.textContent = 'Confirmer'; setTimeout(() => { arm = false; ev.target.textContent = 'Supprimer'; }, 3000); return; }
+      const { error } = await jdrSb.from('journal').delete().eq('id', e.id); if(error){ toast(jdrErrorText(error)); return; }
+      journal.delete(e.id); closeWin(w); renderJournal(); send('journal-refresh', {}); } }));
+  }
+  const tok = [...items.values()].find(i => i.data.journal === e.id);
+  if(tok) foot.push(el('button', { type: 'button', text: 'Voir son pion', onclick: () => { centerOn(tok.data.x + tok.data.w / 2, tok.data.y + tok.data.h / 2); select(tok.id); } }));
+  w.foot.replaceChildren(...foot); w.foot.hidden = !foot.length; w.tabs.hidden = false;
+}
+// Poser le pion d'une entrée du journal (lié : data.journal)
+async function placeEntry(id, cx, cy){
+  const e = journal.get(id); if(!e || !isGM) return;
+  if(!scene){ toast('Crée d’abord une scène.'); return; }
+  const s = scale(), d = 1.5 * s, p = toWorld(cx, cy);
+  const zs = zsOf('tokens');
+  let w = d, h = d, round = true;
+  if(e.kind === 'doc'){ const sz = e.data.img ? await imgSize(e.data.img) : null; round = false; if(sz){ const f = (3 * s) / Math.max(sz.w, sz.h); w = sz.w * f; h = sz.h * f; } }
+  const it = await insertItem({ layer: 'tokens', data: { name: e.name, img: e.data.img || '', journal: e.id, x: p.x - w / 2, y: p.y - h / 2, w, h, round, z: zs.length ? Math.max(...zs) + 1 : 0 } });
+  if(it){ if(layer !== 'tokens') setLayer('tokens'); select(it.id); renderJournal(); }
 }
 async function placeChars(list){
   if(!scene){ toast('Crée d’abord une scène.'); return; }
@@ -754,6 +1202,7 @@ function openCtx(it, cx, cy){
   const btn = (t, fn, cls) => el('button', { type: 'button', class: cls || '', text: t, onclick: () => { closeCtx(); fn(); } });
   kids.push(el('div', { class: 'ch', text: d.name || LAYER_NAME[it.layer] }));
   if(it.character_id) kids.push(btn('Ouvrir la fiche', () => window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener')));
+  if(it.data.journal && journal.has(it.data.journal)) kids.push(btn('Ouvrir sa fiche du journal', () => openWin(it.data.journal)));
   if(isGM){
     kids.push(btn('Réglages du pion…', () => openTok(it)));
     const zs = zsOf(it.layer);
@@ -811,7 +1260,11 @@ B.addEventListener('pointerdown', e => {
   if(tool === 'ping' || e.altKey){ const pl = { scene: scene && scene.id, x: p.x, y: p.y, color: userColor(me.id), who: myName, focus: isGM && e.shiftKey }; showPing(pl); send('ping', pl); return; }
   const itEl = e.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
   if(it && tool === 'select' && !e.target.dataset.handle){ const now = performance.now();
-    if(lastTap.id === it.id && now - lastTap.t < 350){ lastTap = { id: null, t: 0 }; if(isGM) openTok(it); else if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener'); return; }
+    if(lastTap.id === it.id && now - lastTap.t < 350){ lastTap = { id: null, t: 0 };
+      if(it.data.journal && journal.has(it.data.journal)) openWin(it.data.journal);
+      else if(isGM) openTok(it);
+      else if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener');
+      return; }
     lastTap = { id: it.id, t: now }; }
   if(tool === 'measure' || tool === 'calib'){
     const a = it && it.layer === 'tokens' ? { x: it.data.x + it.data.w / 2, y: it.data.y + it.data.h / 2 } : p;
@@ -890,12 +1343,12 @@ async function chooseCampaign(){
   myName = await jdrUsername(me) || 'Joueur';
   setSide(innerWidth > 820);
   if(!CAMP){ document.querySelectorAll('.tb, .side, .sidetog, .zoomw').forEach(x => x.hidden = true); document.body.classList.add('side-off'); return chooseCampaign(); }
-  const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene').eq('id', CAMP).maybeSingle();
+  const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene,player_scenes').eq('id', CAMP).maybeSingle();
   if(error || !c){ showMsg('<h2>Partie introuvable</h2><p style="margin:0">Ce plateau n’existe pas, ou tu n’en fais pas partie.</p><a href="plateau.html">Voir mes parties</a>'); return; }
   camp = c; isGM = c.gm_id === me.id;
   document.title = c.name + " — Plateau Un'Gara";
   $id('quit').href = isGM ? 'campagnes.html' : 'joueur.html';
-  ['tw-layer','tw-calib','tw-add','tab-images','pages','set-gm'].forEach(id => $id(id).hidden = !isGM);
+  ['tw-layer','tw-calib','tw-add','tab-images','pages','set-gm','j-addw'].forEach(id => $id(id).hidden = !isGM);
   if(isGM) setLayer('tokens');
   const [sc, ch, th] = await Promise.all([
     jdrSb.from('scenes').select('*').eq('campaign_id', CAMP).order('created_at'),
@@ -903,9 +1356,13 @@ async function chooseCampaign(){
     isGM ? jdrSb.from('board_items').select('scene_id,data').eq('campaign_id', CAMP).eq('layer', 'map') : Promise.resolve({ data: [] })
   ]);
   scenes = sc.data || []; chars = ch.data || [];
+  scenes.forEach((x, k) => { x.data = x.data || {}; if(x.data.order === undefined) x.data.order = k; });   // ordre par défaut : création
+  camp.player_scenes = camp.player_scenes || {};
+  try{ const ids = [...new Set(chars.map(x => x.owner_id))];   // pseudos (lecture seule du profil commun)
+    if(ids.length){ const { data: pr } = await jdrSb.schema('public').from('profiles').select('id,username').in('id', ids); (pr || []).forEach(x => { if(x.username) playerNames[x.id] = x.username; }); } }catch(e){}
   (th.data || []).forEach(r => { if(r.data && r.data.img && !thumbs[r.scene_id]) thumbs[r.scene_id] = r.data.img; });
-  subscribe(); applyView(); loadChat();
-  await loadScene(isGM ? (c.active_scene || (scenes[0] || {}).id) : c.active_scene);
+  subscribe(); applyView(); loadChat(); loadJournal();
+  await loadScene(isGM ? (c.active_scene || (sortedScenes()[0] || {}).id) : sceneOf(me.id));
   if(isGM && scenes.length <= 1){ $id('pages').classList.remove('closed'); renderStrip(); }   // bandeau ouvert au début ; ensuite il se replie
   renderJournal();
 })();
