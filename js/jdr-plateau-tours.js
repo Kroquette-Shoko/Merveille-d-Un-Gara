@@ -169,7 +169,8 @@ const TO = (() => {
         el('button', { type: 'button', class: 'danger', text: 'Terminer le combat', onclick: endCombat }));
       f.push(el('button', { type: 'button', text: '🎬 Nouvelle scène (tout le monde pioche)', onclick: newScene }),
         el('button', { type: 'button', text: 'Fin de scène / tour (défausse)', title: 'Chacun défausse jusqu’à son Anticipation', onclick: endScene }),
-        el('button', { type: 'button', text: 'Faire piocher…', onclick: e => drawMenu(e.clientX, e.clientY) }));
+        el('button', { type: 'button', text: 'Faire piocher…', onclick: e => drawMenu(e.clientX, e.clientY) }),
+        el('button', { type: 'button', text: '⚠ Risques…', title: 'Mélanger des Risques dans les decks, fatigue, retirer', onclick: () => PC.openRisks() }));
       if(t.mode === 'combat'){ const c = el('input', { type: 'checkbox' }); c.checked = t.strict !== false; c.addEventListener('change', () => setTurn(Object.assign(T(), { strict: c.checked })));
         f.push(el('label', { class: 'chk', title: 'Un adversaire doit jouer entre deux joueurs (tant qu’il en reste)' }, c, document.createTextNode(' Alternance obligatoire'))); }
     }
