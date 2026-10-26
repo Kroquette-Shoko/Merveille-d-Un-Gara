@@ -258,6 +258,15 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .rk-opt{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;text-align:left;border-radius:10px}
 .rk-opt span{color:var(--uim);font-size:.9rem}
 .rk-opt:nth-child(1){border-color:#b88a2c}.rk-opt:nth-child(2){border-color:#c9602c}.rk-opt:nth-child(3){border-color:#d8262f;background:rgba(216,38,47,.12)}
+.tme-pass{width:170px;height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;padding:2px;scrollbar-width:thin;align-self:flex-end}
+.tme-p{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:3px 8px;border-radius:7px;border:1px solid var(--uil);background:var(--ui2);text-align:left;line-height:1.15;flex:0 0 auto}
+.tme-p small{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--uim)}
+.tme-p span{font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.tme-p:hover{border-color:var(--acc2)}
+.tme-p.card{border-color:#6c5a2b}
+.tme-p.state{border-color:#8a3a2c;background:#3a2226}.tme-p.state small{color:#ffb9a8}
+.tme-pop{max-width:340px;padding:8px 10px}.tme-pop .pd-t{font-size:.88rem;line-height:1.35}
+.pnjm{max-height:60vh;overflow-y:auto}
 .tme{display:flex;align-items:flex-end;gap:10px;flex:0 0 auto}
 .tme-avw{position:relative;width:132px;height:140px;flex:0 0 auto}
 .tme-av{position:absolute;left:0;bottom:4px;width:118px;height:118px;border-radius:50%;overflow:hidden;background:var(--ui3);border:3px solid var(--uil);display:grid;place-items:center;box-shadow:0 3px 10px rgba(0,0,0,.45)}
@@ -742,7 +751,7 @@ async function setMax(it, key, max){   // pion non lié (MJ) : maximum d'une bar
   bars[key] = { max: m, cur: Math.min(m, numOr(bars[key] && bars[key].cur, m)) }; await save(it, { bars }); renderHud();
 }
 function afflictions(){ return Object.values(typeof JDR_KW === 'object' && JDR_KW ? JDR_KW : {}).filter(k => k.category === 'Affliction').map(k => k.name).sort((a, b) => a.localeCompare(b, 'fr')); }
-async function setStatus(it, list){ await save(it, { status: [...new Set(list.map(x => String(x).trim()).filter(Boolean))].slice(0, 12) }); renderHud(); }
+async function setStatus(it, list){ await save(it, { status: [...new Set(list.map(x => String(x).trim()).filter(Boolean))].slice(0, 12) }); renderHud(); if(it.character_id && typeof PC !== 'undefined') PC.render(); }
 function openSheet(it){
   const e = entryOf(it);
   if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener');
@@ -905,6 +914,7 @@ function onItemChange({ eventType, new: n, old: o }){
   if(!scene || n.scene_id !== scene.id){ if(items.has(n.id)){ items.delete(n.id); removeItemEl(n.id); } return; }
   if(drag && drag.id === n.id) return;
   const it = normItem(n); items.set(it.id, it); renderItem(it); if(sel === it.id) renderHud();
+  if(it.character_id && typeof PC !== 'undefined') PC.render();   // états du pion → rappel dans le cadre du joueur
 }
 function onSceneChange({ eventType, new: n, old: o }){
   if(eventType === 'DELETE'){ scenes = scenes.filter(s => s.id !== o.id); renderStrip(); if(scene && scene.id === o.id){ scene = null; loadScene(isGM ? (sortedScenes()[0] || {}).id : sceneOf(me.id)); } return; }

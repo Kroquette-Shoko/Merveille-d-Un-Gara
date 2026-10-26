@@ -33,7 +33,7 @@ const PC = (() => {
   /* ---------- Chargement ---------- */
   async function load(){
     try{ const c = await jdrLoadCards(); cards = c.byId; }catch(e){ toast('Cartes non chargées : ' + jdrErrorText(e)); }
-    try{ const { data: o } = await jdrSb.from('origins').select('name,data'); origins = o || []; }catch(e){ origins = []; }
+    try{ const { data: o } = await jdrSb.from('origins').select('id,name,data'); origins = o || []; }catch(e){ origins = []; }
     const { data, error } = await jdrSb.from('play_states').select('*').eq('campaign_id', CAMP);
     if(error){ toast('Piles indisponibles : ' + jdrErrorText(error)); return; }
     (data || []).forEach(r => states.set(r.character_id, norm(r)));
@@ -461,6 +461,53 @@ const PC = (() => {
     r.hidden = false; clearTimeout(r._t); r._t = setTimeout(() => { r.hidden = true; }, 6000);
   }
 
+  /* ---------- MJ : accès rapide aux fiches des PNJ (bouton du bandeau) ---------- */
+  function pnjMenu(x, y){
+    if(typeof journal === 'undefined') return;
+    const all = [...journal.values()].filter(e => e.kind === 'pnj').sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    const onScene = new Set([...items.values()].map(it => it.data && it.data.journal).filter(Boolean));
+    const here = all.filter(e => onScene.has(e.id)), others = all.filter(e => !onScene.has(e.id));
+    const entries = [];
+    if(here.length){ entries.push(...here.map(e => ['● ' + e.name, () => openWin(e.id)])); }
+    if(here.length && others.length) entries.push('-');
+    others.forEach(e => entries.push([(e.folder ? e.folder + ' › ' : '') + e.name, () => openWin(e.id)]));
+    if(!entries.length) entries.push(['Aucun PNJ dans le journal', () => {}]);
+    menu(x, y, entries, here.length ? 'PNJ (● = sur la scène)' : 'PNJ du journal');
+    const m = document.querySelector('.pcmenu'); if(m){ m.classList.add('pnjm'); const r = m.getBoundingClientRect(); m.style.top = Math.max(8, Math.min(y - r.height, innerHeight - r.height - 8)) + 'px'; }
+  }
+
+  /* ---------- Rappel des passifs du personnage (cadre du joueur) ----------
+     Peuple, classe (capacités + mécaniques), spécialisation (améliorations jusqu'à son niveau), passé,
+     cartes Passif posées en jeu (voie, bénédiction…) et états actifs de son pion. Clic = texte complet. */
+  const findOrigin = (kind, id, name) => origins.find(o => o.data && o.data.kind === kind && ((id && o.id === id) || norm2(o.name) === norm2(name)));
+  function passivesOf(ch){
+    const cd = charData(ch) || {}, ids = cd.origins || {}, out = [];
+    const add = (tag, name, text, cls) => { if(name || text) out.push({ tag, name: name || tag, text: text || '', cls: cls || '' }); };
+    const abil = (o, tag) => (o && o.data && Array.isArray(o.data.abilities) ? o.data.abilities : []).forEach(a => add(tag, a.name, [a.pa !== null && a.pa !== undefined && a.pa !== '' ? a.pa + ' PA' : '', a.cost, a.text, a.uses ? '(' + a.uses + ')' : ''].filter(Boolean).join(' — ')));
+    abil(findOrigin('peuple', ids.peuple, cd.peuple), 'Peuple');
+    const cls = findOrigin('classe', ids.classe, cd.classe); abil(cls, 'Classe');
+    (cls && cls.data && Array.isArray(cls.data.mechanics) ? cls.data.mechanics : []).forEach(m => add('Classe', m.name, m.text));
+    const spec = findOrigin('specialisation', ids.specialisation, cd.specialisation), lvl = Math.max(1, Number(cd.level) || 1);
+    (spec && spec.data && Array.isArray(spec.data.improvements) ? spec.data.improvements : []).filter(m => (Number(m.level) || 1) <= lvl && m.text).forEach(m => add(`Spé. · niv. ${m.level}`, m.text.length > 40 ? m.text.slice(0, 38) + '…' : m.text, m.text));
+    abil(findOrigin('passe', ids.passe, cd.passe), 'Passé');
+    const st = states.get(ch);
+    (st ? st.data.play : []).forEach(c => { const k = cards[c.c]; if(!k || k.type !== 'Passif') return;
+      add(k.subtype || 'Passif', k.name, typeof jdrCardText === 'function' ? jdrCardText(k).join(' ') : '', 'card'); out[out.length - 1].card = k; });
+    const tok = typeof items !== 'undefined' ? [...items.values()].find(it => it.character_id === ch) : null;
+    (tok && Array.isArray(tok.data.status) ? tok.data.status : []).forEach(n => { const kw = typeof JDR_KW === 'object' && JDR_KW ? Object.values(JDR_KW).find(k => norm2(k.name) === norm2(n)) : null;
+      add('État', n, kw ? kw.text : '', 'state'); });
+    return out;
+  }
+  function showPassive(p, x, y){
+    if(p.card){ jdrZoomCard(p.card); return; }
+    document.querySelectorAll('.tme-pop').forEach(n => n.remove());
+    const t = el('div', { class: 'pd-t' }); t.innerHTML = p.text ? jdrRichText(p.text) : '<i>Pas de texte.</i>';
+    const m = el('div', { class: 'ctx tme-pop' }, el('div', { class: 'ch', text: `${p.tag} · ${p.name}` }), t);
+    document.body.append(m); const r = m.getBoundingClientRect();
+    m.style.left = Math.min(x, innerWidth - r.width - 8) + 'px'; m.style.top = Math.max(8, y - r.height - 8) + 'px';
+    setTimeout(() => document.addEventListener('pointerdown', function h(e){ if(!m.contains(e.target)){ m.remove(); document.removeEventListener('pointerdown', h, true); } }, true), 0);
+  }
+
   /* ---------- Bandeau (main toujours visible) ---------- */
   const back = (n, title) => el('div', { class: 'cback', title: title || '' }, el('span', { text: n === undefined ? '' : String(n) }));
   function mini(ch, z, c, opts = {}){
@@ -499,6 +546,7 @@ const PC = (() => {
     const head = el('div', { class: 'trh' },
       el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: open ? 'Replier la main' : 'Déplier la main', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
       el('b', { text: 'Main de' }), sel);
+    if(isGM){ const pb = el('button', { type: 'button', class: 'trpnj', text: '📜 PNJ', title: 'Ouvrir la fiche d’un PNJ' }); pb.addEventListener('click', e => { const r = pb.getBoundingClientRect(); pnjMenu(r.left, r.top - 6); }); head.append(pb); }
     if(cur){
       const ctl = isGM || ownsChar(cur);             // prendre / finir le tour, convertir : le joueur du personnage ou le MJ
       const locked = isLocked(cur), ex = excessOf(cur);
@@ -551,7 +599,13 @@ const PC = (() => {
         playBox);
       const pd = el('div', { class: 'pile tme-deck', title: 'Deck (pioche) — clic : fouiller ; dépose une carte ici pour la remettre dessus (Maj = dessous)' }, back(d.draw.length), el('small', { text: 'Deck' }));
       pd.addEventListener('click', () => openPile(cur, 'draw')); dropTarget(pd, cur, 'draw', 'top');
-      const me2 = el('div', { class: 'tme' }, el('div', { class: 'tme-avw' }, av, star, tri), stack, pd);
+      const pas = passivesOf(cur);
+      const plist = el('div', { class: 'tme-pass', 'aria-label': 'Passifs et états' },
+        ...(pas.length ? pas.map(p => { const b = el('button', { type: 'button', class: 'tme-p ' + p.cls, title: p.text ? `${p.tag} · ${p.name} — ${p.text}` : `${p.tag} · ${p.name}` },
+            el('small', { text: p.tag }), el('span', { text: p.name }));
+          b.addEventListener('click', e => showPassive(p, e.clientX, e.clientY)); return b; })
+        : [el('span', { class: 'hint', style: 'font-size:.78rem', text: 'Aucun passif ni état.' })]));
+      const me2 = el('div', { class: 'tme' }, el('div', { class: 'tme-avw' }, av, star, tri), stack, plist, pd);
       // main
       const hand = el('div', { class: 'hand' });
       if(handHidden(cur)) d.hand.forEach(() => hand.append(back()));
