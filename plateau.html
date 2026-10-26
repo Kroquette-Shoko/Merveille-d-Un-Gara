@@ -866,8 +866,13 @@ function showPing(p){
 let lastSend = 0;
 function send(event, payload){ if(channel) channel.send({ type: 'broadcast', event, payload }); }
 function sendThrottled(event, payload){ const t = performance.now(); if(t - lastSend > 45){ lastSend = t; send(event, payload); } }
-function subscribe(){
-  channel = jdrSb.channel('jdr-plateau-' + CAMP, { config: { broadcast: { self: false }, presence: { key: me.id } } })
+// Temps réel. Le projet Supabase (partagé avec Rimd'Orël) n'accepte que les canaux PRIVÉS (« PrivateOnly ») :
+// le canal est donc privé (private: true) ; l'accès est réservé au MJ et aux joueurs de la campagne
+// (règles jdr_plateau_lecture / jdr_plateau_envoi, sql/jdr-019-temps-reel-prive.sql).
+async function subscribe(){
+  try{ const { data } = await jdrSb.auth.getSession(); if(data && data.session) await jdrSb.realtime.setAuth(data.session.access_token); }
+  catch(e){ console.warn('[jdr temps réel] jeton non transmis au temps réel :', e); }
+  channel = jdrSb.channel('jdr-plateau-' + CAMP, { config: { private: true, broadcast: { self: false }, presence: { key: me.id } } })
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'board_items', filter: 'campaign_id=eq.' + CAMP }, onItemChange)
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'scenes', filter: 'campaign_id=eq.' + CAMP }, onSceneChange)
     .on('postgres_changes', { event: 'UPDATE', schema: 'jdr', table: 'campaigns', filter: 'id=eq.' + CAMP }, onCampChange)
@@ -888,9 +893,11 @@ function subscribe(){
     .on('broadcast', { event: 'journal-refresh' }, () => { if(!isGM) loadJournal(); })
     .on('broadcast', { event: 'show-entry' }, async ({ payload }) => { if(isGM) return; await loadJournal(); if(journal.has(payload.id)){ openWin(payload.id); toast('Le MJ te montre une fiche'); } })
     .on('presence', { event: 'sync' }, () => { renderPlayers(); renderStrip(); })
-    .subscribe(async st => {
+    .subscribe(async (st, err) => {
+      // trace de diagnostic : état du temps réel dans la console du navigateur (F12)
+      console.info('[jdr temps réel]', st, err ? (err.message || err) : '');
       if(st === 'SUBSCRIBED') await channel.track({ name: myName, gm: isGM, at: Date.now() });
-      if(st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') toast('Temps réel indisponible : recharge la page si les autres ne bougent plus.');
+      if(st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') toast('Temps réel indisponible' + (err && err.message ? ' (' + err.message + ')' : '') + ' : recharge la page si les autres ne bougent plus.');
     });
 }
 function onItemChange({ eventType, new: n, old: o }){
