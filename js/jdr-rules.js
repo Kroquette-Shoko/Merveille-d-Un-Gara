@@ -94,6 +94,9 @@ const JDR_RESTRICT_GROUPS = {
 // Ajoute les classes, spécialisations, passés et peuples de la page Origines (table jdr.origins)
 // aux listes ci-dessus, sans retirer les noms déjà connus (les cartes existantes les utilisent).
 // Appelée par jdrLoadOrigins(). Les classes prennent aussi leur couleur de la page Origines.
+// Carte liée à un passé (champ « card » d'un passé de la page Origines) : id de carte → [noms des passés].
+// Une telle carte n'est jouable que par un personnage qui a ce passé (voir jdrCardAllowed).
+const JDR_PASSE_CARDS = {};
 function jdrApplyOrigins(list){
   const add = (arr, name) => { if(name && !arr.map(jdrNorm).includes(jdrNorm(name))) arr.push(name); };
   const byId = Object.fromEntries(list.map(o => [o.id, o]));
@@ -108,6 +111,8 @@ function jdrApplyOrigins(list){
   });
   list.filter(o => o.kind === 'specialisation').forEach(o => add(JDR_RESTRICT_GROUPS['Spécialisations'], o.name));
   list.filter(o => o.kind === 'passe').forEach(o => add(JDR_RESTRICT_GROUPS['Passés'], o.name));
+  Object.keys(JDR_PASSE_CARDS).forEach(k => delete JDR_PASSE_CARDS[k]);
+  list.filter(o => o.kind === 'passe' && o.card).forEach(o => (JDR_PASSE_CARDS[o.card] = JDR_PASSE_CARDS[o.card] || []).push(o.name));
   list.filter(o => o.kind === 'peuple').forEach(o => add(JDR_RESTRICT_GROUPS['Peuples'], o.name));
 }
 
@@ -115,6 +120,8 @@ function jdrApplyOrigins(list){
 
 // Compare des noms sans tenir compte des majuscules ni des accents ("Eclaireur" = "Éclaireur")
 function jdrNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+// Nom « de base » pour comparer des variantes : « Religieux.se » = « Religieux », « Le barbare » = « Barbare »
+function jdrBaseName(s){ return jdrNorm(s).replace(/^(le|la|les)\s+|^l['’]\s*/, '').replace(/\.[a-z]+$/, '').trim(); }
 function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.trim()).filter(Boolean); }
 
 /* ---------- Texte avec listes à puces ----------
@@ -584,8 +591,8 @@ function jdrCardAllowed(card, sheet, effectiveStats){
   const c = jdrNormalizeCard(card);
   if(c.type === 'Risque') reasons.push('Les cartes Risque ne se mettent pas dans un deck.');
   const has = (list, value) => {
-    const wanted = list.map(jdrNorm);
-    return jdrSplitList(value).map(jdrNorm).some(v => wanted.includes(v));
+    const wanted = list.map(jdrNorm), wantedBase = list.map(jdrBaseName);
+    return jdrSplitList(value).some(v => wanted.includes(jdrNorm(v)) || wantedBase.includes(jdrBaseName(v)));
   };
   if(c.classes.length && !has(c.classes, sheet.classe)) reasons.push('Classe : ' + c.classes.join(', '));
   // super-types qui sont des spécialisations / passés / peuples : le personnage doit en avoir un
@@ -594,6 +601,10 @@ function jdrCardAllowed(card, sheet, effectiveStats){
     const need = inGroup(g);
     if(need.length && !has(need, sheet[field])) reasons.push(`${label} : ${need.join(', ')}`);
   });
+  // carte liée à un passé (page Origines) : seulement avec ce passé
+  const passeOf = c.id && JDR_PASSE_CARDS[c.id];
+  if(passeOf && passeOf.length && !has(passeOf, sheet.passe) && !reasons.some(r => r.startsWith('Passé')))
+    reasons.push('Passé : ' + passeOf.join(', '));
   // Un sort sans classe ni spécialisation imposée demande de savoir lancer des sorts
   if(c.type === 'Sortilège' && !c.classes.length && !inGroup('Spécialisations').length && !jdrCanCastSpells(sheet))
     reasons.push(JDR_SPEC_MAGIC ? 'Sortilège : la spécialisation de ce personnage n’utilise pas la magie' : 'Sort : réservé aux Érudits, Prêtres, Druides et Bardes');
