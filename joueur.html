@@ -9,6 +9,16 @@
 <style>
 /* Espace joueur : mes personnages (cartes cliquables) + rejoindre une partie. Une colonne sur téléphone. */
 .pj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.pjw{position:relative;min-width:0}
+.pjw .del{position:absolute;top:6px;right:6px;padding:2px 8px;font-size:.8rem;color:var(--hurt);background:transparent;border:1px solid transparent;border-radius:8px}
+.pjw .del:hover,.pjw .del:focus-visible{border-color:var(--hurt);background:var(--sheet)}
+.pjw .pj{padding-right:84px}
+dialog.cdel{border:1px solid var(--line);border-radius:14px;padding:18px;max-width:min(440px, calc(100vw - 32px));background:var(--sheet);color:var(--ink)}
+dialog.cdel::backdrop{background:rgba(0,0,0,.45)}
+dialog.cdel h2{margin:0 0 6px;font-size:1.25rem}
+dialog.cdel .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+button.danger-solid{background:var(--hurt);color:#fff;border-color:var(--hurt)}
+button.danger-solid:disabled{opacity:.45;cursor:not-allowed}
 .pj{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--ink);text-decoration:none;min-width:0}
 .pj:hover{border-color:var(--accent)}
 .pj .av{flex:0 0 52px;width:52px;height:52px;border-radius:50%;background:#55606b center/cover no-repeat;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:800;font-size:1.3rem}
@@ -48,6 +58,18 @@ a.pj.new{border-style:dashed;justify-content:center;color:var(--accent);font-wei
   </section>
 </div>
 
+<!-- Confirmation de suppression : il faut écrire « supprimer » -->
+<dialog class="cdel" id="del-dlg" aria-labelledby="del-h">
+  <h2 id="del-h">Supprimer la fiche</h2>
+  <p style="margin:0 0 10px" id="del-txt"></p>
+  <label class="f">Écris « supprimer » pour confirmer<input id="del-in" autocomplete="off" spellcheck="false"></label>
+  <p class="status" id="del-st" role="status" style="margin:6px 0 0"></p>
+  <div class="acts">
+    <button type="button" id="del-cancel">Annuler</button>
+    <button type="button" class="danger-solid" id="del-ok" disabled>Supprimer définitivement</button>
+  </div>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="js/jdr-supabase.js"></script>
 <script src="js/jdr-rules.js"></script>
@@ -64,9 +86,10 @@ function renderChars(){
     const who = [d.peuple, d.classe, d.specialisation || d.spe].filter(Boolean).join(' · ') || 'Origines non choisies';
     const camp = c.campaign_id ? (camps[c.campaign_id] ? 'Partie : ' + camps[c.campaign_id] : 'Dans une partie') : 'Pas encore dans une partie';
     const pic = d.portrait ? ` style="background-image:url('${jdrEsc(d.portrait)}')"` : '';
-    return `<a class="pj" href="fiche-personnage.html?id=${encodeURIComponent(c.id)}">
+    return `<div class="pjw"><a class="pj" href="fiche-personnage.html?id=${encodeURIComponent(c.id)}">
       <span class="av"${pic}>${d.portrait ? '' : jdrEsc((c.name || '?')[0].toUpperCase())}</span>
-      <span class="tx"><b>${jdrEsc(c.name || 'Sans nom')}</b><small>${jdrEsc(who)}</small><small>${jdrEsc(camp)}</small></span></a>`;
+      <span class="tx"><b>${jdrEsc(c.name || 'Sans nom')}</b><small>${jdrEsc(who)}</small><small>${jdrEsc(camp)}</small></span></a>
+      <button type="button" class="del" data-del="${jdrEsc(c.id)}" aria-label="Supprimer la fiche de ${jdrEsc(c.name || 'Sans nom')}">Supprimer</button></div>`;
   });
   items.push(`<a class="pj new" href="creation-personnage.html">+ Créer un personnage</a>`);
   box.innerHTML = items.join('');
@@ -74,6 +97,33 @@ function renderChars(){
   sel.replaceChildren(...(chars.length ? chars.map(c => new Option(c.name || 'Sans nom', c.id)) : [new Option('Crée d’abord un personnage', '')]));
   $id('j-go').disabled = !chars.length;
 }
+
+/* ---------- Suppression d'une fiche (confirmation : écrire « supprimer ») ---------- */
+let delId = null;
+const dlg = $id('del-dlg');
+const delOk = () => $id('del-in').value.trim().toLowerCase() === 'supprimer';
+$id('chars').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if(!b) return;
+  const c = chars.find(x => x.id === b.dataset.del); if(!c) return;
+  delId = c.id;
+  $id('del-txt').textContent = `La fiche « ${c.name || 'Sans nom'} » et son deck seront effacés pour de bon${c.campaign_id ? ', et le personnage quittera sa partie' : ''}. Cette action ne peut pas être annulée.`;
+  $id('del-in').value = ''; $id('del-ok').disabled = true; status('del-st', '');
+  dlg.showModal(); $id('del-in').focus();
+});
+$id('del-in').addEventListener('input', () => { $id('del-ok').disabled = !delOk(); });
+$id('del-in').addEventListener('keydown', e => { if(e.key === 'Enter' && delOk()){ e.preventDefault(); $id('del-ok').click(); } });
+$id('del-cancel').addEventListener('click', () => dlg.close());
+$id('del-ok').addEventListener('click', async () => {
+  if(!delId || !delOk()) return;
+  $id('del-ok').disabled = true; status('del-st', 'Suppression…');
+  // .select() renvoie les lignes réellement effacées : 0 ligne = refusé (fiche d'un autre compte)
+  const { data, error } = await jdrSb.from('characters').delete().eq('id', delId).select('id');
+  if(error){ status('del-st', jdrErrorText(error), true); $id('del-ok').disabled = !delOk(); return; }
+  if(!data || !data.length){ status('del-st', 'Suppression refusée : cette fiche ne t’appartient pas.', true); return; }
+  const name = (chars.find(x => x.id === delId) || {}).name || 'Sans nom';
+  dlg.close(); delId = null;
+  await load(); status('status', `Fiche « ${name} » supprimée.`);
+});
 
 $id('j-go').addEventListener('click', async () => {
   const code = $id('j-code').value.trim().toLowerCase(), ch = $id('j-char').value;
