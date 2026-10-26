@@ -8,142 +8,302 @@
 <link rel="stylesheet" href="css/jdr-ui.css">
 <style>
 /* ============================================================
-   PLATEAU — étape 1 (26/10/2026) : carte + pions
-   Mise en page : barre du haut (partie, scène, couches, outils) | plateau plein écran | inspecteur (MJ) à droite.
-   Le plateau = un « monde » (div) déplacé / zoomé par transform ; 3 couches : carte, pions, MJ cachée ; + effets (mesure, ping, cercles).
+   PLATEAU — interface « table virtuelle » (26/10/2026), disposition inspirée de Roll20 :
+   - plateau plein écran
+   - barre d'outils verticale à gauche (sous-menus au survol / clic)
+   - bandeau des scènes en haut (MJ) avec le marqueur « Joueurs »
+   - barre latérale droite à onglets : Discussion, Images (MJ), Journal, Musique, Réglages
+   - joueurs connectés en bas à gauche ; zoom en bas à droite
+   - clic droit sur un élément = menu ; double-clic = réglages du pion
+   Couleurs : interface sombre (forcée, même en thème clair) ; la scène garde sa couleur de fond.
    ============================================================ */
+:root, :root:not([data-theme="light"]), :root[data-theme="light"], :root[data-theme="dark"]{
+  --ui:#26262b; --ui2:#323238; --ui3:#3e3e46; --uil:#4b4b55; --uit:#ececf1; --uim:#a3a3ae; --acc:#b8327f; --acc2:#d94c9c;
+  --sheet:#323238; --ink:#ececf1; --muted:#a3a3ae; --line:#4b4b55; --panel:#3e3e46; --accent:#b8327f; --accent-ink:#ffffff; --hurt:#ff7a6e; --ok:#6fd39a;
+  --sbw:340px; color-scheme:dark;
+}
+[hidden]{display:none !important}
 html,body{height:100%}
-body{display:flex;flex-direction:column;overflow:hidden;background:#11161a;padding:0}
-.pbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 12px;background:var(--sheet);border-bottom:1px solid var(--line);z-index:5}
-.pbar .brand{font-family:var(--f-display);font-weight:800;color:var(--ink);text-decoration:none;font-size:1.05rem}
-.pbar .grp{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
-.pbar .lab{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-right:2px}
-.pbar select,.pbar input{padding:4px 6px;font-size:.92rem}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
-.seg button{border:0;border-radius:0;background:transparent;padding:5px 11px;font-weight:600;color:var(--ink)}
-.seg button.on{background:var(--accent);color:#fff}
-.seg button[data-layer="gm"].on{background:#7a2d8c}
-.pbar .sp{flex:1}
-.pbar .who{font-size:.88rem;color:var(--muted)}
-.pbar a.quit{font-size:.9rem}
-.main{flex:1;display:flex;min-height:0;position:relative}
-.board{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;background:var(--scene-bg,#1d252b);
-  background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:24px 24px}
+body{margin:0;padding:0;overflow:hidden;background:#151518;color:var(--uit);font-family:var(--f-body)}
+body.side-off{--sbw:0px}
+button{background:var(--ui3);border-color:var(--uil);color:var(--uit)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+input,select,textarea{background:#1d1d21;border-color:var(--uil);color:var(--uit)}
+label.f{color:var(--uim)}
+a{color:var(--acc2)}
+.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
+
+/* ---------- Plateau ---------- */
+.board{position:fixed;left:0;top:0;bottom:0;right:var(--sbw);overflow:hidden;cursor:default;touch-action:none;background:var(--scene-bg,#1d252b);
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:24px 24px;transition:right .2s}
 .board.panning{cursor:grabbing}
 .board.t-measure,.board.t-calib{cursor:crosshair}
 .board.t-ping{cursor:cell}
+.board.dropping{outline:3px dashed var(--acc2);outline-offset:-6px}
 .world{position:absolute;left:0;top:0;transform-origin:0 0}
 .layer{position:absolute;left:0;top:0}
+.layer.map{z-index:1}.layer.tokens{z-index:2}.layer.gm{z-index:3}
 .it{position:absolute;user-select:none;-webkit-user-drag:none}
+.it img,.it .ini{transform:rotate(var(--rot,0deg))}   /* seule l'image tourne : le nom et les poignées restent droits */
 .it img{width:100%;height:100%;display:block;pointer-events:none;object-fit:fill}
 .it.round img{object-fit:cover;border-radius:50%}
 .it.round{border-radius:50%}
 .it.tok{box-shadow:0 0 0 3px var(--oc,#ddd),0 3px 8px rgba(0,0,0,.55)}
 .it .ini{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:var(--oc,#667);color:#fff;font-family:var(--f-display);font-weight:800}
-.it .nm{position:absolute;left:50%;top:100%;transform:translate(-50%,4px);white-space:nowrap;font-size:13px;font-weight:700;color:#fff;
-  background:rgba(0,0,0,.6);padding:1px 7px;border-radius:999px;pointer-events:none}
+.it .nm{position:absolute;left:50%;top:100%;transform:translate(-50%,4px);white-space:nowrap;font-weight:700;color:#fff;
+  background:rgba(0,0,0,.65);padding:1px 7px;border-radius:999px;pointer-events:none}
 .it.grab{cursor:move}
-.it.sel{outline:2px solid #e3b341;outline-offset:3px}
-.it.lockd{outline-style:dashed}
-.layer.gm .it{opacity:.55;outline:2px dashed #b06cc4;outline-offset:2px}
+.it.sel::after{content:"";position:absolute;inset:-5px;border:2px dashed #ffd257;border-radius:inherit;pointer-events:none}
+.it.lockd.sel::after{border-color:#ff8f5a}
+.layer.gm .it{opacity:.5;outline:2px dashed #c47ad8;outline-offset:2px}
 .board.lay-gm .layer.gm .it{opacity:.9}
-.handle{position:absolute;right:-9px;bottom:-9px;width:16px;height:16px;border-radius:4px;background:#e3b341;border:2px solid #1d1a16;cursor:nwse-resize}
+.hdl{position:absolute;width:14px;height:14px;border-radius:3px;background:#ffd257;border:2px solid #1d1a16;z-index:2}
+.hdl.rs{right:-12px;bottom:-12px;cursor:nwse-resize}
+.hdl.rt{left:50%;top:-34px;transform:translateX(-50%);border-radius:50%;cursor:grab}
+.hdl.rt::after{content:"";position:absolute;left:50%;top:12px;width:2px;height:18px;background:#ffd257;transform:translateX(-50%)}
 svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:100000}
-/* chaque couche a son propre empilement : carte < pions < couche MJ (les z-index des éléments restent dans leur couche) */
-.layer.map{z-index:1}.layer.tokens{z-index:2}.layer.gm{z-index:3}
 .fxlab{font:700 14px var(--f-body);paint-order:stroke;stroke:#000;stroke-width:4px;fill:#fff}
 @keyframes ping{from{r:6;opacity:1}to{r:70;opacity:0}}
 .ping circle{animation:ping 1.1s ease-out 3}
-.insp{width:290px;flex:0 0 290px;background:var(--sheet);border-left:1px solid var(--line);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
-.insp[hidden]{display:none}
-.insp h2{font-size:1.1rem}
-.insp .r{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.insp .acts{display:flex;flex-wrap:wrap;gap:6px}
-.hud{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center;z-index:3}
-.hud button{padding:4px 10px;background:var(--sheet)}
-.hud span{background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.85rem}
-.msg{position:absolute;inset:0;display:grid;place-items:center;z-index:2;pointer-events:none}
-.msg>div{pointer-events:auto;background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:18px 22px;max-width:440px;text-align:center;display:flex;flex-direction:column;gap:10px}
-.toastp{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:.9rem;z-index:4}
-dialog.dlg{border:1px solid var(--line);border-radius:14px;padding:16px;max-width:min(480px, calc(100vw - 24px));background:var(--sheet);color:var(--ink)}
-dialog.dlg::backdrop{background:rgba(0,0,0,.5)}
-dialog.dlg form{display:flex;flex-direction:column;gap:10px}
-.calib{position:absolute;z-index:4;background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;gap:6px;align-items:end}
-@media (max-width:760px){.insp{position:absolute;right:0;top:0;bottom:0;width:min(290px,90vw);z-index:4}}
+
+/* ---------- Barre d'outils (gauche) ---------- */
+.tb{position:fixed;left:10px;top:64px;z-index:20;display:flex;flex-direction:column;gap:2px;background:var(--ui);border:1px solid var(--uil);border-radius:10px;padding:5px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.tb>.tw{position:relative}
+.tb .tbtn{width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--uit)}
+.tb .tbtn:hover{background:var(--ui3)}
+.tb .tbtn.on{background:var(--acc);color:#fff}
+.tb .sep{height:1px;background:var(--uil);margin:3px 4px}
+.tb .badge{position:absolute;right:3px;bottom:3px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ui);pointer-events:none}
+.fly{position:absolute;left:48px;top:0;min-width:210px;background:var(--ui);border:1px solid var(--uil);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;flex-direction:column;gap:2px}
+.fly::before{content:"";position:absolute;left:-12px;top:0;width:12px;height:100%}
+.tw:hover>.fly,.tw.open>.fly{display:flex}
+.fly .fh{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--uim);padding:4px 8px 2px}
+.fly button{display:flex;align-items:center;gap:8px;justify-content:flex-start;border:0;background:transparent;padding:7px 9px;border-radius:7px;text-align:left;font-size:.93rem}
+.fly button:hover{background:var(--ui3)}
+.fly button.on{background:var(--ui3);font-weight:700}
+.fly button.on::after{content:"✓";margin-left:auto;color:var(--acc2)}
+.fly .dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px}
+.fly kbd,.side kbd{font:600 .75rem ui-monospace,Consolas,monospace;background:#1d1d21;border:1px solid var(--uil);border-radius:4px;padding:0 5px;margin-left:auto;color:var(--uim)}
+.fly input[type=range]{width:100%}
+
+/* ---------- Bandeau des scènes (MJ, haut) ---------- */
+.pages{position:fixed;left:0;right:var(--sbw);top:0;z-index:15;display:flex;flex-direction:column;align-items:center;pointer-events:none;transition:right .2s}
+.pages .strip{pointer-events:auto;display:flex;gap:10px;align-items:stretch;background:var(--ui);border:1px solid var(--uil);border-top:0;border-radius:0 0 12px 12px;padding:10px 12px;max-width:calc(100% - 140px);overflow-x:auto;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.pages.closed .strip{display:none}
+.pages .pgtab{pointer-events:auto;background:var(--ui);border:1px solid var(--uil);border-top:0;border-radius:0 0 10px 10px;padding:3px 14px;font-size:.85rem;color:var(--uit);cursor:pointer}
+.pg{position:relative;flex:0 0 132px;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+.pg .th{height:78px;border-radius:7px;border:2px solid var(--uil);background:#1d252b center/cover no-repeat}
+.pg.cur .th{border-color:#ffd257}
+.pg .pn{font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .rib{position:absolute;left:-4px;top:6px;background:var(--acc);color:#fff;font-size:.7rem;font-weight:700;padding:1px 8px 1px 6px;border-radius:0 6px 6px 0;letter-spacing:.04em}
+.pg .pa{position:absolute;right:4px;top:4px;display:none;gap:3px}
+.pg:hover .pa{display:flex}
+.pg .pa button{padding:2px 6px;font-size:.75rem;background:rgba(20,20,24,.85)}
+.pg.add{justify-content:center;align-items:center;border:2px dashed var(--uil);border-radius:7px;color:var(--uim);height:78px;font-size:1.5rem}
+
+/* ---------- Barre latérale (droite) ---------- */
+.side{position:fixed;right:0;top:0;bottom:0;width:var(--sbw);z-index:25;background:var(--ui);border-left:1px solid var(--uil);display:flex;flex-direction:column;transition:width .2s;overflow:hidden}
+.stabs{display:flex;border-bottom:1px solid var(--uil);flex:0 0 auto}
+.stabs button{flex:1;border:0;border-radius:0;background:transparent;padding:10px 0;display:grid;place-items:center;color:var(--uim)}
+.stabs button:hover{color:var(--uit);background:var(--ui2)}
+.stabs button.on{color:#fff;box-shadow:inset 0 -3px 0 var(--acc)}
+.spane{flex:1;min-height:0;display:none;flex-direction:column;gap:10px;padding:12px;overflow:auto}
+.spane.on{display:flex}
+.spane h2{font-size:1.15rem;color:var(--uit)}
+.spane .hint{color:var(--uim)}
+.sidetog{position:fixed;top:50%;right:var(--sbw);z-index:26;transform:translateY(-50%);width:18px;height:56px;padding:0;border-radius:8px 0 0 8px;background:var(--ui);border:1px solid var(--uil);border-right:0;color:var(--uim);transition:right .2s}
+/* Discussion */
+.spane.chatpane{gap:0;padding:0}
+.msgs{flex:1;min-height:0;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.m{font-size:.93rem;line-height:1.35;word-wrap:break-word}
+.m b{color:var(--mc,#fff)}
+.m .t{font-size:.72rem;color:var(--uim);margin-left:4px}
+.m.system{color:var(--uim);font-style:italic;text-align:center;font-size:.85rem}
+.m.action{background:var(--ui2);border-left:3px solid var(--mc,var(--acc));border-radius:6px;padding:4px 8px}
+.cin{border-top:1px solid var(--uil);padding:8px;display:flex;gap:6px}
+.cin textarea{resize:none;height:42px}
+/* Images */
+.lib{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lib .li{aspect-ratio:1;border-radius:7px;border:1px solid var(--uil);background:#1d1d21 center/cover no-repeat;cursor:grab;position:relative}
+.lib .li:hover{border-color:var(--acc2)}
+.lib .li span{position:absolute;left:0;right:0;bottom:0;font-size:.68rem;background:rgba(0,0,0,.6);padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:0 0 6px 6px}
+.dropz{border:2px dashed var(--uil);border-radius:10px;padding:12px;text-align:center;color:var(--uim);font-size:.9rem}
+.dropz.over{border-color:var(--acc2);color:var(--uit)}
+/* Journal */
+.jl{display:flex;flex-direction:column;gap:6px}
+.jr{display:flex;align-items:center;gap:10px;background:var(--ui2);border-radius:9px;padding:8px}
+.jr .av{flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:#555 center/cover;display:grid;place-items:center;font-weight:800;color:#fff;box-shadow:0 0 0 2px var(--oc,#888)}
+.jr .tx{flex:1;min-width:0}
+.jr b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jr small{color:var(--uim)}
+.jr button{padding:4px 8px;font-size:.8rem}
+
+/* ---------- Joueurs connectés (bas gauche) ---------- */
+.plist{position:fixed;left:10px;bottom:10px;z-index:20;display:flex;gap:8px;align-items:flex-end}
+.pav{display:flex;flex-direction:column;align-items:center;gap:3px;width:62px}
+.pav .c{width:48px;height:48px;border-radius:50%;background:var(--pc);display:grid;place-items:center;font-weight:800;font-size:1.2rem;color:#fff;border:3px solid var(--ui);box-shadow:0 0 0 2px var(--pc),0 4px 12px rgba(0,0,0,.5);position:relative}
+.pav .c i{position:absolute;top:-8px;right:-8px;font-style:normal;font-size:.62rem;font-weight:800;background:var(--acc);color:#fff;border-radius:999px;padding:1px 5px}
+.pav span{font-size:.75rem;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.6);border-radius:999px;padding:0 6px}
+
+/* ---------- Zoom (bas droite) ---------- */
+.zoomw{position:fixed;right:calc(var(--sbw) + 12px);bottom:12px;z-index:20;display:flex;gap:4px;align-items:center;background:var(--ui);border:1px solid var(--uil);border-radius:999px;padding:3px;transition:right .2s}
+.zoomw button{border:0;background:transparent;width:30px;height:30px;padding:0;border-radius:50%}
+.zoomw button:hover{background:var(--ui3)}
+.zoomw span{font-size:.8rem;min-width:46px;text-align:center;cursor:pointer}
+.scl{font-size:.75rem;color:var(--uim);padding:0 8px;border-left:1px solid var(--uil)}
+
+/* ---------- Menu clic droit, messages, fenêtres ---------- */
+.ctx{position:fixed;z-index:60;min-width:210px;background:var(--ui);border:1px solid var(--uil);border-radius:10px;padding:5px;box-shadow:0 10px 28px rgba(0,0,0,.55);display:flex;flex-direction:column}
+.ctx[hidden]{display:none}
+.ctx button{border:0;background:transparent;text-align:left;padding:7px 10px;border-radius:7px;font-size:.92rem;display:flex;gap:8px;align-items:center}
+.ctx button:hover{background:var(--ui3)}
+.ctx button.dang{color:var(--hurt)}
+.ctx .sep{height:1px;background:var(--uil);margin:4px 2px}
+.ctx .sub{display:flex;gap:4px;padding:2px 6px 6px}
+.ctx .sub button{flex:1;justify-content:center;background:var(--ui2);font-size:.8rem;padding:5px 4px}
+.ctx .sub button.on{background:var(--acc);color:#fff}
+.ctx .ch{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--uim);padding:4px 10px 2px}
+.msg{position:fixed;left:0;top:0;bottom:0;right:var(--sbw);display:grid;place-items:center;z-index:12;pointer-events:none}
+.msg>div{pointer-events:auto;background:var(--ui);border:1px solid var(--uil);border-radius:14px;padding:18px 22px;max-width:440px;text-align:center;display:flex;flex-direction:column;gap:10px}
+.toastp{position:fixed;top:44px;left:calc((100vw - var(--sbw)) / 2);transform:translateX(-50%);background:var(--ui);border:1px solid var(--uil);border-radius:999px;padding:6px 16px;font-size:.9rem;z-index:50;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+dialog.dlg{border:1px solid var(--uil);border-radius:14px;padding:16px;width:min(460px, calc(100vw - 24px));background:var(--ui);color:var(--uit)}
+dialog.dlg::backdrop{background:rgba(0,0,0,.55)}
+dialog.dlg .bd{display:flex;flex-direction:column;gap:10px}
+dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.calib{position:fixed;z-index:30;background:var(--ui);border:1px solid var(--uil);border-radius:10px;padding:8px;display:flex;gap:6px;align-items:end}
+@media (max-width:820px){ :root{--sbw:0px} .side{width:min(340px,92vw)} body.side-on .side{box-shadow:-10px 0 30px rgba(0,0,0,.5)} body:not(.side-on) .side{width:0;border:0} .sidetog{right:0} body.side-on .sidetog{right:min(340px,92vw)} }
 </style>
 </head>
 <body>
-<header class="pbar" id="pbar">
-  <a class="brand" href="index.html">Un'Gara</a>
-  <span id="camp-name" style="font-weight:700"></span>
-  <div class="grp" id="g-scene"><span class="lab">Scène</span><select id="scene-sel" aria-label="Scène"></select>
-    <span id="scene-live" class="pill" hidden></span></div>
-  <div class="grp" id="g-layer" hidden><span class="lab">Couche</span>
-    <div class="seg" role="group" aria-label="Couche active">
-      <button type="button" data-layer="map">Carte</button><button type="button" data-layer="tokens" class="on">Pions</button><button type="button" data-layer="gm">MJ (cachée)</button></div></div>
-  <div class="grp"><span class="lab">Outil</span>
-    <div class="seg" role="group" aria-label="Outil">
-      <button type="button" data-tool="select" class="on" title="Sélection et déplacement (V)">Déplacer</button>
-      <button type="button" data-tool="measure" title="Mesurer une distance (M)">Mesurer</button>
-      <button type="button" data-tool="ping" title="Pinger un endroit (P) — Alt + clic marche avec tous les outils">Ping</button>
-      <button type="button" data-tool="calib" id="tool-calib" hidden title="Étalonner l'échelle : trace une ligne de longueur connue">Échelle</button></div></div>
-  <div class="grp" id="g-gm" hidden>
-    <button type="button" id="b-add">Ajouter une image</button>
-    <button type="button" id="b-chars">Ajouter les personnages</button>
-    <button type="button" id="b-scene">Scène…</button>
+<!-- ===== Plateau ===== -->
+<div class="board" id="board" aria-label="Plateau de jeu">
+  <div class="world" id="world">
+    <div class="layer map" id="L-map"></div>
+    <div class="layer tokens" id="L-tokens"></div>
+    <div class="layer gm" id="L-gm"></div>
+    <svg class="fx" id="fx" width="1" height="1"><g id="fx-static"></g><g id="fx-pings"></g></svg>
   </div>
-  <span class="sp"></span>
-  <span class="who" id="who"></span>
-  <a class="quit" id="quit" href="index.html">Quitter le plateau</a>
-</header>
-
-<div class="main">
-  <div class="board" id="board" aria-label="Plateau de jeu">
-    <div class="world" id="world">
-      <div class="layer map" id="L-map"></div>
-      <div class="layer tokens" id="L-tokens"></div>
-      <div class="layer gm" id="L-gm"></div>
-      <svg class="fx" id="fx" width="1" height="1"><g id="fx-static"></g><g id="fx-pings"></g></svg>
-    </div>
-    <div class="hud"><button type="button" id="z-out" aria-label="Dézoomer">−</button><span id="z-val">100 %</span><button type="button" id="z-in" aria-label="Zoomer">+</button>
-      <button type="button" id="z-fit">Recentrer</button><span id="scale-info"></span></div>
-    <div class="msg" id="msg" hidden><div id="msg-in"></div></div>
-    <div class="toastp" id="toastp" hidden></div>
-  </div>
-  <aside class="insp" id="insp" hidden aria-label="Élément sélectionné"></aside>
 </div>
 
-<!-- Ajouter une image (MJ) -->
-<dialog class="dlg" id="d-add" aria-labelledby="d-add-h">
-  <form method="dialog" id="f-add">
-    <h2 id="d-add-h">Ajouter une image</h2>
-    <label class="f">Depuis ton ordinateur<input type="file" id="a-file" accept="image/*"></label>
-    <label class="f">… ou adresse web de l'image<input id="a-url" placeholder="https://…"></label>
-    <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <label class="f">Couche<select id="a-layer"><option value="map">Carte</option><option value="tokens">Pions</option><option value="gm">MJ (cachée)</option></select></label>
-      <label class="f">Nom<input id="a-name" maxlength="60" placeholder="ex. Gobelin"></label>
-    </div>
-    <label class="chk"><input type="checkbox" id="a-round"> Pion rond (taille en mètres)</label>
-    <label class="f" id="a-size-l">Diamètre du pion (m)<input type="number" id="a-size" min="0.5" max="30" step="0.5" value="1.5"></label>
-    <p class="status" id="a-st" role="status"></p>
-    <div class="row" style="justify-content:flex-end"><button type="button" id="a-cancel">Annuler</button><button class="primary" type="button" id="a-ok">Ajouter</button></div>
-  </form>
-</dialog>
+<!-- ===== Barre d'outils ===== -->
+<nav class="tb" id="tb" aria-label="Outils">
+  <div class="tw"><button type="button" class="tbtn on" data-tool="select" title="Sélectionner et déplacer (V)" aria-label="Sélectionner et déplacer">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg></button></div>
+  <div class="tw" id="tw-layer" hidden><button type="button" class="tbtn" id="b-layer" title="Couche active" aria-label="Couche active">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span class="badge" id="layer-badge"></span></button>
+    <div class="fly" role="menu"><div class="fh">Couche active</div>
+      <button type="button" data-layer="map"><span class="dot" style="background:#4aa36b"></span>Carte et décor</button>
+      <button type="button" data-layer="tokens" class="on"><span class="dot" style="background:#4a8bd6"></span>Pions et objets</button>
+      <button type="button" data-layer="gm"><span class="dot" style="background:#b06cc4"></span>Infos MJ (cachée)</button></div></div>
+  <div class="tw"><button type="button" class="tbtn" data-tool="measure" title="Mesurer (M)" aria-label="Mesurer">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg></button></div>
+  <div class="tw"><button type="button" class="tbtn" data-tool="ping" title="Ping (P) — ou Alt + clic" aria-label="Ping">
+    <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></button></div>
+  <div class="tw" id="tw-calib" hidden><button type="button" class="tbtn" data-tool="calib" title="Étalonner l'échelle : trace une ligne de longueur connue" aria-label="Échelle">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M3 12h18M3 8v8M21 8v8M12 10v4"/></svg></button></div>
+  <div class="sep"></div>
+  <div class="tw"><button type="button" class="tbtn" title="Zoom" aria-label="Zoom">
+    <svg class="ico" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M10 7v6M7 10h6"/></svg></button>
+    <div class="fly"><div class="fh">Zoom</div><input type="range" id="z-range" min="10" max="400" step="5" aria-label="Zoom">
+      <button type="button" id="z-100">100 %</button><button type="button" id="z-fit2">Tout voir</button></div></div>
+  <div class="tw" id="tw-add" hidden><button type="button" class="tbtn" id="b-addimg" title="Ajouter une image (onglet Images)" aria-label="Ajouter une image">
+    <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></button></div>
+  <div class="tw"><button type="button" class="tbtn" title="Aide et raccourcis" aria-label="Aide">
+    <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></button>
+    <div class="fly" style="min-width:260px"><div class="fh">Raccourcis</div>
+      <button type="button" tabindex="-1">Sélectionner / déplacer<kbd>V</kbd></button>
+      <button type="button" tabindex="-1">Mesurer<kbd>M</kbd></button>
+      <button type="button" tabindex="-1">Ping<kbd>Alt + clic</kbd></button>
+      <button type="button" tabindex="-1">Ping + centrer les joueurs (MJ)<kbd>Maj+Alt+clic</kbd></button>
+      <button type="button" tabindex="-1">Déplacer la vue<kbd>clic droit glissé</kbd></button>
+      <button type="button" tabindex="-1">Menu d'un pion<kbd>clic droit</kbd></button>
+      <button type="button" tabindex="-1">Réglages d'un pion<kbd>double-clic</kbd></button>
+      <button type="button" tabindex="-1">Supprimer (MJ)<kbd>Suppr</kbd></button></div></div>
+  <div class="sep"></div>
+  <div class="tw"><a class="tbtn" id="quit" href="index.html" title="Quitter la table" aria-label="Quitter la table" style="display:grid;place-items:center;width:40px;height:40px;color:var(--uim)">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M10 17l-5-5 5-5M5 12h11M14 4h5v16h-5"/></svg></a></div>
+</nav>
 
-<!-- Réglages de la scène (MJ) -->
-<dialog class="dlg" id="d-scene" aria-labelledby="d-scene-h">
-  <form method="dialog">
-    <h2 id="d-scene-h">Scène</h2>
-    <label class="f">Nom<input id="s-name" maxlength="80"></label>
-    <label class="f">Échelle : pixels pour 1 mètre<input type="number" id="s-scale" min="2" max="2000" step="any"></label>
-    <p class="hint" style="margin:0">Plus simple : outil « Échelle », trace une ligne sur une distance connue de la carte (ex. une porte = 1,5 m).</p>
-    <label class="f">Couleur du fond<input type="color" id="s-bg" style="height:38px;width:70px;padding:2px"></label>
-    <p class="status" id="s-st" role="status"></p>
-    <div class="row" style="justify-content:space-between">
-      <div class="row"><button type="button" id="s-new">Nouvelle scène</button><button type="button" class="danger" id="s-del">Supprimer la scène</button></div>
-      <div class="row"><button type="button" id="s-cancel">Fermer</button><button class="primary" type="button" id="s-ok">Enregistrer</button></div>
+<!-- ===== Bandeau des scènes (MJ) ===== -->
+<div class="pages closed" id="pages" hidden>
+  <div class="strip" id="strip" aria-label="Scènes"></div>
+  <button type="button" class="pgtab" id="pgtab">Scènes ▾</button>
+</div>
+
+<!-- ===== Barre latérale ===== -->
+<aside class="side" id="side" aria-label="Barre latérale">
+  <div class="stabs" role="tablist">
+    <button type="button" role="tab" data-pane="chat" class="on" title="Discussion" aria-label="Discussion"><svg class="ico" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></button>
+    <button type="button" role="tab" data-pane="images" id="tab-images" hidden title="Images" aria-label="Images"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></button>
+    <button type="button" role="tab" data-pane="journal" title="Journal : personnages et documents" aria-label="Journal"><svg class="ico" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></button>
+    <button type="button" role="tab" data-pane="music" title="Musique" aria-label="Musique"><svg class="ico" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></button>
+    <button type="button" role="tab" data-pane="settings" title="Réglages" aria-label="Réglages"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+  </div>
+  <section class="spane chatpane on" data-pane="chat" aria-label="Discussion">
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <form class="cin" id="chat-f"><textarea id="chat-in" maxlength="2000" placeholder="Message… (Entrée)" aria-label="Message"></textarea><button class="primary" type="submit">Envoyer</button></form>
+  </section>
+  <section class="spane" data-pane="images" aria-label="Images">
+    <h2>Images</h2>
+    <p class="hint" style="margin:0">Glisse une image sur la carte (couche active), ou clique dessus pour la poser au centre.</p>
+    <label class="dropz" id="dropz">Dépose tes fichiers ici, ou <u>choisis-les</u><input type="file" id="lib-file" accept="image/*" multiple hidden></label>
+    <div class="row" style="gap:6px;flex-wrap:nowrap"><input id="lib-url" placeholder="… ou colle une adresse https://" aria-label="Adresse d'une image"><button type="button" id="lib-url-ok">Ajouter</button></div>
+    <p class="status" id="lib-st" role="status" style="margin:0"></p>
+    <div class="lib" id="lib"></div>
+  </section>
+  <section class="spane" data-pane="journal" aria-label="Journal">
+    <h2>Personnages</h2>
+    <div class="jl" id="jl"></div>
+    <h2 style="margin-top:8px">Documents</h2>
+    <p class="hint" style="margin:0">Fiches de PNJ, notes du MJ et règles du jeu : arrivent à une prochaine étape.</p>
+  </section>
+  <section class="spane" data-pane="music" aria-label="Musique">
+    <h2>Musique</h2>
+    <p class="hint" style="margin:0">Arrive à l'étape audio : 3 pistes — Musique et Ambiance (liens YouTube), et une table de bruitages.</p>
+  </section>
+  <section class="spane" data-pane="settings" aria-label="Réglages">
+    <div id="set-gm" hidden style="display:flex;flex-direction:column;gap:10px">
+      <h2>Scène affichée</h2>
+      <label class="f">Nom<input id="s-name" maxlength="80"></label>
+      <label class="f">Échelle : pixels pour 1 mètre<input type="number" id="s-scale" min="2" max="2000" step="any"></label>
+      <p class="hint" style="margin:0">Plus simple : outil Échelle (barre de gauche), trace une ligne sur une distance connue de la carte.</p>
+      <label class="f">Couleur du fond<input type="color" id="s-bg" style="height:38px;width:70px;padding:2px"></label>
+      <div class="row"><button class="primary" type="button" id="s-ok">Enregistrer</button><button type="button" class="danger" id="s-del">Supprimer la scène</button></div>
+      <p class="status" id="s-st" role="status" style="margin:0"></p>
+      <h2 style="margin-top:6px">Personnages</h2>
+      <button type="button" id="b-chars">Poser les pions des personnages</button>
     </div>
-  </form>
+    <h2>Affichage</h2>
+    <label class="chk"><input type="checkbox" id="o-names" checked> Afficher les noms sous les pions</label>
+    <label class="chk"><input type="checkbox" id="o-rings" checked> Cercles de portée au survol de mes pions</label>
+  </section>
+</aside>
+<button type="button" class="sidetog" id="sidetog" aria-label="Replier la barre latérale" title="Replier / déplier">›</button>
+
+<div class="plist" id="plist" aria-label="Joueurs connectés"></div>
+<div class="zoomw"><button type="button" id="z-out" aria-label="Dézoomer">−</button><span id="z-val" title="Tout voir">100 %</span><button type="button" id="z-in" aria-label="Zoomer">+</button><span class="scl" id="scale-info"></span></div>
+<div class="ctx" id="ctx" hidden role="menu"></div>
+<div class="msg" id="msg" hidden><div id="msg-in"></div></div>
+<div class="toastp" id="toastp" hidden role="status"></div>
+
+<!-- Réglages d'un pion (double-clic) -->
+<dialog class="dlg" id="d-tok" aria-labelledby="d-tok-h">
+  <div class="bd">
+    <h2 id="d-tok-h">Réglages du pion</h2>
+    <label class="f">Nom<input id="t-name" maxlength="60"></label>
+    <label class="f">Image (adresse)<input id="t-img" placeholder="https://… (vide = initiale)"></label>
+    <div class="g2">
+      <label class="f">Couche<select id="t-layer"><option value="map">Carte et décor</option><option value="tokens">Pions et objets</option><option value="gm">Infos MJ (cachée)</option></select></label>
+      <label class="f" id="t-size-l">Taille (m)<input type="number" id="t-size" min="0.1" step="0.5"></label>
+    </div>
+    <div class="g2">
+      <label class="f">Rotation (°)<input type="number" id="t-rot" step="15"></label>
+      <label class="f">Contrôlé par (fiche)<select id="t-char"></select></label>
+    </div>
+    <label class="chk"><input type="checkbox" id="t-round"> Pion rond</label>
+    <label class="chk"><input type="checkbox" id="t-lock"> Verrouillé (ne bouge plus)</label>
+    <div class="row" style="justify-content:flex-end"><button type="button" id="t-cancel">Annuler</button><button class="primary" type="button" id="t-ok">Enregistrer</button></div>
+  </div>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -153,18 +313,21 @@ dialog.dlg form{display:flex;flex-direction:column;gap:10px}
 <script>
 /* ======================= État ======================= */
 const CAMP = new URLSearchParams(location.search).get('campagne');
-let me = null, camp = null, isGM = false;
+let me = null, myName = '', camp = null, isGM = false;
 let scenes = [], scene = null;                 // scène affichée
+let thumbs = {};                               // scène → image de carte (miniature du bandeau)
 let items = new Map();                         // id → élément du plateau
-let chars = [];                                // personnages de la campagne (MJ : tous ; joueur : les siens)
+let chars = [];                                // personnages de la campagne
 let layer = 'tokens', tool = 'select';
-let view = { x: 0, y: 0, z: 1 };               // déplacement et zoom de la vue
-let sel = null;                                // id de l'élément sélectionné
+let view = { x: 0, y: 0, z: 1 };
+let sel = null;                                // élément sélectionné
 let channel = null;
+let opt = { names: true, rings: true };
 const DEFAULT_SCALE = 50;                      // pixels par mètre
-// Portées du livret (en mètres) : servent aux cercles et au nom de la portée mesurée
 const RANGES = [['Contact', 1.5], ['Allonge', 3], ['Proche', 9], ['Moyenne portée', 18], ['Grande portée', 36], ['Très grande portée', 72]];
 const RING_RANGES = RANGES.slice(0, 4);
+const LAYER_NAME = { map: 'Carte et décor', tokens: 'Pions et objets', gm: 'Infos MJ (cachée)' };
+const LAYER_COLOR = { map: '#4aa36b', tokens: '#4a8bd6', gm: '#b06cc4' };
 
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for(const [a, v] of Object.entries(attrs)){ if(a === 'class') e.className = v; else if(a.startsWith('on')) e.addEventListener(a.slice(2), v); else if(a === 'text') e.textContent = v; else if(v !== false && v != null) e.setAttribute(a, v === true ? '' : v); } kids.forEach(k => e.append(k)); return e; };
 const scale = () => (scene && Number(scene.data.scale)) || DEFAULT_SCALE;
@@ -173,40 +336,46 @@ const rangeName = m => { const r = RANGES.find(([, d]) => m <= d + 0.05); return
 function userColor(id){ let h = 0; for(const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 70% 55%)`; }
 function toast(t){ const e = $id('toastp'); e.textContent = t; e.hidden = false; clearTimeout(e._h); e._h = setTimeout(() => e.hidden = true, 2600); }
 function showMsg(html){ $id('msg-in').innerHTML = html; $id('msg').hidden = !html; }
+try{ Object.assign(opt, JSON.parse(localStorage.getItem('jdr-plateau-opt') || '{}')); }catch(e){}
+function saveOpt(){ try{ localStorage.setItem('jdr-plateau-opt', JSON.stringify(opt)); }catch(e){} }
 
 /* ======================= Droits ======================= */
-// MJ : tout ; joueur : seulement ses pions (couche pions), jamais la carte ni la couche cachée
 const canMove = it => isGM ? (it.layer === layer && !it.data.locked) : (it.layer === 'tokens' && it.owner_id === me.id && !it.data.locked);
 const controls = it => isGM || (it.layer === 'tokens' && it.owner_id === me.id);
 
-/* ======================= Vue (déplacement / zoom) ======================= */
+/* ======================= Vue ======================= */
+function boardRect(){ return $id('board').getBoundingClientRect(); }
 function applyView(){
   $id('world').style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
-  $id('z-val').textContent = Math.round(view.z * 100) + ' %';
+  $id('z-val').textContent = Math.round(view.z * 100) + ' %'; $id('z-range').value = Math.round(view.z * 100);
+  document.querySelectorAll('.it .nm').forEach(n => n.style.fontSize = Math.max(11, 13 / view.z) + 'px');
 }
 function zoomAt(f, cx, cy){
-  const b = $id('board').getBoundingClientRect();
-  const px = cx - b.left, py = cy - b.top;
+  const b = boardRect(); const px = cx - b.left, py = cy - b.top;
   const nz = Math.min(6, Math.max(0.1, view.z * f));
-  view.x = px - (px - view.x) * nz / view.z; view.y = py - (py - view.y) * nz / view.z; view.z = nz; applyView();
+  view.x = px - (px - view.x) * nz / view.z; view.y = py - (py - view.y) * nz / view.z; view.z = nz; applyView(); drawFx();
 }
-function toWorld(cx, cy){ const b = $id('board').getBoundingClientRect(); return { x: (cx - b.left - view.x) / view.z, y: (cy - b.top - view.y) / view.z }; }
-function centerOn(wx, wy){ const b = $id('board').getBoundingClientRect(); view.x = b.width / 2 - wx * view.z; view.y = b.height / 2 - wy * view.z; applyView(); }
+const zoomCenter = f => { const b = boardRect(); zoomAt(f, b.left + b.width / 2, b.top + b.height / 2); };
+function toWorld(cx, cy){ const b = boardRect(); return { x: (cx - b.left - view.x) / view.z, y: (cy - b.top - view.y) / view.z }; }
+function centerOn(wx, wy){ const b = boardRect(); view.x = b.width / 2 - wx * view.z; view.y = b.height / 2 - wy * view.z; applyView(); }
 function fitAll(){
   const list = [...items.values()];
-  if(!list.length){ view = { x: 0, y: 0, z: 1 }; centerOn(0, 0); return; }
+  if(!list.length){ view.z = 1; centerOn(0, 0); return; }
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   list.forEach(i => { x0 = Math.min(x0, i.data.x); y0 = Math.min(y0, i.data.y); x1 = Math.max(x1, i.data.x + i.data.w); y1 = Math.max(y1, i.data.y + i.data.h); });
-  const b = $id('board').getBoundingClientRect();
-  view.z = Math.min(2, Math.max(0.1, Math.min(b.width / (x1 - x0 + 80), b.height / (y1 - y0 + 80))));
-  centerOn((x0 + x1) / 2, (y0 + y1) / 2);
+  const b = boardRect();
+  view.z = Math.min(2, Math.max(0.1, Math.min((b.width - 140) / (x1 - x0 + 40), (b.height - 140) / (y1 - y0 + 40))));
+  centerOn((x0 + x1) / 2, (y0 + y1) / 2); drawFx();
 }
-$id('z-in').addEventListener('click', () => { const b = $id('board').getBoundingClientRect(); zoomAt(1.25, b.left + b.width / 2, b.top + b.height / 2); });
-$id('z-out').addEventListener('click', () => { const b = $id('board').getBoundingClientRect(); zoomAt(0.8, b.left + b.width / 2, b.top + b.height / 2); });
-$id('z-fit').addEventListener('click', fitAll);
+$id('z-in').addEventListener('click', () => zoomCenter(1.25));
+$id('z-out').addEventListener('click', () => zoomCenter(0.8));
+$id('z-val').addEventListener('click', fitAll);
+$id('z-fit2').addEventListener('click', fitAll);
+$id('z-100').addEventListener('click', () => zoomCenter(1 / view.z));
+$id('z-range').addEventListener('input', e => zoomCenter((Number(e.target.value) / 100) / view.z));
 $id('board').addEventListener('wheel', e => { e.preventDefault(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }, { passive: false });
 
-/* ======================= Affichage des éléments ======================= */
+/* ======================= Éléments ======================= */
 function normItem(row){
   const d = Object.assign({ name: '', img: '', x: 0, y: 0, w: 75, h: 75, rot: 0, round: false, locked: false, z: 0 }, row.data || {});
   ['x','y','w','h','rot','z'].forEach(k => d[k] = Number(d[k]) || 0);
@@ -216,109 +385,75 @@ function normItem(row){
 function renderItem(it){
   let e = document.getElementById('it-' + it.id);
   const L = $id('L-' + it.layer);
-  if(!e){ e = el('div', { id: 'it-' + it.id, class: 'it', 'data-id': it.id }); }
+  if(!e) e = el('div', { id: 'it-' + it.id, class: 'it', 'data-id': it.id });
   if(e.parentElement !== L) L.append(e);
-  const d = it.data, owner = it.owner_id;
+  const d = it.data;
   e.className = 'it' + (d.round ? ' round tok' : '') + (canMove(it) ? ' grab' : '') + (sel === it.id ? ' sel' : '') + (d.locked ? ' lockd' : '');
-  e.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;transform:rotate(${d.rot}deg);z-index:${Math.round(d.z) + 1000};--oc:${owner ? userColor(owner) : '#9aa4ab'}`;
+  e.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;z-index:${Math.round(d.z) + 1000};--oc:${it.owner_id ? userColor(it.owner_id) : '#9aa4ab'};--rot:${d.rot}deg`;
   e.title = d.name || '';
   const kids = [];
-  if(d.img){ const img = el('img', { src: d.img, alt: '', draggable: 'false' }); kids.push(img); }
+  if(d.img) kids.push(el('img', { src: d.img, alt: '', draggable: 'false' }));
   else kids.push(el('div', { class: 'ini', text: (d.name || '?')[0].toUpperCase(), style: `font-size:${Math.max(12, d.h * .45)}px;${d.round ? '' : 'border-radius:8px'}` }));
-  if(d.name && (d.round || it.layer === 'tokens')) kids.push(el('span', { class: 'nm', text: d.name, style: `font-size:${Math.max(11, 13 / view.z)}px` }));
-  if(sel === it.id && isGM && it.layer === layer && !d.locked) kids.push(el('div', { class: 'handle', 'data-handle': '1', title: 'Redimensionner' }));
+  if(opt.names && d.name && it.layer === 'tokens') kids.push(el('span', { class: 'nm', text: d.name, style: `font-size:${Math.max(11, 13 / view.z)}px` }));
+  if(sel === it.id && isGM && it.layer === layer && !d.locked){
+    const k = 1 / view.z;
+    kids.push(el('div', { class: 'hdl rs', 'data-handle': 'resize', title: 'Redimensionner', style: `transform:scale(${k});transform-origin:0 0` }));
+    kids.push(el('div', { class: 'hdl rt', 'data-handle': 'rotate', title: 'Tourner (Maj = pas de 15°)', style: `transform:translateX(-50%) scale(${k});transform-origin:50% 100%` }));
+  }
   e.replaceChildren(...kids);
 }
 function removeItemEl(id){ const e = document.getElementById('it-' + id); if(e) e.remove(); }
-function renderAll(){
-  ['map','tokens','gm'].forEach(l => $id('L-' + l).replaceChildren());
-  [...items.values()].forEach(renderItem);
-  $id('L-gm').hidden = !isGM;
-  renderInspector();
-}
-
-/* ======================= Inspecteur (MJ) ======================= */
-function renderInspector(){
-  const box = $id('insp'); const it = sel && items.get(sel);
-  if(!isGM || !it){ box.hidden = true; return; }
-  box.hidden = false; const d = it.data, s = scale();
-  const num = (lab, val, step, on) => { const i = el('input', { type: 'number', step, value: val }); i.addEventListener('change', () => on(Number(i.value))); return el('label', { class: 'f' }, document.createTextNode(lab), i); };
-  const name = el('input', { value: d.name, maxlength: 60 }); name.addEventListener('change', () => save(it, { name: name.value.trim() }));
-  const lay = el('select', {}, ...[['map','Carte'],['tokens','Pions'],['gm','MJ (cachée)']].map(([v, t]) => el('option', { value: v, text: t })));
-  lay.value = it.layer; lay.addEventListener('change', () => saveRow(it, { layer: lay.value }));
-  const own = el('select', {}, el('option', { value: '', text: '— personne (MJ) —' }), ...chars.map(c => el('option', { value: c.id, text: c.name || 'Sans nom' })));
-  own.value = it.character_id || ''; own.addEventListener('change', () => { const c = chars.find(x => x.id === own.value); saveRow(it, { character_id: c ? c.id : null, owner_id: c ? c.owner_id : null }); });
-  const lock = el('input', { type: 'checkbox' }); lock.checked = !!d.locked; lock.addEventListener('change', () => save(it, { locked: lock.checked }));
-  const round = el('input', { type: 'checkbox' }); round.checked = !!d.round; round.addEventListener('change', () => save(it, { round: round.checked }));
-  const zs = [...items.values()].filter(x => x.layer === it.layer).map(x => x.data.z);
-  box.replaceChildren(
-    el('h2', { text: d.name || 'Élément' }),
-    el('label', { class: 'f' }, document.createTextNode('Nom'), name),
-    el('div', { class: 'r' },
-      el('label', { class: 'f' }, document.createTextNode('Couche'), lay),
-      d.round ? num('Diamètre (m)', Math.round(d.w / s * 10) / 10, 0.5, v => v > 0 && save(it, { w: v * s, h: v * s }))
-              : num('Largeur (m)', Math.round(d.w / s * 10) / 10, 0.5, v => v > 0 && save(it, { w: v * s, h: d.h * (v * s) / d.w }))),
-    el('div', { class: 'r' }, num('Rotation (°)', d.rot, 15, v => save(it, { rot: v })), el('span')),
-    el('label', { class: 'f' }, document.createTextNode('Contrôlé par (fiche liée)'), own),
-    el('label', { class: 'chk' }, round, document.createTextNode(' Pion rond')),
-    el('label', { class: 'chk' }, lock, document.createTextNode(' Verrouillé (ne bouge plus)')),
-    el('div', { class: 'acts' },
-      el('button', { type: 'button', text: 'Devant', onclick: () => save(it, { z: Math.max(...zs) + 1 }) }),
-      el('button', { type: 'button', text: 'Derrière', onclick: () => save(it, { z: Math.min(...zs) - 1 }) }),
-      el('button', { type: 'button', text: 'Centrer la vue', onclick: () => centerOn(d.x + d.w / 2, d.y + d.h / 2) })),
-    el('div', { class: 'acts' },
-      el('button', { type: 'button', text: 'Dupliquer', onclick: () => duplicate(it) }),
-      el('button', { type: 'button', class: 'danger', text: 'Supprimer', onclick: () => delItem(it) })),
-    el('p', { class: 'hint', style: 'margin:0', text: 'Glisse le carré jaune pour redimensionner. Touche Suppr pour supprimer.' }));
-}
+function renderAll(){ ['map','tokens','gm'].forEach(l => $id('L-' + l).replaceChildren()); [...items.values()].forEach(renderItem); $id('L-gm').hidden = !isGM; }
+function select(id){ const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); }
 
 /* ======================= Enregistrement ======================= */
-async function save(it, patch){              // modifie data
-  Object.assign(it.data, patch); renderItem(it); renderInspector();
+async function save(it, patch){
+  Object.assign(it.data, patch); renderItem(it);
   const { error } = await jdrSb.from('board_items').update({ data: it.data }).eq('id', it.id);
   if(error) toast(jdrErrorText(error));
 }
-async function saveRow(it, patch){           // modifie une colonne (couche, propriétaire)
-  // passage dans la couche cachée : les joueurs ne recevront plus cet élément → on leur dit de l'enlever
-  if(patch.layer === 'gm' && it.layer !== 'gm') send('hide', { id: it.id });
-  Object.assign(it, patch); renderItem(it); renderInspector();
+async function saveRow(it, patch){
+  if(patch.layer === 'gm' && it.layer !== 'gm') send('hide', { id: it.id });   // les joueurs ne recevront plus cet élément
+  Object.assign(it, patch); renderItem(it);
   const { error } = await jdrSb.from('board_items').update(patch).eq('id', it.id);
   if(error) toast(jdrErrorText(error));
 }
 async function insertItem(row){
   const { data, error } = await jdrSb.from('board_items').insert(Object.assign({ scene_id: scene.id }, row)).select().single();
   if(error){ toast(jdrErrorText(error)); return null; }
-  const it = normItem(data); items.set(it.id, it); renderItem(it); return it;
+  const it = normItem(data); items.set(it.id, it); renderItem(it);
+  if(it.layer === 'map' && it.data.img && !thumbs[scene.id]){ thumbs[scene.id] = it.data.img; renderStrip(); }
+  return it;
 }
 async function delItem(it){
   const { error } = await jdrSb.from('board_items').delete().eq('id', it.id);
   if(error){ toast(jdrErrorText(error)); return; }
-  items.delete(it.id); removeItemEl(it.id); if(sel === it.id) select(null);
+  items.delete(it.id); removeItemEl(it.id); if(sel === it.id) sel = null;
 }
 async function duplicate(it){
-  const d = Object.assign({}, it.data, { x: it.data.x + 30, y: it.data.y + 30 });
-  const n = await insertItem({ layer: it.layer, owner_id: it.owner_id, character_id: it.character_id, data: d }); if(n) select(n.id);
+  const n = await insertItem({ layer: it.layer, owner_id: it.owner_id, character_id: it.character_id, data: Object.assign({}, it.data, { x: it.data.x + 30, y: it.data.y + 30 }) });
+  if(n) select(n.id);
 }
-function select(id){ const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); renderInspector(); }
+const zsOf = l => [...items.values()].filter(x => x.layer === l).map(x => x.data.z);
 
 /* ======================= Effets : mesure, ping, cercles ======================= */
-const fx = { measures: new Map(), rings: null };     // mesures en cours (par utilisateur), cercles survolés
+const fx = { measures: new Map(), rings: null };
 function drawFx(){
   const s = scale(), k = 1 / view.z; const parts = [];
-  if(fx.rings){
+  if(fx.rings && opt.rings){
     const it = items.get(fx.rings); if(it){ const d = it.data, cx = d.x + d.w / 2, cy = d.y + d.h / 2, r0 = Math.max(d.w, d.h) / 2;
       RING_RANGES.forEach(([n, m], i) => { const r = r0 + m * s;
-        parts.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${i === 0 ? 'rgba(227,179,65,.10)' : 'none'}" stroke="rgba(227,179,65,${.85 - i * .15})" stroke-width="${2 * k}" stroke-dasharray="${i ? 8 * k + ' ' + 6 * k : 'none'}"/>`,
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${i === 0 ? 'rgba(255,210,87,.10)' : 'none'}" stroke="rgba(255,210,87,${.85 - i * .15})" stroke-width="${2 * k}" stroke-dasharray="${i ? 8 * k + ' ' + 6 * k : 'none'}"/>`,
           `<text class="fxlab" x="${cx}" y="${cy - r - 4 * k}" text-anchor="middle" style="font-size:${13 * k}px;stroke-width:${4 * k}px">${n} · ${fmtM(m)}</text>`); }); }
   }
   fx.measures.forEach(m => {
-    const dx = m.b.x - m.a.x, dy = m.b.y - m.a.y, px = Math.hypot(dx, dy), met = px / s;
+    const px = Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y), met = px / s;
     const lab = m.calib ? `${Math.round(px)} px` : `${fmtM(met)} · ${rangeName(met)}`;
     parts.push(`<line x1="${m.a.x}" y1="${m.a.y}" x2="${m.b.x}" y2="${m.b.y}" stroke="${m.color}" stroke-width="${3 * k}" stroke-linecap="round"/>`,
       `<circle cx="${m.a.x}" cy="${m.a.y}" r="${5 * k}" fill="${m.color}"/><circle cx="${m.b.x}" cy="${m.b.y}" r="${5 * k}" fill="${m.color}"/>`,
       `<text class="fxlab" x="${m.b.x + 10 * k}" y="${m.b.y - 10 * k}" style="font-size:${15 * k}px;stroke-width:${4 * k}px">${jdrEsc(lab)}${m.who ? ' — ' + jdrEsc(m.who) : ''}</text>`);
   });
-  $id('fx-static').innerHTML = parts.join('');   // les pings vivent à part (#fx-pings) : leur animation n'est pas relancée
+  $id('fx-static').innerHTML = parts.join('');
 }
 function showPing(p){
   const k = 1 / view.z;
@@ -334,65 +469,84 @@ let lastSend = 0;
 function send(event, payload){ if(channel) channel.send({ type: 'broadcast', event, payload }); }
 function sendThrottled(event, payload){ const t = performance.now(); if(t - lastSend > 45){ lastSend = t; send(event, payload); } }
 function subscribe(){
-  channel = jdrSb.channel('jdr-plateau-' + CAMP, { config: { broadcast: { self: false } } })
+  channel = jdrSb.channel('jdr-plateau-' + CAMP, { config: { broadcast: { self: false }, presence: { key: me.id } } })
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'board_items', filter: 'campaign_id=eq.' + CAMP }, onItemChange)
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'scenes', filter: 'campaign_id=eq.' + CAMP }, onSceneChange)
     .on('postgres_changes', { event: 'UPDATE', schema: 'jdr', table: 'campaigns', filter: 'id=eq.' + CAMP }, onCampChange)
-    .on('broadcast', { event: 'drag' }, ({ payload }) => { if(drag && drag.id === payload.id) return; const it = items.get(payload.id); if(it && it.layer !== 'gm' && scene && payload.scene === scene.id){ Object.assign(it.data, { x: payload.x, y: payload.y }); renderItem(it); } })
+    .on('postgres_changes', { event: 'INSERT', schema: 'jdr', table: 'messages', filter: 'campaign_id=eq.' + CAMP }, ({ new: m }) => addMsg(m))
+    .on('postgres_changes', { event: 'DELETE', schema: 'jdr', table: 'messages' }, ({ old: m }) => { const e = m && document.getElementById('m-' + m.id); if(e) e.remove(); })
+    .on('broadcast', { event: 'drag' }, ({ payload }) => { if(drag && drag.id === payload.id) return; const it = items.get(payload.id); if(it && scene && payload.scene === scene.id){ Object.assign(it.data, payload.d); renderItem(it); if(fx.rings === it.id) drawFx(); } })
     .on('broadcast', { event: 'hide' }, ({ payload }) => { if(!isGM && items.has(payload.id)){ items.delete(payload.id); removeItemEl(payload.id); } })
     .on('broadcast', { event: 'measure' }, ({ payload }) => { if(!scene || payload.scene !== scene.id) return; if(payload.clear) fx.measures.delete(payload.uid); else fx.measures.set(payload.uid, payload); drawFx(); })
     .on('broadcast', { event: 'ping' }, ({ payload }) => { if(scene && payload.scene === scene.id) showPing(Object.assign({}, payload, { focus: payload.focus && !isGM })); })
-    .subscribe(st => { if(st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') toast('Temps réel indisponible : recharge la page si les autres ne bougent plus.'); });
+    .on('presence', { event: 'sync' }, renderPlayers)
+    .subscribe(async st => {
+      if(st === 'SUBSCRIBED') await channel.track({ name: myName, gm: isGM, at: Date.now() });
+      if(st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') toast('Temps réel indisponible : recharge la page si les autres ne bougent plus.');
+    });
 }
 function onItemChange({ eventType, new: n, old: o }){
-  if(eventType === 'DELETE'){ if(o && items.has(o.id)){ items.delete(o.id); removeItemEl(o.id); if(sel === o.id) select(null); } return; }
+  if(eventType === 'DELETE'){ if(o && items.has(o.id)){ items.delete(o.id); removeItemEl(o.id); if(sel === o.id) sel = null; } return; }
   if(!scene || n.scene_id !== scene.id){ if(items.has(n.id)){ items.delete(n.id); removeItemEl(n.id); } return; }
-  if(drag && drag.id === n.id) return;                               // je suis en train de le déplacer
-  const it = normItem(n); items.set(it.id, it); renderItem(it); if(sel === it.id) renderInspector();
+  if(drag && drag.id === n.id) return;
+  const it = normItem(n); items.set(it.id, it); renderItem(it);
 }
 function onSceneChange({ eventType, new: n, old: o }){
-  if(eventType === 'DELETE'){ scenes = scenes.filter(s => s.id !== o.id); fillScenes(); if(scene && scene.id === o.id){ scene = null; loadScene(isGM ? (scenes[0] || {}).id : camp.active_scene); } return; }
+  if(eventType === 'DELETE'){ scenes = scenes.filter(s => s.id !== o.id); renderStrip(); if(scene && scene.id === o.id){ scene = null; loadScene(isGM ? (scenes[0] || {}).id : camp.active_scene); } return; }
   const i = scenes.findIndex(s => s.id === n.id); if(i >= 0) scenes[i] = n; else scenes.push(n);
   if(scene && scene.id === n.id){ scene = n; applyScene(); }
-  fillScenes();
+  renderStrip();
 }
 function onCampChange({ new: n }){
-  const was = camp.active_scene; camp = Object.assign(camp, n); fillScenes();
+  const was = camp.active_scene; camp = Object.assign(camp, n); renderStrip();
   if(!isGM && n.active_scene !== was){ loadScene(n.active_scene); toast('Le MJ change de scène'); }
 }
 
-/* ======================= Scènes ======================= */
-function fillScenes(){
-  const s = $id('scene-sel');
-  if(isGM){
-    s.replaceChildren(...scenes.map(x => el('option', { value: x.id, text: (x.id === camp.active_scene ? '● ' : '') + x.name })));
-    if(!scenes.length) s.append(el('option', { value: '', text: 'Aucune scène' }));
-    s.value = scene ? scene.id : '';
-    const live = $id('scene-live'); live.hidden = !scene;
-    if(scene){ const on = scene.id === camp.active_scene; live.className = 'pill' + (on ? ' good' : ''); live.textContent = on ? 'Vue par les joueurs' : 'Montrer aux joueurs';
-      live.style.cursor = on ? 'default' : 'pointer'; live.title = on ? '' : 'Afficher cette scène chez tous les joueurs'; }
-  } else {
-    s.replaceChildren(el('option', { value: scene ? scene.id : '', text: scene ? scene.name : 'En attente du MJ' })); s.disabled = true;
-  }
+/* ======================= Joueurs connectés ======================= */
+function renderPlayers(){
+  const st = channel && channel.presenceState ? channel.presenceState() : {};
+  const list = Object.entries(st).map(([uid, metas]) => Object.assign({ uid }, (metas && metas[0]) || {}))
+    .sort((a, b) => (b.gm ? 1 : 0) - (a.gm ? 1 : 0) || String(a.name).localeCompare(String(b.name), 'fr'));
+  $id('plist').replaceChildren(...list.map(p => el('div', { class: 'pav', title: (p.name || 'Joueur') + (p.gm ? ' (maître du jeu)' : '') },
+    el('div', { class: 'c', style: `--pc:${userColor(p.uid)}` }, document.createTextNode((p.name || '?')[0].toUpperCase()), ...(p.gm ? [el('i', { text: 'MJ' })] : [])),
+    el('span', { text: p.name || 'Joueur' }))));
 }
-$id('scene-sel').addEventListener('change', e => loadScene(e.target.value));
-$id('scene-live').addEventListener('click', async () => {
-  if(!isGM || !scene || scene.id === camp.active_scene) return;
-  const { error } = await jdrSb.from('campaigns').update({ active_scene: scene.id }).eq('id', CAMP);
+
+/* ======================= Scènes (bandeau du MJ) ======================= */
+function renderStrip(){
+  if(!isGM) return;
+  const S = $id('strip');
+  const cards = scenes.map(s => {
+    const card = el('div', { class: 'pg' + (scene && scene.id === s.id ? ' cur' : ''), title: s.name, onclick: e => { if(!e.target.closest('button')) loadScene(s.id); } },
+      el('div', { class: 'th', style: thumbs[s.id] ? `background-image:url("${thumbs[s.id].replace(/"/g, '%22')}")` : `background-color:${s.data.bg || '#1d252b'}` }),
+      el('div', { class: 'pn', text: s.name }));
+    if(s.id === camp.active_scene) card.append(el('span', { class: 'rib', text: 'JOUEURS' }));
+    card.append(el('div', { class: 'pa' },
+      ...(s.id !== camp.active_scene ? [el('button', { type: 'button', text: 'Joueurs ici', title: 'Afficher cette scène chez les joueurs', onclick: () => showToPlayers(s) })] : []),
+      el('button', { type: 'button', text: '⚙', title: 'Réglages de la scène', onclick: async () => { if(!scene || scene.id !== s.id) await loadScene(s.id); openPane('settings'); } })));
+    return card;
+  });
+  cards.push(el('button', { type: 'button', class: 'pg add', title: 'Nouvelle scène', 'aria-label': 'Nouvelle scène', text: '+', onclick: newScene }));
+  S.replaceChildren(...cards);
+  $id('pgtab').textContent = (scene ? scene.name : 'Scènes') + ($id('pages').classList.contains('closed') ? ' ▾' : ' ▴');
+}
+$id('pgtab').addEventListener('click', () => { $id('pages').classList.toggle('closed'); renderStrip(); });
+async function showToPlayers(s){
+  const { error } = await jdrSb.from('campaigns').update({ active_scene: s.id }).eq('id', CAMP);
   if(error){ toast(jdrErrorText(error)); return; }
-  camp.active_scene = scene.id; fillScenes(); toast('Les joueurs voient maintenant « ' + scene.name + ' »');
-});
+  camp.active_scene = s.id; renderStrip(); postMsg('system', `Le MJ affiche la scène « ${s.name} »`);
+}
 function applyScene(){
   $id('board').style.setProperty('--scene-bg', (scene && scene.data.bg) || '#1d252b');
   $id('scale-info').textContent = scene ? `1 m = ${Math.round(scale())} px` : '';
+  if(isGM && scene){ $id('s-name').value = scene.name; $id('s-scale').value = Math.round(scale() * 100) / 100; $id('s-bg').value = scene.data.bg || '#1d252b'; }
   [...items.values()].forEach(renderItem); drawFx();
 }
 async function loadScene(id){
-  items.clear(); sel = null; fx.measures.clear(); fx.rings = null;
+  items.clear(); sel = null; fx.measures.clear(); fx.rings = null; closeCtx();
   scene = scenes.find(s => s.id === id) || null;
-  fillScenes(); applyScene();
+  renderStrip(); applyScene(); renderAll();
   if(!scene){
-    renderAll();
     showMsg(isGM ? '<h2>Aucune scène</h2><p style="margin:0">Une scène, c\'est une carte avec ses pions (un donjon, une ville…).</p><button class="primary" type="button" onclick="newScene()">Créer une scène</button>'
                  : '<h2>En attente du MJ</h2><p style="margin:0">Le maître du jeu n\'a pas encore affiché de scène.</p>');
     return;
@@ -401,169 +555,315 @@ async function loadScene(id){
   const { data, error } = await jdrSb.from('board_items').select('*').eq('scene_id', scene.id).order('created_at');
   if(error){ toast(jdrErrorText(error)); return; }
   data.forEach(r => { const it = normItem(r); items.set(it.id, it); });
-  renderAll(); fitAll();
+  renderAll(); fitAll(); renderJournal();
 }
 async function newScene(){
-  const name = 'Scène ' + (scenes.length + 1);
-  const { data, error } = await jdrSb.from('scenes').insert({ campaign_id: CAMP, name, data: { scale: DEFAULT_SCALE, bg: '#1d252b' } }).select().single();
+  const { data, error } = await jdrSb.from('scenes').insert({ campaign_id: CAMP, name: 'Scène ' + (scenes.length + 1), data: { scale: DEFAULT_SCALE, bg: '#1d252b' } }).select().single();
   if(error){ toast(jdrErrorText(error)); return; }
   scenes.push(data);
   if(!camp.active_scene){ await jdrSb.from('campaigns').update({ active_scene: data.id }).eq('id', CAMP); camp.active_scene = data.id; }
-  await loadScene(data.id); $id('d-scene').close?.(); toast('Scène créée : ajoute une image de carte');
+  await loadScene(data.id); openPane(isGM ? 'images' : 'chat'); toast('Scène créée : glisse une image de carte dessus');
 }
 window.newScene = newScene;
-$id('b-scene').addEventListener('click', () => {
-  if(!scene){ newScene(); return; }
-  $id('s-name').value = scene.name; $id('s-scale').value = Math.round(scale() * 100) / 100; $id('s-bg').value = scene.data.bg || '#1d252b'; $id('s-st').textContent = '';
-  $id('s-del').textContent = 'Supprimer la scène'; $id('d-scene').showModal();
-});
-$id('s-cancel').addEventListener('click', () => $id('d-scene').close());
-$id('s-new').addEventListener('click', newScene);
 $id('s-ok').addEventListener('click', async () => {
+  if(!scene) return;
   const data = Object.assign({}, scene.data, { scale: Math.max(2, Number($id('s-scale').value) || DEFAULT_SCALE), bg: $id('s-bg').value });
   const name = $id('s-name').value.trim() || scene.name;
   const { error } = await jdrSb.from('scenes').update({ name, data }).eq('id', scene.id);
-  if(error){ $id('s-st').textContent = jdrErrorText(error); return; }
-  Object.assign(scene, { name, data }); fillScenes(); applyScene(); $id('d-scene').close();
+  if(error){ $id('s-st').className = 'status bad'; $id('s-st').textContent = jdrErrorText(error); return; }
+  Object.assign(scene, { name, data }); renderStrip(); applyScene(); $id('s-st').className = 'status good'; $id('s-st').textContent = 'Scène enregistrée';
 });
 let sceneDelArmed = false;
 $id('s-del').addEventListener('click', async e => {
+  if(!scene) return;
   if(!sceneDelArmed){ sceneDelArmed = true; e.target.textContent = 'Confirmer : tout effacer'; setTimeout(() => { sceneDelArmed = false; e.target.textContent = 'Supprimer la scène'; }, 3000); return; }
-  sceneDelArmed = false;
+  sceneDelArmed = false; e.target.textContent = 'Supprimer la scène';
   const id = scene.id; const { error } = await jdrSb.from('scenes').delete().eq('id', id);
   if(error){ $id('s-st').textContent = jdrErrorText(error); return; }
-  scenes = scenes.filter(s => s.id !== id); $id('d-scene').close(); await loadScene((scenes[0] || {}).id);
+  scenes = scenes.filter(s => s.id !== id); await loadScene((scenes[0] || {}).id);
 });
 
-/* ======================= Ajouter une image / les personnages (MJ) ======================= */
-$id('b-add').addEventListener('click', () => {
-  if(!scene){ newScene(); return; }
-  $id('a-file').value = ''; $id('a-url').value = ''; $id('a-name').value = ''; $id('a-st').textContent = '';
-  $id('a-layer').value = layer; $id('a-round').checked = layer === 'tokens'; $id('a-size-l').hidden = !$id('a-round').checked;
-  $id('d-add').showModal();
-});
-$id('a-round').addEventListener('change', e => { $id('a-size-l').hidden = !e.target.checked; });
-$id('a-layer').addEventListener('change', e => { $id('a-round').checked = e.target.value === 'tokens'; $id('a-size-l').hidden = !$id('a-round').checked; });
-$id('a-cancel').addEventListener('click', () => $id('d-add').close());
+/* ======================= Barre latérale ======================= */
+function openPane(p){
+  document.querySelectorAll('.stabs [data-pane]').forEach(b => { b.classList.toggle('on', b.dataset.pane === p); b.setAttribute('aria-selected', b.dataset.pane === p ? 'true' : 'false'); });
+  document.querySelectorAll('.spane').forEach(s => s.classList.toggle('on', s.dataset.pane === p));
+  setSide(true);
+  if(p === 'images') loadLibrary();
+  if(p === 'chat') scrollChat();
+}
+document.querySelectorAll('.stabs [data-pane]').forEach(b => b.addEventListener('click', () => openPane(b.dataset.pane)));
+function setSide(on){ document.body.classList.toggle('side-off', !on); document.body.classList.toggle('side-on', on); $id('sidetog').textContent = on ? '›' : '‹'; $id('sidetog').setAttribute('aria-label', on ? 'Replier la barre latérale' : 'Déplier la barre latérale'); setTimeout(drawFx, 220); }
+$id('sidetog').addEventListener('click', () => setSide(document.body.classList.contains('side-off') || !document.body.classList.contains('side-on')));
+$id('o-names').addEventListener('change', e => { opt.names = e.target.checked; saveOpt(); renderAll(); });
+$id('o-rings').addEventListener('change', e => { opt.rings = e.target.checked; saveOpt(); drawFx(); });
+
+/* ---------- Discussion (et journal des actions) ---------- */
+function scrollChat(){ const m = $id('msgs'); m.scrollTop = m.scrollHeight; }
+function addMsg(m){
+  if(document.getElementById('m-' + m.id)) return;
+  const box = $id('msgs'); const near = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  const t = new Date(m.created_at || Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const e = el('div', { class: 'm ' + m.kind, id: 'm-' + m.id, style: `--mc:${userColor(m.author_id)}` });
+  if(m.kind === 'system') e.textContent = m.text;
+  else e.append(el('b', { text: (m.author_name || 'Quelqu’un') + ' ' }), document.createTextNode(m.text), el('span', { class: 't', text: t }));
+  box.append(e); if(near || m.author_id === me.id) scrollChat();
+}
+async function loadChat(){
+  const { data, error } = await jdrSb.from('messages').select('*').eq('campaign_id', CAMP).order('created_at', { ascending: false }).limit(150);
+  if(error){ $id('msgs').append(el('div', { class: 'm system', text: 'Discussion indisponible : ' + jdrErrorText(error) })); return; }
+  $id('msgs').replaceChildren(); (data || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))).forEach(addMsg); scrollChat();
+}
+async function postMsg(kind, text, data){
+  const { data: row, error } = await jdrSb.from('messages').insert({ campaign_id: CAMP, author_name: myName, kind, text, data: data || {} }).select().single();
+  if(error){ toast(jdrErrorText(error)); return false; }
+  if(row) addMsg(row); return true;
+}
+$id('chat-f').addEventListener('submit', async e => { e.preventDefault(); const t = $id('chat-in').value.trim(); if(!t) return; $id('chat-in').value = ''; if(!(await postMsg('chat', t))) $id('chat-in').value = t; });
+$id('chat-in').addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $id('chat-f').requestSubmit(); } });
+
+/* ---------- Images (MJ) : bibliothèque de la campagne ---------- */
+let libLoaded = false;
 function imgSize(url){ return new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight }); i.onerror = () => res(null); i.src = url; }); }
 async function upload(file){
+  if(!/^image\//.test(file.type)) throw new Error('Ce fichier n’est pas une image.');
+  if(file.size > 20 * 1024 * 1024) throw new Error('Image trop lourde (20 Mo maximum).');
   const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const path = `${CAMP}/${crypto.randomUUID()}.${ext}`;
+  const base = file.name.replace(/\.[^.]+$/, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 40) || 'image';
+  const path = `${CAMP}/${base}-${Date.now().toString(36)}.${ext}`;
   const { error } = await jdrSb.storage.from('jdr-plateau').upload(path, file, { contentType: file.type, upsert: false });
   if(error) throw error;
   return jdrSb.storage.from('jdr-plateau').getPublicUrl(path).data.publicUrl;
 }
-$id('a-ok').addEventListener('click', async () => {
-  const file = $id('a-file').files[0]; let url = $id('a-url').value.trim();
-  if(!file && !/^https?:\/\//i.test(url)){ $id('a-st').textContent = 'Choisis un fichier ou colle une adresse web (https://…).'; $id('a-st').className = 'status bad'; return; }
-  $id('a-ok').disabled = true; $id('a-st').className = 'status'; $id('a-st').textContent = file ? 'Envoi de l’image…' : 'Chargement…';
-  try{
-    if(file){ if(file.size > 20 * 1024 * 1024) throw new Error('Image trop lourde (20 Mo maximum).'); url = await upload(file); }
-    const sz = await imgSize(url); if(!sz) throw new Error('Image illisible à cette adresse.');
-    const L = $id('a-layer').value, round = $id('a-round').checked, s = scale();
-    const b = $id('board').getBoundingClientRect(); const c = toWorld(b.left + b.width / 2, b.top + b.height / 2);
-    let w, h;
-    if(round){ w = h = (Number($id('a-size').value) || 1.5) * s; }
-    else if(L === 'map'){ w = sz.w; h = sz.h; }                                     // carte : taille réelle de l'image
-    else { const m = 1.5 * s * 2; const f = m / Math.max(sz.w, sz.h); w = sz.w * f; h = sz.h * f; }
-    const zs = [...items.values()].filter(x => x.layer === L).map(x => x.data.z);
-    const name = $id('a-name').value.trim() || (file ? file.name.replace(/\.[^.]+$/, '') : '');
-    const it = await insertItem({ layer: L, data: { name, img: url, x: c.x - w / 2, y: c.y - h / 2, w, h, rot: 0, round, locked: false, z: zs.length ? Math.max(...zs) + 1 : 0 } });
-    $id('d-add').close(); if(it){ setLayer(L); select(it.id); }
-  }catch(err){ $id('a-st').className = 'status bad'; $id('a-st').textContent = jdrErrorText(err); }
-  $id('a-ok').disabled = false;
+const libUrls = new Set();
+function libTile(url, name){
+  if(libUrls.has(url)) return; libUrls.add(url);
+  const t = el('div', { class: 'li', draggable: 'true', title: name + ' — glisse sur la carte, ou clique pour la poser au centre', style: `background-image:url("${url.replace(/"/g, '%22')}")` }, el('span', { text: name }));
+  t.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-jdr-img', JSON.stringify({ url, name })); e.dataTransfer.effectAllowed = 'copy'; });
+  t.addEventListener('click', () => { const b = boardRect(); placeImage(url, name, b.left + b.width / 2, b.top + b.height / 2); });
+  $id('lib').prepend(t);
+}
+async function loadLibrary(){
+  if(libLoaded || !isGM) return; libLoaded = true;
+  const { data, error } = await jdrSb.storage.from('jdr-plateau').list(CAMP, { limit: 500, sortBy: { column: 'created_at', order: 'asc' } });
+  if(error){ $id('lib-st').textContent = jdrErrorText(error); return; }
+  (data || []).filter(f => f.name && !f.name.startsWith('.')).forEach(f => libTile(jdrSb.storage.from('jdr-plateau').getPublicUrl(`${CAMP}/${f.name}`).data.publicUrl, f.name.replace(/-[a-z0-9]+\.[^.]+$/, '')));
+  [...items.values()].filter(i => i.data.img && !/\/jdr-plateau\//.test(i.data.img)).forEach(i => libTile(i.data.img, i.data.name || 'Lien'));   // images par lien déjà posées
+}
+async function addFiles(files){
+  const st = $id('lib-st'); st.className = 'status';
+  for(const f of files){ st.textContent = `Envoi de « ${f.name} »…`;
+    try{ const url = await upload(f); libTile(url, f.name.replace(/\.[^.]+$/, '')); }catch(err){ st.className = 'status bad'; st.textContent = jdrErrorText(err); return; } }
+  st.className = 'status good'; st.textContent = files.length > 1 ? `${files.length} images ajoutées` : 'Image ajoutée : glisse-la sur la carte';
+}
+$id('lib-file').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+const dz = $id('dropz');
+['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { if([...e.dataTransfer.types].includes('Files')){ e.preventDefault(); dz.classList.add('over'); } }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, () => dz.classList.remove('over')));
+dz.addEventListener('drop', e => { e.preventDefault(); addFiles([...e.dataTransfer.files]); });
+$id('lib-url-ok').addEventListener('click', async () => {
+  const url = $id('lib-url').value.trim(); const st = $id('lib-st');
+  if(!/^https?:\/\//i.test(url)){ st.className = 'status bad'; st.textContent = 'Colle une adresse qui commence par https://'; return; }
+  if(!(await imgSize(url))){ st.className = 'status bad'; st.textContent = 'Image illisible à cette adresse.'; return; }
+  libTile(url, (url.split('/').pop() || 'Lien').split('?')[0].slice(0, 40)); $id('lib-url').value = ''; st.className = 'status good'; st.textContent = 'Lien ajouté : glisse l’image sur la carte';
 });
-$id('b-chars').addEventListener('click', async () => {
-  if(!scene){ newScene(); return; }
+// Poser une image sur la carte, à un point de l'écran, dans la couche active
+async function placeImage(url, name, cx, cy){
+  if(!scene){ toast('Crée d’abord une scène (bandeau du haut).'); return; }
+  const sz = await imgSize(url); if(!sz){ toast('Image illisible.'); return; }
+  const p = toWorld(cx, cy), s = scale(), L = isGM ? layer : 'tokens';
+  let w, h, round = false;
+  if(L === 'map'){ w = sz.w; h = sz.h; }
+  else if(L === 'tokens' && Math.abs(sz.w / sz.h - 1) < 0.15){ round = true; w = h = 1.5 * s; }   // image carrée → pion rond de 1,5 m
+  else { const f = (3 * s) / Math.max(sz.w, sz.h); w = sz.w * f; h = sz.h * f; }
+  const zs = zsOf(L);
+  const it = await insertItem({ layer: L, data: { name: L === 'map' ? '' : name, img: url, x: p.x - w / 2, y: p.y - h / 2, w, h, rot: 0, round, locked: false, z: zs.length ? Math.max(...zs) + 1 : 0 } });
+  if(it){ select(it.id); toast(`Ajouté sur la couche « ${LAYER_NAME[L]} »`); }
+}
+const B = $id('board');
+B.addEventListener('dragover', e => { if(isGM && [...e.dataTransfer.types].some(t => t === 'text/x-jdr-img' || t === 'Files')){ e.preventDefault(); B.classList.add('dropping'); } });
+B.addEventListener('dragleave', () => B.classList.remove('dropping'));
+B.addEventListener('drop', async e => {
+  B.classList.remove('dropping'); if(!isGM) return; e.preventDefault();
+  const raw = e.dataTransfer.getData('text/x-jdr-img');
+  if(raw){ const { url, name } = JSON.parse(raw); return placeImage(url, name, e.clientX, e.clientY); }
+  const f = [...e.dataTransfer.files].find(x => /^image\//.test(x.type)); if(!f) return;
+  try{ toast('Envoi de l’image…'); const url = await upload(f); libTile(url, f.name.replace(/\.[^.]+$/, '')); placeImage(url, f.name.replace(/\.[^.]+$/, ''), e.clientX, e.clientY); }catch(err){ toast(jdrErrorText(err)); }
+});
+$id('b-addimg').addEventListener('click', () => openPane('images'));
+
+/* ---------- Journal : personnages ---------- */
+function renderJournal(){
+  const onBoard = new Map([...items.values()].filter(i => i.character_id).map(i => [i.character_id, i]));
+  $id('jl').replaceChildren(...(chars.length ? chars.map(c => {
+    const d = c.data || {}, tok = onBoard.get(c.id);
+    const who = [d.peuple, d.classe].filter(Boolean).join(' · ');
+    return el('div', { class: 'jr' },
+      el('div', { class: 'av', style: `--oc:${userColor(c.owner_id)};${d.portrait ? `background-image:url("${String(d.portrait).replace(/"/g, '%22')}")` : ''}`, text: d.portrait ? '' : (c.name || '?')[0].toUpperCase() }),
+      el('div', { class: 'tx' }, el('b', { text: c.name || 'Sans nom' }), el('small', { text: who || 'Personnage' })),
+      el('a', { href: 'fiche-personnage.html?id=' + encodeURIComponent(c.id), target: '_blank', rel: 'noopener', text: 'Fiche' }),
+      tok ? el('button', { type: 'button', text: 'Voir', title: 'Centrer la vue sur son pion', onclick: () => { centerOn(tok.data.x + tok.data.w / 2, tok.data.y + tok.data.h / 2); select(tok.id); } })
+          : (isGM ? el('button', { type: 'button', text: 'Poser', title: 'Poser son pion au centre', onclick: () => placeChars([c]) }) : document.createTextNode('')));
+  }) : [el('p', { class: 'hint', style: 'margin:0', text: 'Aucun personnage dans cette partie pour l’instant.' })]));
+}
+async function placeChars(list){
+  if(!scene){ toast('Crée d’abord une scène.'); return; }
+  const s = scale(), d = 1.5 * s; const b = boardRect(); const c = toWorld(b.left + b.width / 2, b.top + b.height / 2);
+  for(const [i, ch] of list.entries()){
+    await insertItem({ layer: 'tokens', owner_id: ch.owner_id, character_id: ch.id,
+      data: { name: ch.name || 'Sans nom', img: (ch.data && ch.data.portrait) || '', x: c.x + (i - (list.length - 1) / 2) * d * 1.4 - d / 2, y: c.y - d / 2, w: d, h: d, round: true, z: 10 + i } });
+  }
+  renderJournal();
+}
+$id('b-chars').addEventListener('click', () => {
   const onBoard = new Set([...items.values()].map(i => i.character_id).filter(Boolean));
   const todo = chars.filter(c => !onBoard.has(c.id));
-  if(!chars.length){ toast('Aucun joueur n’a encore rejoint cette campagne.'); return; }
-  if(!todo.length){ toast('Tous les personnages sont déjà sur la scène.'); return; }
-  const s = scale(), d = 1.5 * s; const b = $id('board').getBoundingClientRect(); const c = toWorld(b.left + b.width / 2, b.top + b.height / 2);
-  for(const [i, ch] of todo.entries()){
-    await insertItem({ layer: 'tokens', owner_id: ch.owner_id, character_id: ch.id,
-      data: { name: ch.name || 'Sans nom', img: (ch.data && ch.data.portrait) || '', x: c.x + (i - (todo.length - 1) / 2) * d * 1.4 - d / 2, y: c.y - d / 2, w: d, h: d, round: true, z: 10 + i } });
-  }
-  setLayer('tokens'); toast(todo.length + ' personnage(s) ajouté(s)');
+  if(!chars.length) return toast('Aucun joueur n’a encore rejoint cette campagne.');
+  if(!todo.length) return toast('Tous les personnages sont déjà sur la scène.');
+  setLayer('tokens'); placeChars(todo);
 });
 
 /* ======================= Couches et outils ======================= */
-function setLayer(l){ layer = l; document.querySelectorAll('[data-layer]').forEach(b => b.classList.toggle('on', b.dataset.layer === l));
-  $id('board').classList.toggle('lay-gm', l === 'gm'); [...items.values()].forEach(renderItem); }
-function setTool(t){ tool = t; document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
-  $id('board').className = 'board t-' + t + (layer === 'gm' ? ' lay-gm' : ''); closeCalib(); }
-document.querySelectorAll('[data-layer]').forEach(b => b.addEventListener('click', () => { setLayer(b.dataset.layer); select(null); }));
+function setLayer(l){
+  layer = l; document.querySelectorAll('[data-layer]').forEach(b => b.classList.toggle('on', b.dataset.layer === l));
+  $id('layer-badge').style.background = LAYER_COLOR[l]; $id('b-layer').title = 'Couche active : ' + LAYER_NAME[l];
+  B.classList.toggle('lay-gm', l === 'gm'); sel = null; [...items.values()].forEach(renderItem);
+}
+function setTool(t){
+  tool = t; document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  B.classList.remove('t-select','t-measure','t-ping','t-calib'); B.classList.add('t-' + t); closeCalib();
+}
+document.querySelectorAll('[data-layer]').forEach(b => b.addEventListener('click', () => { setLayer(b.dataset.layer); toast('Couche active : ' + LAYER_NAME[b.dataset.layer]); }));
 document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+// sous-menus : ouverts au survol ; au clavier / tactile, un clic sur le bouton les ouvre
+document.querySelectorAll('.tb .tw').forEach(w => { const f = w.querySelector('.fly'); if(!f) return;
+  w.querySelector('.tbtn').addEventListener('click', () => { const o = !w.classList.contains('open'); document.querySelectorAll('.tb .tw.open').forEach(x => x.classList.remove('open')); w.classList.toggle('open', o); }); });
+document.addEventListener('pointerdown', e => { if(!e.target.closest('.tb')) document.querySelectorAll('.tb .tw.open').forEach(x => x.classList.remove('open')); });
 document.addEventListener('keydown', e => {
   if(e.target.closest('input, textarea, select, dialog')) return;
   const k = e.key.toLowerCase();
   if(k === 'v') setTool('select'); else if(k === 'm') setTool('measure'); else if(k === 'p') setTool('ping');
-  else if(k === 'escape'){ select(null); setTool('select'); }
+  else if(k === 'escape'){ select(null); setTool('select'); closeCtx(); }
   else if((k === 'delete' || k === 'backspace') && isGM && sel){ const it = items.get(sel); if(it) delItem(it); }
-  else if(k === '+' || k === '='){ $id('z-in').click(); } else if(k === '-'){ $id('z-out').click(); }
+  else if(k === '+' || k === '=') zoomCenter(1.25); else if(k === '-') zoomCenter(0.8);
 });
 
-/* ======================= Souris / doigt sur le plateau ======================= */
-let drag = null;              // { id, dx, dy } déplacement d'un élément
-let pan = null, meas = null, resize = null;
-const myColor = () => userColor(me.id);
-const myName = () => $id('who').textContent || '';
-$id('board').addEventListener('pointerdown', e => {
-  if(e.target.closest('.msg>div, .hud, .calib, .toastp')) return;     // boutons posés sur le plateau
-  if(e.button === 1 || e.button === 2){ pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; $id('board').classList.add('panning'); $id('board').setPointerCapture(e.pointerId); return; }
+/* ======================= Menu clic droit ======================= */
+function closeCtx(){ $id('ctx').hidden = true; }
+function openCtx(it, cx, cy){
+  const m = $id('ctx'); const d = it.data; const kids = [];
+  const btn = (t, fn, cls) => el('button', { type: 'button', class: cls || '', text: t, onclick: () => { closeCtx(); fn(); } });
+  kids.push(el('div', { class: 'ch', text: d.name || LAYER_NAME[it.layer] }));
+  if(it.character_id) kids.push(btn('Ouvrir la fiche', () => window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener')));
+  if(isGM){
+    kids.push(btn('Réglages du pion…', () => openTok(it)));
+    const zs = zsOf(it.layer);
+    kids.push(btn('Mettre devant', () => save(it, { z: Math.max(...zs) + 1 })), btn('Mettre derrière', () => save(it, { z: Math.min(...zs) - 1 })));
+    kids.push(el('div', { class: 'sep' }), el('div', { class: 'ch', text: 'Couche' }),
+      el('div', { class: 'sub' }, ...['map','tokens','gm'].map(l => el('button', { type: 'button', class: it.layer === l ? 'on' : '', text: { map: 'Carte', tokens: 'Pions', gm: 'MJ' }[l], title: LAYER_NAME[l], onclick: () => { closeCtx(); saveRow(it, { layer: l }); } }))));
+    kids.push(el('div', { class: 'sep' }));
+    kids.push(btn(d.locked ? 'Déverrouiller' : 'Verrouiller', () => save(it, { locked: !d.locked })), btn('Dupliquer', () => duplicate(it)));
+    kids.push(btn('Centrer la vue des joueurs ici', () => { const p = { scene: scene.id, x: d.x + d.w / 2, y: d.y + d.h / 2, color: userColor(me.id), who: myName, focus: true }; showPing(p); send('ping', p); }));
+    kids.push(el('div', { class: 'sep' }), btn('Supprimer', () => delItem(it), 'dang'));
+  } else {
+    kids.push(btn('Centrer la vue', () => centerOn(d.x + d.w / 2, d.y + d.h / 2)));
+  }
+  m.replaceChildren(...kids); m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(cx, innerWidth - r.width - 8) + 'px'; m.style.top = Math.min(cy, innerHeight - r.height - 8) + 'px';
+}
+document.addEventListener('pointerdown', e => { if(!e.target.closest('#ctx')) closeCtx(); }, true);
+
+/* ======================= Réglages du pion (double-clic) ======================= */
+let tokEdit = null;
+function openTok(it){
+  if(!isGM) return; tokEdit = it; const d = it.data, s = scale();
+  $id('t-name').value = d.name || ''; $id('t-img').value = d.img || ''; $id('t-layer').value = it.layer;
+  $id('t-size').value = Math.round(d.w / s * 10) / 10; $id('t-size-l').firstChild.textContent = d.round ? 'Diamètre (m)' : 'Largeur (m)';
+  $id('t-rot').value = d.rot || 0; $id('t-round').checked = !!d.round; $id('t-lock').checked = !!d.locked;
+  $id('t-char').replaceChildren(el('option', { value: '', text: '— personne (MJ) —' }), ...chars.map(c => el('option', { value: c.id, text: c.name || 'Sans nom' })));
+  $id('t-char').value = it.character_id || '';
+  $id('d-tok').showModal();
+}
+$id('t-cancel').addEventListener('click', () => $id('d-tok').close());
+$id('t-ok').addEventListener('click', async () => {
+  const it = tokEdit; if(!it) return; const s = scale(), d = it.data;
+  const size = Number($id('t-size').value) * s, round = $id('t-round').checked;
+  const w = size > 0 ? size : d.w, h = round ? w : d.h * (w / d.w);
+  const c = chars.find(x => x.id === $id('t-char').value);
+  const row = { layer: $id('t-layer').value, character_id: c ? c.id : null, owner_id: c ? c.owner_id : null };
+  if(row.layer === 'gm' && it.layer !== 'gm') send('hide', { id: it.id });
+  Object.assign(it, row); Object.assign(it.data, { name: $id('t-name').value.trim(), img: $id('t-img').value.trim(), w, h, rot: Number($id('t-rot').value) || 0, round, locked: $id('t-lock').checked });
+  renderItem(it); $id('d-tok').close();
+  const { error } = await jdrSb.from('board_items').update(Object.assign({ data: it.data }, row)).eq('id', it.id);
+  if(error) toast(jdrErrorText(error)); else renderJournal();
+});
+
+/* ======================= Souris sur le plateau ======================= */
+let drag = null, pan = null, meas = null, resize = null, rotate = null, rclick = null;
+// Double-clic détecté à la main : la capture du pointeur (pour glisser) envoie le « dblclick » natif au plateau, pas au pion
+let lastTap = { id: null, t: 0 };
+B.addEventListener('pointerdown', e => {
+  if(e.target.closest('.msg>div, .calib')) return;
+  closeCtx();
+  if(e.button === 1 || e.button === 2){ pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false, right: e.button === 2, target: e.target }; B.classList.add('panning'); B.setPointerCapture(e.pointerId); return; }
   if(e.button !== 0) return;
   const p = toWorld(e.clientX, e.clientY);
-  // Alt + clic = ping avec n'importe quel outil (Maj + Alt pour le MJ : centre la vue des joueurs)
-  if(tool === 'ping' || e.altKey){ const pl = { scene: scene && scene.id, x: p.x, y: p.y, color: myColor(), who: myName(), focus: isGM && e.shiftKey }; showPing(pl); send('ping', pl); return; }
+  if(tool === 'ping' || e.altKey){ const pl = { scene: scene && scene.id, x: p.x, y: p.y, color: userColor(me.id), who: myName, focus: isGM && e.shiftKey }; showPing(pl); send('ping', pl); return; }
   const itEl = e.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
+  if(it && tool === 'select' && !e.target.dataset.handle){ const now = performance.now();
+    if(lastTap.id === it.id && now - lastTap.t < 350){ lastTap = { id: null, t: 0 }; if(isGM) openTok(it); else if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener'); return; }
+    lastTap = { id: it.id, t: now }; }
   if(tool === 'measure' || tool === 'calib'){
-    const a = it && it.layer === 'tokens' ? { x: it.data.x + it.data.w / 2, y: it.data.y + it.data.h / 2 } : p;   // depuis le centre d'un pion
-    meas = { a, b: a, color: tool === 'calib' ? '#e3b341' : myColor(), who: tool === 'calib' ? '' : myName(), calib: tool === 'calib', uid: me.id, scene: scene && scene.id };
-    fx.measures.set(me.id, meas); drawFx(); $id('board').setPointerCapture(e.pointerId); return;
+    const a = it && it.layer === 'tokens' ? { x: it.data.x + it.data.w / 2, y: it.data.y + it.data.h / 2 } : p;
+    meas = { a, b: a, color: tool === 'calib' ? '#ffd257' : userColor(me.id), who: tool === 'calib' ? '' : myName, calib: tool === 'calib', uid: me.id, scene: scene && scene.id };
+    fx.measures.set(me.id, meas); drawFx(); B.setPointerCapture(e.pointerId); return;
   }
-  if(e.target.dataset.handle && it){ resize = { id: it.id, x: p.x, y: p.y, w: it.data.w, h: it.data.h }; $id('board').setPointerCapture(e.pointerId); return; }
-  if(it && canMove(it)){
-    select(isGM ? it.id : null);
-    drag = { id: it.id, dx: p.x - it.data.x, dy: p.y - it.data.y, moved: false }; $id('board').setPointerCapture(e.pointerId); return;
-  }
+  if(it && e.target.dataset.handle === 'resize'){ resize = { id: it.id, x: p.x, w: it.data.w, h: it.data.h }; B.setPointerCapture(e.pointerId); return; }
+  if(it && e.target.dataset.handle === 'rotate'){ rotate = { id: it.id }; B.setPointerCapture(e.pointerId); return; }
+  if(it && canMove(it)){ select(it.id); drag = { id: it.id, dx: p.x - it.data.x, dy: p.y - it.data.y, moved: false }; B.setPointerCapture(e.pointerId); return; }
   if(isGM && it && it.layer === layer) select(it.id); else select(null);
-  pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; $id('board').classList.add('panning'); $id('board').setPointerCapture(e.pointerId);
+  pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; B.classList.add('panning'); B.setPointerCapture(e.pointerId);
 });
-$id('board').addEventListener('pointermove', e => {
+B.addEventListener('pointermove', e => {
   const p = toWorld(e.clientX, e.clientY);
-  if(pan){ view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; applyView(); return; }
+  if(pan){ if(Math.abs(e.clientX - pan.x) + Math.abs(e.clientY - pan.y) > 4) pan.moved = true; view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; applyView(); return; }
   if(drag){ const it = items.get(drag.id); if(!it) return; it.data.x = p.x - drag.dx; it.data.y = p.y - drag.dy; drag.moved = true;
     const e2 = document.getElementById('it-' + it.id); if(e2){ e2.style.left = it.data.x + 'px'; e2.style.top = it.data.y + 'px'; }
     if(fx.rings === it.id) drawFx();
-    if(it.layer !== 'gm') sendThrottled('drag', { id: it.id, x: it.data.x, y: it.data.y, scene: scene.id }); return; }
+    if(it.layer !== 'gm') sendThrottled('drag', { id: it.id, d: { x: it.data.x, y: it.data.y }, scene: scene.id }); return; }
   if(resize){ const it = items.get(resize.id); if(!it) return; const f = Math.max(0.05, (resize.w + (p.x - resize.x)) / resize.w);
     it.data.w = resize.w * f; it.data.h = resize.h * f; const e2 = document.getElementById('it-' + it.id); if(e2){ e2.style.width = it.data.w + 'px'; e2.style.height = it.data.h + 'px'; } return; }
+  if(rotate){ const it = items.get(rotate.id); if(!it) return; const d = it.data;
+    let a = Math.atan2(p.y - (d.y + d.h / 2), p.x - (d.x + d.w / 2)) * 180 / Math.PI + 90; if(e.shiftKey) a = Math.round(a / 15) * 15;
+    d.rot = Math.round(((a % 360) + 360) % 360); const e2 = document.getElementById('it-' + it.id); if(e2) e2.style.setProperty('--rot', d.rot + 'deg'); return; }
   if(meas){ meas.b = p; drawFx(); if(!meas.calib) sendThrottled('measure', meas); return; }
-  // Survol : cercles de portée autour des pions que je contrôle
   const itEl = e.target.closest && e.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
   const ring = it && it.data.round && controls(it) && tool === 'select' ? it.id : null;
   if(ring !== fx.rings){ fx.rings = ring; drawFx(); }
 });
-async function endPointer(){
-  if(pan){ pan = null; $id('board').classList.remove('panning'); }
+async function endPointer(e){
+  if(pan){ const pn = pan; pan = null; B.classList.remove('panning');
+    if(pn.right && !pn.moved){ const itEl = pn.target.closest && pn.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
+      if(it && (isGM || controls(it))){ if(isGM && it.layer === layer) select(it.id); openCtx(it, e.clientX, e.clientY); } } }
   if(drag){ const d = drag; drag = null; const it = items.get(d.id);
-    if(it && d.moved){ send('drag', { id: it.id, x: it.data.x, y: it.data.y, scene: scene.id });
+    if(it && d.moved){ send('drag', { id: it.id, d: { x: it.data.x, y: it.data.y }, scene: scene.id });
       const { error } = await jdrSb.from('board_items').update({ data: it.data }).eq('id', it.id); if(error) toast(jdrErrorText(error)); } }
   if(resize){ const it = items.get(resize.id); resize = null; if(it) save(it, { w: it.data.w, h: it.data.h }); }
+  if(rotate){ const it = items.get(rotate.id); rotate = null; if(it){ send('drag', { id: it.id, d: { rot: it.data.rot }, scene: scene.id }); save(it, { rot: it.data.rot }); } }
   if(meas){ const m = meas; meas = null;
     if(m.calib){ openCalib(m); return; }
     send('measure', m); setTimeout(() => { if(fx.measures.get(me.id) === m){ fx.measures.delete(me.id); drawFx(); send('measure', { uid: me.id, clear: true, scene: m.scene }); } }, 2500); }
 }
-$id('board').addEventListener('pointerup', endPointer);
-$id('board').addEventListener('pointercancel', endPointer);
-$id('board').addEventListener('contextmenu', e => e.preventDefault());
+B.addEventListener('pointerup', endPointer);
+B.addEventListener('pointercancel', endPointer);
+B.addEventListener('contextmenu', e => e.preventDefault());
 
 /* ======================= Étalonnage de l'échelle (MJ) ======================= */
 function openCalib(m){
   closeCalib(); const px = Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y); if(px < 5){ fx.measures.delete(me.id); drawFx(); return; }
-  const b = $id('board').getBoundingClientRect();
+  const b = boardRect();
   const inp = el('input', { type: 'number', min: '0.1', step: '0.1', value: '1.5', style: 'width:6rem' });
-  const box = el('div', { class: 'calib', id: 'calib', style: `left:${Math.min(b.width - 260, m.b.x * view.z + view.x + 12)}px;top:${Math.max(8, m.b.y * view.z + view.y + 12)}px` },
+  const box = el('div', { class: 'calib', id: 'calib', style: `left:${Math.min(b.right - 280, b.left + m.b.x * view.z + view.x + 12)}px;top:${Math.max(8, b.top + m.b.y * view.z + view.y + 12)}px` },
     el('label', { class: 'f' }, document.createTextNode('Cette ligne mesure (m)'), inp),
     el('button', { type: 'button', class: 'primary', text: 'Appliquer', onclick: async () => {
       const metres = Number(inp.value); if(!(metres > 0)) return;
@@ -572,39 +872,42 @@ function openCalib(m){
       if(error){ toast(jdrErrorText(error)); return; }
       scene.data = data; closeCalib(); applyScene(); setTool('measure'); toast(`Échelle réglée : 1 m = ${Math.round(px / metres)} px`); } }),
     el('button', { type: 'button', text: 'Annuler', onclick: closeCalib }));
-  $id('board').append(box); inp.focus(); inp.select();
+  document.body.append(box); inp.focus(); inp.select();
 }
-function closeCalib(){ const c = $id('calib'); if(c) c.remove(); if(fx.measures.has(me && me.id) && fx.measures.get(me.id).calib){ fx.measures.delete(me.id); drawFx(); } }
+function closeCalib(){ const c = $id('calib'); if(c) c.remove(); if(me && fx.measures.has(me.id) && fx.measures.get(me.id).calib){ fx.measures.delete(me.id); drawFx(); } }
 
 /* ======================= Démarrage ======================= */
 async function chooseCampaign(){
-  // Pas de campagne dans l'adresse : liste des parties où je suis MJ ou joueur
   const { data } = await jdrSb.from('campaigns').select('id,name,gm_id').order('created_at', { ascending: false });
   const list = data || [];
-  showMsg('<h2>Choisis une partie</h2>' + (list.length ? list.map(c => `<a class="primary" style="display:block;padding:8px 12px;border-radius:8px;text-decoration:none;border:1px solid var(--line)" href="plateau.html?campagne=${c.id}">${jdrEsc(c.name)} <span class="hint">${c.gm_id === me.id ? '(tu es MJ)' : '(joueur)'}</span></a>`).join('')
+  showMsg('<h2>Choisis une partie</h2>' + (list.length ? list.map(c => `<a style="display:block;padding:8px 12px;border-radius:8px;text-decoration:none;border:1px solid var(--uil);color:var(--uit)" href="plateau.html?campagne=${c.id}">${jdrEsc(c.name)} <span class="hint">${c.gm_id === me.id ? '(tu es MJ)' : '(joueur)'}</span></a>`).join('')
     : '<p style="margin:0">Tu n’es dans aucune partie. Le MJ crée une campagne et te donne son code (Joueur → Rejoindre une partie).</p>'));
 }
 (async () => {
+  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings;
   if(!jdrSb){ showMsg('<p>Connexion au serveur impossible.</p>'); return; }
   me = await jdrPage('plateau', { requireLogin: true, noNav: true }); if(!me) return;
-  $id('who').textContent = await jdrUsername(me);
-  $id('who').style.color = userColor(me.id);
-  if(!CAMP){ $id('pbar').querySelectorAll('.grp').forEach(g => g.hidden = true); return chooseCampaign(); }
+  myName = await jdrUsername(me) || 'Joueur';
+  setSide(innerWidth > 820);
+  if(!CAMP){ document.querySelectorAll('.tb, .side, .sidetog, .zoomw').forEach(x => x.hidden = true); document.body.classList.add('side-off'); return chooseCampaign(); }
   const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene').eq('id', CAMP).maybeSingle();
   if(error || !c){ showMsg('<h2>Partie introuvable</h2><p style="margin:0">Ce plateau n’existe pas, ou tu n’en fais pas partie.</p><a href="plateau.html">Voir mes parties</a>'); return; }
   camp = c; isGM = c.gm_id === me.id;
   document.title = c.name + " — Plateau Un'Gara";
-  $id('camp-name').textContent = c.name + (isGM ? ' · MJ' : '');
   $id('quit').href = isGM ? 'campagnes.html' : 'joueur.html';
-  $id('g-layer').hidden = !isGM; $id('g-gm').hidden = !isGM; $id('tool-calib').hidden = !isGM;
-  if(!isGM) layer = 'tokens';
-  const [sc, ch] = await Promise.all([
+  ['tw-layer','tw-calib','tw-add','tab-images','pages','set-gm'].forEach(id => $id(id).hidden = !isGM);
+  if(isGM) setLayer('tokens');
+  const [sc, ch, th] = await Promise.all([
     jdrSb.from('scenes').select('*').eq('campaign_id', CAMP).order('created_at'),
-    jdrSb.from('characters').select('id,name,owner_id,data').eq('campaign_id', CAMP).order('name')
+    jdrSb.from('characters').select('id,name,owner_id,data').eq('campaign_id', CAMP).order('name'),
+    isGM ? jdrSb.from('board_items').select('scene_id,data').eq('campaign_id', CAMP).eq('layer', 'map') : Promise.resolve({ data: [] })
   ]);
   scenes = sc.data || []; chars = ch.data || [];
-  subscribe(); applyView();
+  (th.data || []).forEach(r => { if(r.data && r.data.img && !thumbs[r.scene_id]) thumbs[r.scene_id] = r.data.img; });
+  subscribe(); applyView(); loadChat();
   await loadScene(isGM ? (c.active_scene || (scenes[0] || {}).id) : c.active_scene);
+  if(isGM && scenes.length <= 1){ $id('pages').classList.remove('closed'); renderStrip(); }   // bandeau ouvert au début ; ensuite il se replie
+  renderJournal();
 })();
 </script>
 </body>
