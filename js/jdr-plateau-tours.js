@@ -37,9 +37,11 @@ const TO = (() => {
     const foes = sceneFoes();
     await setTurn(Object.assign(T(), { mode: 'combat', round: 1, acted: [], foes, foesActed: [], current: null, last: null, pcs: pcsNow() }),
       `⚔ Le combat commence (round 1) — ${foes.length} adversaire${foes.length > 1 ? 's' : ''}. Les joueurs choisissent qui commence.`);
+    await PC.resetPA(pcsNow().map(p => p.id));
   }
   async function nextRound(){
     const t = T(); await setTurn(Object.assign(t, { round: (t.round || 0) + 1, acted: [], foesActed: [], current: null, last: null }), `⚔ Round ${(t.round || 0)} : chacun peut reprendre son tour.`);
+    await PC.resetPA(pcList().map(p => p.id));
   }
   async function endCombat(){ await setTurn(Object.assign(T(), { mode: null, current: null, acted: [], foesActed: [] }), '⚔ Fin du combat.'); }
   async function foePlay(f){ const t = T(); if(t.current) return toast('Quelqu’un joue déjà : termine son tour d’abord.'); await setTurn(Object.assign(t, { current: { kind: 'foe', id: f.id, name: f.name } }), `${f.name} (adversaire) joue son tour`); }
@@ -48,6 +50,7 @@ const TO = (() => {
   async function newScene(){
     const t = T(); const n = (t.scene || 0) + 1; const pcs = pcsNow();
     await setTurn(Object.assign(t, { mode: 'scene', scene: n, acted: [], current: null, last: null, pcs }), `🎬 Scène ${n} : tout le monde pioche.`);
+    await PC.resetPA(pcs.map(p => p.id));
     for(const p of pcs) await PC.draw(p.id, opp(p.id) || 1);
   }
   async function endScene(){
@@ -67,6 +70,7 @@ const TO = (() => {
     const { data, error } = await jdrSb.rpc('turn_player', { p_campaign: CAMP, p_character: id, p_action: 'start' });
     if(error){ toast(jdrErrorText(error)); return; }
     turn = data; render(); refreshTokens();
+    await PC.resetPA([id]);   // début du tour : PA au maximum
     const name = (pcList().find(p => p.id === id) || {}).name || 'Un joueur';
     postMsg('system', `▶ ${name} commence son tour`);
     if(T().mode === 'combat') await PC.draw(id, opp(id) || 1);   // début du tour : pioche (Opportunisme)

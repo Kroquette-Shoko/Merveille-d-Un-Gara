@@ -74,11 +74,11 @@ const PC = (() => {
     if(!deck){ toast('Deck introuvable : seul le joueur ou le MJ peut préparer ce deck.'); return; }
     const list = []; deck.forEach(e => { for(let i = 0; i < (Number(e.qty) || 0); i++) list.push({ u: uid(), c: e.card }); });
     if(!list.length){ toast('Le deck de ' + nameOf(ch) + ' est vide : construis-le depuis sa fiche.'); return; }
-    if(await mutate(ch, d => { Object.assign(d, blank(), { draw: shuffle(list) }); })) log(`${nameOf(ch)} prépare son deck (${list.length} cartes mélangées)`);
+    if(await mutate(ch, d => { Object.assign(d, blank(), { draw: shuffle(list), pending: null }); })) log(`${nameOf(ch)} prépare son deck (${list.length} cartes mélangées)`);
   }
   async function draw(ch, n){
     // aucune carte nulle part (deck jamais préparé) : on prépare d'abord le deck construit
-    const st0 = states.get(ch); const total = st0 ? Object.values(st0.data).reduce((a, z) => a + z.length, 0) : 0;
+    const st0 = states.get(ch); const total = st0 ? Object.keys(ZONES).reduce((a, z) => a + st0.data[z].length, 0) + (st0.data.pending ? 1 : 0) : 0;
     if(!total){ await prepare(ch); if(!states.get(ch) || !states.get(ch).data.draw.length) return; }
     let reshuffled = false, risks = [], got = 0;
     const ok = await mutate(ch, d => { reshuffled = false; risks = []; got = 0;
@@ -93,7 +93,7 @@ const PC = (() => {
   async function rest(ch){
     let removed = 0, total = 0;
     const ok = await mutate(ch, d => { const all = [...d.draw, ...d.hand, ...d.discard, ...d.banished, ...d.play];
-      const keep = all.filter(c => !isRisk(c)); removed = all.length - keep.length; total = keep.length; Object.assign(d, blank(), { draw: shuffle(keep) }); });
+      const keep = all.filter(c => !isRisk(c)); removed = all.length - keep.length; total = keep.length; if(d.pending){ all.push(d.pending.card); d.pending = null; } Object.assign(d, blank(), { draw: shuffle(keep) }); });
     if(ok) log(`${nameOf(ch)} se repose : toutes ses cartes reviennent dans la pioche (${total})${removed ? `, ${removed} Risque${removed > 1 ? 's' : ''} retiré${removed > 1 ? 's' : ''}` : ''}`);
   }
   // Déplacer un exemplaire d'une pile à une autre (éventuellement d'un personnage à un autre)
@@ -121,13 +121,90 @@ const PC = (() => {
     // une carte qui arrive « En jeu » est jouée : elle est montrée à toute la table (par défaut)
     if(to.z === 'play' && from.z !== 'play'){ const p = { card: card.c, who: nameOf(to.ch) }; reveal(p); send('reveal', p); }
   }
+  /* ---------- Jouer une carte : choix de l'effet, points d'action (PA), annulation ----------
+     1. « Jouer » : la carte quitte la main et devient « en attente » (data.pending) ; elle s'affiche chez TOUT LE MONDE.
+     2. Le joueur qui l'a jouée (ou le propriétaire, ou le MJ) clique sur l'effet qu'il résout :
+        les PA de l'effet sont retirés des PA du tour (data.pa) ; pas assez de PA → message, rien ne se passe.
+        La carte va ensuite à la défausse (ou reste « En jeu » si elle est persistante).
+     3. « Annuler » : la carte revient d'où elle vient, aucun PA dépensé.
+     PA restants : data.pa (vide = maximum, la caractéristique « Point d'action » de la fiche). Remis au maximum
+     au début du tour du joueur, à chaque nouveau round et à chaque nouvelle scène (voir js/jdr-plateau-tours.js). */
+  const paMax = ch => { const c = chars.find(x => x.id === ch); const v = c && c.data && c.data.stats ? Number(c.data.stats.pa) : NaN; return isNaN(v) ? null : Math.max(0, v); };
+  const paLeft = ch => { const st = states.get(ch); const m = paMax(ch); const v = st && st.data.pa !== undefined && st.data.pa !== null ? Number(st.data.pa) : m; return v === null ? null : v; };
+  function effectsOf(card){
+    const out = [];
+    (card && card.abilities || []).forEach((ab, i) => { const t = jdrAbilityText(ab); if(t) out.push({ key: 'a' + i, ab, text: t, pa: Number(ab.pa) || 0 }); });
+    if(card && card.special && card.special.enabled && !card.special.rule){ const t = jdrAbilityText(card.special); if(t) out.push({ key: 'sp', ab: card.special, text: t, pa: Number(card.special.pa) || 0, name: card.special.name || 'Spécial' }); }
+    if(!out.length) out.push({ key: 'x', ab: null, text: 'Résoudre la carte', pa: 0 });
+    return out;
+  }
   async function play(ch, u, zone){
-    const st = states.get(ch); const c = st && st.data[zone || 'hand'].find(x => x.u === u); if(!c) return;
-    const card = cards[c.c]; const dest = card && card.persistent ? 'play' : 'discard';
-    const ok = await mutate(ch, d => { const i = d[zone || 'hand'].findIndex(x => x.u === u); if(i < 0) return false; d[dest].push(d[zone || 'hand'].splice(i, 1)[0]); });
+    zone = zone || 'hand';
+    const st = states.get(ch); if(st && st.data.pending){ toast('Une carte de ' + nameOf(ch) + ' attend déjà son effet : résous-la ou annule-la d’abord.'); return; }
+    const c = st && st.data[zone].find(x => x.u === u); if(!c) return;
+    const ok = await mutate(ch, d => { if(d.pending) return false; const i = d[zone].findIndex(x => x.u === u); if(i < 0) return false;
+      d.pending = { card: d[zone].splice(i, 1)[0], from: zone, by: me.id, at: Date.now() }; });
     if(!ok) return;
-    log(`${nameOf(ch)} joue « ${cardName(c)} »${dest === 'play' ? ' (reste en jeu)' : ''}`, { card: c.c });
-    const p = { card: c.c, who: nameOf(ch) }; reveal(p); send('reveal', p);
+    log(`${nameOf(ch)} joue « ${cardName(c)} »`, { card: c.c });
+  }
+  const canDecide = (ch, p) => isGM || (p && p.by === me.id) || chars.some(x => x.id === ch && x.owner_id === me.id);
+  async function resolve(ch, key, force){
+    const st = states.get(ch); const p = st && st.data.pending; if(!p) return;
+    const card = cards[p.card.c]; const eff = effectsOf(card).find(e => e.key === key); if(!eff) return;
+    const left = paLeft(ch);
+    if(!force && left !== null && eff.pa > left){ paPopup(ch, eff, left); return; }
+    const dest = card && card.persistent ? 'play' : 'discard';
+    let after = left;
+    const ok = await mutate(ch, d => { if(!d.pending || d.pending.card.u !== p.card.u) return false;
+      d[dest].push(d.pending.card); d.pending = null;
+      if(left !== null){ after = Math.max(0, left - eff.pa); d.pa = after; } });
+    if(!ok) return;
+    const what = eff.ab ? (eff.name ? `${eff.name} — ` : '') + eff.text : 'carte résolue';
+    log(`${nameOf(ch)} résout « ${cardName(p.card)} » : ${what.length > 140 ? what.slice(0, 137) + '…' : what}${eff.pa ? ` (−${eff.pa} PA${after !== null ? `, reste ${after}` : ''})` : ''}${dest === 'play' ? ' — reste en jeu' : ''}`, { card: p.card.c });
+  }
+  async function cancel(ch){
+    const st = states.get(ch); const p = st && st.data.pending; if(!p) return;
+    const ok = await mutate(ch, d => { if(!d.pending) return false; d[d.pending.from || 'hand'].push(d.pending.card); d.pending = null; });
+    if(ok) log(`${nameOf(ch)} annule « ${cardName(p.card)} » (la carte revient ${p.from === 'play' ? 'en jeu' : 'en main'})`);
+  }
+  function paPopup(ch, eff, left){
+    document.getElementById('padlg')?.remove();
+    const d = el('dialog', { class: 'dlg', id: 'padlg' }, el('div', { class: 'bd' },
+      el('h2', { text: 'Pas assez de points d’action' }),
+      el('p', { style: 'margin:0', text: `${nameOf(ch)} n’a plus que ${left} PA ce tour-ci, et cet effet en coûte ${eff.pa}.` }),
+      el('p', { class: 'hint', style: 'margin:0', text: 'Choisis un autre effet, ou annule la carte : elle reviendra en main.' }),
+      el('div', { class: 'row', style: 'justify-content:flex-end' },
+        ...(isGM ? [el('button', { type: 'button', text: 'Résoudre quand même (MJ)', onclick: () => { d.close(); resolve(ch, eff.key, true); } })] : []),
+        el('button', { type: 'button', class: 'primary', text: 'Compris', onclick: () => d.close() }))));
+    d.addEventListener('close', () => setTimeout(() => d.remove(), 0));
+    document.body.append(d); d.showModal();
+  }
+  async function setPA(ch, v){ const m = paMax(ch); await mutate(ch, d => { d.pa = v === null ? null : Math.max(0, Math.min(m === null ? 99 : m, v)); }); }
+  async function resetPA(ids){ for(const id of ids){ if(!states.has(id) || paMax(id) === null) continue; await mutate(id, d => { if(d.pa === null || d.pa === undefined) return false; d.pa = null; }); } }
+
+  /* ---------- Cartes en attente : fenêtre montrée à toute la table ---------- */
+  function renderPending(){
+    let box = document.getElementById('pendings');
+    if(!box){ box = el('div', { id: 'pendings', class: 'pendings', 'aria-live': 'polite' }); document.body.append(box); }
+    const list = [...states.values()].filter(st => st.data.pending);
+    box.replaceChildren(...list.map(st => {
+      const ch = st.character_id, p = st.data.pending, card = cards[p.card.c]; const can = canDecide(ch, p);
+      const left = paLeft(ch), max = paMax(ch);
+      const cw = el('div', { class: 'pd-card', title: 'Agrandir' }); cw.innerHTML = card ? jdrCardHTML(card, { width: '200px' }) : `<div class="cmiss">${jdrEsc(p.card.c)}</div>`;
+      cw.addEventListener('click', () => card && jdrZoomCard(card));
+      const effs = effectsOf(card).map(e => { const short = left !== null && e.pa > left;
+        const b = el('button', { type: 'button', class: 'pd-eff' + (short ? ' short' : ''), disabled: !can, title: can ? (short ? 'Pas assez de PA' : 'Résoudre cet effet') : 'Seul le joueur qui a joué la carte (ou le MJ) choisit' });
+        if(e.name) b.append(el('b', { text: e.name }));
+        const t = el('div', { class: 'pd-t' }); t.innerHTML = jdrRichText(e.text); b.append(t);
+        b.addEventListener('click', () => resolve(ch, e.key)); return b; });
+      return el('div', { class: 'pending', role: 'dialog', 'aria-label': `${nameOf(ch)} joue ${card ? card.name : ''}` },
+        el('div', { class: 'pd-h' }, el('b', { text: `${nameOf(ch)} joue « ${card ? card.name : p.card.c} »` }),
+          el('span', { class: 'pd-pa', text: left !== null ? `${left} / ${max} PA` : 'PA non renseignés' })),
+        el('div', { class: 'pd-b' }, cw, el('div', { class: 'pd-effs' },
+          el('div', { class: 'hint', style: 'margin:0', text: can ? 'Clique sur l’effet que tu résous :' : `En attente du choix de ${nameOf(ch)}…` }), ...effs,
+          el('button', { type: 'button', class: 'pd-cancel', disabled: !can, text: 'Annuler (la carte revient en main)', onclick: () => cancel(ch) }))));
+    }));
+    box.hidden = !list.length;
   }
   function myCharName(){ const c = chars.find(x => x.owner_id === me.id); return isGM ? 'Le MJ' : (c ? c.name : 'Quelqu’un'); }
 
@@ -179,7 +256,9 @@ const PC = (() => {
     const head = el('div', { class: 'trh' },
       el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: open ? 'Replier la main' : 'Déplier la main', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
       el('b', { text: 'Main de' }), sel,
-      cur ? el('span', { class: 'trc', text: `${d.hand.length} en main${!isNaN(ant) && cd ? ` · limite ${ant} (Anticipation)` : ''}`, style: !isNaN(ant) && cd && d.hand.length > ant ? 'color:#ff9b8f' : '' }) : document.createTextNode(''));
+      cur ? el('span', { class: 'trc', text: `${d.hand.length} en main${!isNaN(ant) && cd ? ` · limite ${ant} (Anticipation)` : ''}`, style: !isNaN(ant) && cd && d.hand.length > ant ? 'color:#ff9b8f' : '' }) : document.createTextNode(''),
+      cur && paMax(cur) !== null ? el('span', { class: 'trpa', title: 'Points d’action restants ce tour-ci' }, el('b', { text: `${paLeft(cur)} / ${paMax(cur)} PA` }),
+        ...(isGM || chars.some(x => x.id === cur && x.owner_id === me.id) ? [el('button', { type: 'button', text: '↺', title: 'Remettre les PA au maximum', 'aria-label': 'Remettre les PA au maximum', onclick: () => setPA(cur, null) })] : [])) : document.createTextNode(''));
     if(cur){
       head.append(
         el('button', { type: 'button', class: 'primary', text: opp ? `Piocher ${opp}` : 'Piocher', title: opp ? 'Piocher autant que l’Opportunisme' : 'Piocher 1 carte', onclick: () => draw(cur, opp || 1) }),
@@ -221,7 +300,8 @@ const PC = (() => {
     // les cartes de la main se chevauchent juste assez pour tenir dans la largeur
     const H = T.querySelector('.hand'); if(H){ const kids = [...H.children].filter(k => k.matches('.pcard, .cback')); const n = kids.length;
       if(n > 1){ const cw = 112, room = H.clientWidth - 16; const gap = Math.min(6, (room - cw) / (n - 1) - cw); kids.forEach((k, i) => { k.style.marginLeft = i ? gap + 'px' : '0'; }); } }
-    document.body.style.setProperty('--trayh', T.offsetHeight + 'px');   // les joueurs connectés et le zoom se placent au-dessus
+    document.body.style.setProperty('--trayh', T.offsetHeight + 'px');
+    renderPending();   // les joueurs connectés et le zoom se placent au-dessus
   }
   function confirmThen(text, fn){
     const m = el('div', { class: 'ctx', style: 'max-width:300px' }, el('div', { class: 'ch', text: 'Confirmer' }), el('p', { style: 'margin:4px 10px 8px;font-size:.9rem', text }),
@@ -292,5 +372,5 @@ const PC = (() => {
     return !!ok;
   }
   const stateOf = ch => states.get(ch) || null;
-  return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, states, get cards(){ return cards; } };
+  return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, resetPA, states, get cards(){ return cards; } };
 })();
