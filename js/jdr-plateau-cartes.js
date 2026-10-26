@@ -118,6 +118,8 @@ const PC = (() => {
     if(from.ch === to.ch) text = `${nameOf(to.ch)} ${verb} ${what}${from.z !== 'hand' ? ` (depuis sa ${whose(from.z)})` : ''}`;
     else text = `${actor} déplace ${what} : ${whose(from.z)} de ${nameOf(from.ch)} → ${whose(to.z)} de ${nameOf(to.ch)}`;
     log(text, secret ? {} : { card: card.c });
+    // une carte qui arrive « En jeu » est jouée : elle est montrée à toute la table (par défaut)
+    if(to.z === 'play' && from.z !== 'play'){ const p = { card: card.c, who: nameOf(to.ch) }; reveal(p); send('reveal', p); }
   }
   async function play(ch, u, zone){
     const st = states.get(ch); const c = st && st.data[zone || 'hand'].find(x => x.u === u); if(!c) return;
