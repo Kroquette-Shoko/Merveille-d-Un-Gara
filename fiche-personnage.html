@@ -207,11 +207,22 @@ summary{cursor:pointer;font-weight:700}
 .inv{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px}
 @media (max-width:1000px){.inv{grid-template-columns:1fr}}
 .cont-title{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:clamp(40px,6.4vw,92px);grid-auto-flow:row dense;gap:6px;padding:8px;border-radius:12px;background:var(--cell)}
+.slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),var(--rh,clamp(40px,6.4vw,92px)));gap:6px;padding:8px;border-radius:12px;background:var(--cell);position:relative}
 .free{border-radius:9px;border:2px dashed var(--line)}
-.item{border:0;border-radius:9px;color:#fff;padding:6px 8px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-weight:700;font-size:.92rem;line-height:1.1}
+/* Objets placés librement : on les déplace en les faisant glisser, on les pivote avec ⟳ (ou la touche R) */
+.item{position:relative;z-index:1;border:0;border-radius:9px;color:#fff;padding:6px 8px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-weight:700;font-size:.92rem;line-height:1.1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.item:focus-visible{outline:3px solid var(--accent2);outline-offset:1px}
 .item small{font-weight:500;font-size:.74rem;opacity:.9}
 .item.over{outline:3px solid var(--hurt);outline-offset:-3px}
+.item.drag{z-index:5;cursor:grabbing;opacity:.85;box-shadow:0 8px 22px rgba(0,0,0,.45)}
+.item .rot{position:absolute;bottom:3px;right:3px;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:rgba(0,0,0,.28);color:#fff;font-size:.95rem;line-height:1;display:grid;place-items:center;cursor:pointer}
+.item .rot:hover{background:rgba(0,0,0,.5)}
+.item.tall{writing-mode:vertical-rl;text-orientation:mixed;padding:8px 6px}
+.item.tall .rot{writing-mode:horizontal-tb}
+.ghost-cell{z-index:4;border-radius:9px;border:3px solid #6FBF73;background:rgba(111,191,115,.22);pointer-events:none}
+.ghost-cell.bad{border-color:var(--hurt);background:rgba(200,60,50,.22)}
+.outside{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
+.outside button{border:0;border-radius:999px;padding:3px 10px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer}
 .purse{background:var(--cell);border-radius:12px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
 .purse input{font-family:var(--f-display);font-weight:800;font-size:2.4rem;color:var(--accent);text-align:center;border:0;width:5ch;padding:0;-moz-appearance:textfield;appearance:textfield}
 .purse input::-webkit-outer-spin-button,.purse input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -406,7 +417,9 @@ summary{cursor:pointer;font-weight:700}
     <div class="inv">
       <div>
         <div class="cont-title">Sac à dos <span class="status" id="st-sac"></span></div>
-        <div class="slots" id="sl-sac" style="--cols:7"></div>
+        <div class="slots" id="sl-sac" data-cont="sac" style="--cols:7;--rows:6"></div>
+        <div class="outside" id="out-sac"></div>
+        <div class="hint" style="margin-top:4px">Faites glisser un objet pour le déplacer (aussi vers la ceinture) · ⟳ ou touche R pour le pivoter · flèches du clavier pour le décaler.</div>
         <div class="tiny" id="tiny"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
@@ -422,7 +435,8 @@ summary{cursor:pointer;font-weight:700}
           </div>
           <div>
             <div class="cont-title">Ceinture <span class="status" id="st-ceinture"></span></div>
-            <div class="slots" id="sl-ceinture" style="--cols:3;grid-auto-rows:52px"></div>
+            <div class="slots" id="sl-ceinture" data-cont="ceinture" style="--cols:3;--rows:2;--rh:52px"></div>
+            <div class="outside" id="out-ceinture"></div>
           </div>
         </div>
         <div>
@@ -485,13 +499,18 @@ const SIZES = [
   {n:9,t:"Massif · 35 kg",d:"armure lourde, grand coffre",col:"#9A2F27"}
 ];
 function sizeColor(n){ let c=SIZES[0].col; SIZES.forEach(s=>{ if(n>=s.n) c=s.col; }); return c; }
-// Forme d'un objet dans la grille (largeur × hauteur en cases)
-function sizeShape(n, cols){
+// Forme d'un objet dans la grille (largeur × hauteur en cases), avant rotation.
+// Elle ne dépend pas du contenant : un objet garde la même forme dans le sac et dans la ceinture.
+function sizeShape(n){
   if(n===6) return [3,2];
   if(n===9) return [3,3];
-  if(n<=cols) return [n,1];
-  return [cols, Math.ceil(n/cols)];
+  if(n<=7) return [n,1];
+  return [7, Math.ceil(n/7)];
 }
+// Forme réelle : pivoté = largeur et hauteur échangées
+function itemShape(it){ const [w,h]=sizeShape(Math.max(0,num(it.cases))); return it.rot ? [h,w] : [w,h]; }
+// Contenants en grille : colonnes × lignes
+const CONT = { sac:{cols:7,rows:6,box:"sl-sac",out:"out-sac"}, ceinture:{cols:3,rows:2,box:"sl-ceinture",out:"out-ceinture"} };
 const BAG_SLOTS = 42;      // 7 × 6 cases, comme la fiche papier
 const BELT_SLOTS = 6;      // 3 × 2 cases
 const BASE = {P:20,M:25,G:30};
@@ -690,18 +709,142 @@ function focusItem(idx){
   document.querySelectorAll(".obj.focus").forEach(r=>r.classList.remove("focus"));
   row.classList.add("focus"); row.scrollIntoView({behavior:"smooth",block:"center"}); row.querySelector("input").focus({preventScroll:true});
 }
-function fillSlots(box,list,slots,cols){
-  box.replaceChildren(); let used=0;
-  list.forEach(({it,idx})=>{
-    const n=Math.max(0,num(it.cases)); if(n===0) return;
-    const [w,h]=sizeShape(n,cols); const over=used+n>slots; used+=n;
-    box.append(el("button",{type:"button",class:"item"+(over?" over":""),title:`${it.name||"Objet"} · ${n} case${n>1?"s":""}`,
-      style:`grid-column:span ${w};grid-row:span ${h};background:${sizeColor(n)}`,onclick:()=>focusItem(idx)},
-      document.createTextNode(it.name||"Objet"),el("small",{text:n+" case"+(n>1?"s":"")})));
-  });
-  for(let i=used;i<slots;i++) box.append(el("div",{class:"free"}));
-  return used;
+// ---------- Placement libre dans les grilles ----------
+// Chaque objet du sac / de la ceinture garde sa place : it.pos = {x, y} (case en haut à gauche, à partir de 0) et it.rot (pivoté).
+// Un objet sans place (nouveau, ou changé de contenant) est rangé dans la première place libre.
+// Un objet qui ne rentre nulle part est listé sous la grille, en rouge (« ne rentre pas »).
+function emptyGrid(c){ return Array.from({length:c.rows},()=>Array(c.cols).fill(-1)); }
+function fits(grid,c,x,y,w,h,self){
+  if(x<0||y<0||x+w>c.cols||y+h>c.rows) return false;
+  for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++){ const o=grid[j][i]; if(o!==-1 && o!==self) return false; }
+  return true;
 }
+function mark(grid,x,y,w,h,idx){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++) grid[j][i]=idx; }
+// Calcule la place de chaque objet d'un contenant. Renvoie { grid, placed:[{idx,x,y,w,h}], outside:[idx] }
+function layout(where){
+  const c=CONT[where], grid=emptyGrid(c), placed=[], outside=[], waiting=[];
+  S.items.forEach((it,idx)=>{
+    if((it.where||"sac")!==where || num(it.cases)<=0) return;
+    const [w,h]=itemShape(it), p=it.pos;
+    if(p && fits(grid,c,p.x,p.y,w,h,-2)){ mark(grid,p.x,p.y,w,h,idx); placed.push({idx,x:p.x,y:p.y,w,h}); }
+    else waiting.push(idx);
+  });
+  waiting.forEach(idx=>{
+    const it=S.items[idx]; let done=false;
+    for(const rot of [!!it.rot, !it.rot]){
+      const [w0,h0]=sizeShape(num(it.cases)), [w,h]=rot?[h0,w0]:[w0,h0];
+      for(let y=0;y<c.rows&&!done;y++) for(let x=0;x<c.cols&&!done;x++) if(fits(grid,c,x,y,w,h,-2)){
+        it.pos={x,y}; it.rot=rot; mark(grid,x,y,w,h,idx); placed.push({idx,x,y,w,h}); done=true;
+      }
+      if(done) break;
+    }
+    if(!done){ delete it.pos; outside.push(idx); }
+  });
+  return { grid, placed, outside };
+}
+function renderGrid(where){
+  const c=CONT[where], box=$(c.box), L=layout(where);
+  box.replaceChildren();
+  for(let y=0;y<c.rows;y++) for(let x=0;x<c.cols;x++) box.append(el("div",{class:"free",style:`grid-column:${x+1};grid-row:${y+1}`}));
+  L.placed.forEach(({idx,x,y,w,h})=>{
+    const it=S.items[idx], n=num(it.cases);
+    const d=el("div",{class:"item"+(h>w?" tall":""),tabindex:"0",role:"button","data-i":idx,
+      "aria-label":`${it.name||"Objet"}, ${n} case${n>1?"s":""}. Glisser pour déplacer, R pour pivoter, flèches pour décaler.`,
+      title:`${it.name||"Objet"} · ${n} case${n>1?"s":""}`,
+      style:`grid-column:${x+1}/span ${w};grid-row:${y+1}/span ${h};background:${sizeColor(n)}`},
+      document.createTextNode(it.name||"Objet"),el("small",{text:n+" case"+(n>1?"s":"")}));
+    if(w!==h && !readOnly) d.append(el("button",{type:"button",class:"rot",title:"Pivoter","aria-label":"Pivoter "+(it.name||"l'objet"),text:"⟳",
+      onpointerdown:e=>e.stopPropagation(),onclick:e=>{e.stopPropagation();rotateItem(idx);}}));
+    d.addEventListener("pointerdown",e=>startDrag(e,idx,d));
+    d.addEventListener("keydown",e=>keyItem(e,idx));
+    box.append(d);
+  });
+  $(c.out).replaceChildren(...(L.outside.length?[el("span",{class:"hint",style:"color:var(--hurt)",text:"Ne rentre pas :"}),
+    ...L.outside.map(idx=>{ const it=S.items[idx]; return el("button",{type:"button",style:"background:"+sizeColor(num(it.cases)),
+      title:"Pas assez de place libre : faites de la place ou rangez-le ailleurs",text:`${it.name||"Objet"} · ${num(it.cases)}`,onclick:()=>focusItem(idx)}); })]:[]));
+  return S.items.reduce((a,it)=>a+((it.where||"sac")===where?Math.max(0,num(it.cases)):0),0);
+}
+// Remet le focus clavier sur un objet après un nouveau rendu
+function refocus(idx){ const d=document.querySelector(`.item[data-i="${idx}"]`); if(d) d.focus({preventScroll:true}); }
+// Pivoter sur place (même coin en haut à gauche) ; refusé s'il n'y a pas la place
+function rotateItem(idx){
+  if(readOnly) return;
+  const it=S.items[idx], where=it.where||"sac", c=CONT[where], L=layout(where), p=it.pos; if(!p) return;
+  const [w,h]=itemShape(it);
+  if(!fits(L.grid,c,p.x,p.y,h,w,idx)){ toast("Pas la place de le pivoter ici : déplacez-le d'abord"); return; }
+  it.rot=!it.rot; save(); renderInventory(); refocus(idx);
+}
+// Clavier : flèches = décaler d'une case, R = pivoter, Entrée = aller à la ligne de l'objet
+function keyItem(e,idx){
+  if(drag) return;   // pendant un glisser, R et Échap sont gérés par keyDrag
+  const k=e.key;
+  if(k==="Enter"){ e.preventDefault(); focusItem(idx); return; }
+  if(readOnly) return;
+  if(k==="r"||k==="R"){ e.preventDefault(); rotateItem(idx); return; }
+  const dir={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[k]; if(!dir) return;
+  e.preventDefault();
+  const it=S.items[idx], where=it.where||"sac", c=CONT[where], L=layout(where), p=it.pos; if(!p) return;
+  const [w,h]=itemShape(it), x=p.x+dir[0], y=p.y+dir[1];
+  if(!fits(L.grid,c,x,y,w,h,idx)) return;
+  it.pos={x,y}; save(); renderInventory(); refocus(idx);
+}
+// Glisser-déposer (souris et doigt) : un aperçu vert = place libre, rouge = impossible. R pendant le glisser = pivoter.
+let drag=null;
+function startDrag(e,idx,d){
+  if(readOnly || e.button>0) return;
+  const r=d.getBoundingClientRect(), it=S.items[idx], [w,h]=itemShape(it);
+  // case de l'objet qu'on a attrapée (pour que l'objet reste « sous le doigt »)
+  const gx=Math.min(w-1,Math.floor((e.clientX-r.left)/(r.width/w))), gy=Math.min(h-1,Math.floor((e.clientY-r.top)/(r.height/h)));
+  drag={idx,d,x0:e.clientX,y0:e.clientY,moved:false,rot:!!it.rot,gx,gy,target:null,pid:e.pointerId};
+  d.setPointerCapture(e.pointerId);
+  d.addEventListener("pointermove",moveDrag); d.addEventListener("pointerup",endDrag); d.addEventListener("pointercancel",cancelDrag);
+}
+function cellAt(box,c,cx,cy){
+  const r=box.getBoundingClientRect(), cs=getComputedStyle(box), pad=parseFloat(cs.paddingLeft)||0, gap=parseFloat(cs.columnGap)||0;
+  const cw=(r.width-2*pad-gap*(c.cols-1))/c.cols, ch=(r.height-2*pad-gap*(c.rows-1))/c.rows;
+  return { x:Math.floor((cx-r.left-pad+gap/2)/(cw+gap)), y:Math.floor((cy-r.top-pad+gap/2)/(ch+gap)) };
+}
+function dragShape(){ const [w0,h0]=sizeShape(num(S.items[drag.idx].cases)); return drag.rot?[h0,w0]:[w0,h0]; }
+function updateDrag(cx,cy){
+  document.querySelectorAll(".ghost-cell").forEach(g=>g.remove());
+  drag.target=null;
+  // l'objet glissé est sous le pointeur : on l'ignore pour trouver la grille visée
+  const box=document.elementsFromPoint(cx,cy).filter(n=>!drag.d.contains(n)).map(n=>n.closest&&n.closest(".slots[data-cont]")).find(Boolean); if(!box) return;
+  const where=box.dataset.cont, c=CONT[where], cell=cellAt(box,c,cx,cy), [w,h]=dragShape();
+  const x=Math.max(0,Math.min(c.cols-w,cell.x-drag.gx)), y=Math.max(0,Math.min(c.rows-h,cell.y-drag.gy));
+  const ok=w<=c.cols && h<=c.rows && fits(layout(where).grid,c,x,y,w,h,drag.idx);
+  box.append(el("div",{class:"ghost-cell"+(ok?"":" bad"),style:`grid-column:${x+1}/span ${Math.min(w,c.cols)};grid-row:${y+1}/span ${Math.min(h,c.rows)}`}));
+  drag.target=ok?{where,x,y}:null;
+}
+function moveDrag(e){
+  if(!drag) return;
+  drag.cx=e.clientX; drag.cy=e.clientY;
+  if(!drag.moved && Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)<6) return;
+  if(!drag.moved){ drag.moved=true; drag.d.classList.add("drag"); document.addEventListener("keydown",keyDrag); }
+  drag.d.style.transform=`translate(${e.clientX-drag.x0}px,${e.clientY-drag.y0}px)`;
+  updateDrag(e.clientX,e.clientY);
+}
+function keyDrag(e){
+  if(!drag||!drag.moved) return;
+  if(e.key==="r"||e.key==="R"){ e.preventDefault(); drag.rot=!drag.rot; const t=drag.gx; drag.gx=drag.gy; drag.gy=t; drag.d.classList.toggle("tall"); updateDrag(drag.cx,drag.cy); }
+  if(e.key==="Escape"){ e.preventDefault(); cancelDrag(); }
+}
+function stopDrag(){
+  if(!drag) return null;
+  const d=drag.d; d.removeEventListener("pointermove",moveDrag); d.removeEventListener("pointerup",endDrag); d.removeEventListener("pointercancel",cancelDrag);
+  try{ d.releasePointerCapture(drag.pid); }catch(_){}
+  document.removeEventListener("keydown",keyDrag);
+  document.querySelectorAll(".ghost-cell").forEach(g=>g.remove());
+  const g=drag; drag=null; return g;
+}
+function endDrag(){
+  const g=stopDrag(); if(!g) return;
+  if(!g.moved){ focusItem(g.idx); return; }          // simple clic : aller à la ligne de l'objet
+  if(!g.target){ toast("Pas la place ici"); renderInventory(); return; }
+  const it=S.items[g.idx]; it.where=g.target.where; it.pos={x:g.target.x,y:g.target.y}; it.rot=g.rot;
+  save(); renderInventory(); applyReadOnly();
+}
+function cancelDrag(){ if(stopDrag()) renderInventory(); }
 function renderInventory(){
   renderSizes();
   $("coins").value=S.coins;
@@ -710,8 +853,8 @@ function renderInventory(){
   const by={sac:[],bourse:[],ceinture:[]};
   S.items.forEach((it,idx)=>{ (by[it.where]||by.sac).push({it,idx}); });
   // Sac à dos et ceinture : grilles de cases
-  const usedSac=fillSlots($("sl-sac"),by.sac,BAG_SLOTS,7);
-  const usedBelt=fillSlots($("sl-ceinture"),by.ceinture,BELT_SLOTS,3);
+  const usedSac=renderGrid("sac");
+  const usedBelt=renderGrid("ceinture");
   $("st-sac").textContent=usedSac+" / "+BAG_SLOTS; $("st-sac").className="status"+(usedSac>BAG_SLOTS?" bad":"");
   $("st-ceinture").textContent=usedBelt+" / "+BELT_SLOTS; $("st-ceinture").className="status"+(usedBelt>BELT_SLOTS?" bad":"");
   // Objets sans poids (0 case)
@@ -741,9 +884,9 @@ function renderItems(){
     name.addEventListener("change",()=>renderInventory());
     const size=el("select",{"aria-label":"Taille (cases)"},...SIZES.map(s=>el("option",{value:s.n,text:`${s.n} case${s.n>1?"s":""}`})));
     if(!SIZES.some(s=>s.n===num(it.cases))) size.append(el("option",{value:num(it.cases),text:`${num(it.cases)} cases`}));
-    size.value=num(it.cases); size.addEventListener("change",()=>{it.cases=Number(size.value);save();renderInventory();});
+    size.value=num(it.cases); size.addEventListener("change",()=>{it.cases=Number(size.value);delete it.pos;save();renderInventory();});
     const where=el("select",{"aria-label":"Rangé dans"},...[["sac","Sac à dos"],["ceinture","Ceinture"],["bourse","Bourse"]].map(([v,t])=>el("option",{value:v,text:t})));
-    where.value=it.where||"sac"; where.addEventListener("change",()=>{it.where=where.value;save();renderInventory();});
+    where.value=it.where||"sac"; where.addEventListener("change",()=>{it.where=where.value;delete it.pos;save();renderInventory();});
     L.append(el("div",{class:"obj","data-i":idx},el("span",{class:"sw",style:"background:"+sizeColor(num(it.cases))}),name,size,where,
       el("button",{type:"button",class:"ghost","aria-label":"Supprimer l'objet",text:"✕",onclick:()=>{S.items.splice(idx,1);save();renderInventory();applyReadOnly();}})));
   });
