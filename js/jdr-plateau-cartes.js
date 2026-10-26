@@ -189,6 +189,7 @@ const PC = (() => {
       head.append(more);
     }
     const body = el('div', { class: 'trb' });
+    if(!cur || !st) body.classList.add('small');   // pas de cartes : bandeau compact
     if(!cur) body.append(el('p', { class: 'hint', style: 'margin:0', text: isGM ? 'Choisis un personnage pour voir et manipuler ses cartes.' : 'Aucun personnage dans cette partie.' }));
     else if(!st) body.append(el('div', { class: 'trempty' }, el('span', { text: 'Pas encore de cartes en jeu pour ' + nameOf(cur) + '.' }),
       el('button', { type: 'button', class: 'primary', text: 'Préparer le deck', onclick: () => prepare(cur) })));

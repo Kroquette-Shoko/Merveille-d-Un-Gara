@@ -234,6 +234,7 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .trc{color:var(--uim);font-size:.85rem}
 .tray.closed .trb{display:none}
 .trb{display:flex;gap:12px;align-items:flex-end;padding:2px 12px 10px 64px;min-height:150px}
+.trb.small{min-height:0;align-items:center;padding-top:0}
 .hand{flex:1;min-width:0;display:flex;align-items:flex-end;overflow:visible;padding:18px 8px 2px;border-radius:10px;min-height:166px}
 .hand .pcard,.hand .cback{transition:transform .12s;position:relative}
 .hand .cback{width:112px}
@@ -259,6 +260,27 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .reveal{position:fixed;top:60px;left:calc((100vw - var(--sbw)) / 2);transform:translateX(-50%);z-index:55;background:var(--ui);border:1px solid var(--acc);border-radius:14px;padding:10px;box-shadow:0 14px 40px rgba(0,0,0,.6);cursor:zoom-in;display:flex;flex-direction:column;align-items:center;gap:6px}
 .reveal .rv-h{font-weight:700}
 .m .zc{margin-left:6px;padding:0 6px;font-size:.75rem;border-radius:6px}
+
+/* ---------- Audio (onglet Musique) ---------- */
+.au-t{background:var(--ui2);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.au-t h3{font-size:1rem;margin:0}
+.au-now{display:flex;gap:8px;align-items:center;font-size:.9rem;min-width:0}
+.au-now span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.au-dot{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:var(--uil)}
+.au-dot.on{background:#45c06a;box-shadow:0 0 8px #45c06a}
+.au-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.au-row input:not([type=checkbox]){flex:1;min-width:0}
+.au-row button{padding:4px 10px}
+.au-sub{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--uim)}
+.au-fav{display:flex;flex-direction:column;gap:3px}
+.au-fi{display:flex;gap:4px}
+.au-fi .au-fn{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:3px 8px;font-size:.85rem}
+.au-fi button:last-child{padding:3px 8px;font-size:.8rem}
+.au-add{align-self:flex-start;padding:3px 8px;font-size:.82rem}
+.au-sfx{display:flex;flex-wrap:wrap;gap:5px}
+.au-sfx button{padding:5px 10px;font-size:.85rem}
+.au-t input[type=range]{padding:0}
+.au-unlock{position:fixed;top:12px;left:calc((100vw - var(--sbw)) / 2);transform:translateX(-50%);z-index:60;background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700;padding:8px 16px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 
 /* ---------- Joueurs connectés (bas gauche) ---------- */
 .plist{position:fixed;left:10px;bottom:calc(var(--trayh, 0px) + 10px);z-index:20;display:flex;gap:8px;align-items:flex-end}
@@ -390,8 +412,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     <p class="hint" id="j-hint" style="margin:0"></p>
   </section>
   <section class="spane" data-pane="music" aria-label="Musique">
-    <h2>Musique</h2>
-    <p class="hint" style="margin:0">Arrive à l'étape audio : 3 pistes — Musique et Ambiance (liens YouTube), et une table de bruitages.</p>
+    <div id="au-pane" style="display:flex;flex-direction:column;gap:12px"></div>
   </section>
   <section class="spane" data-pane="settings" aria-label="Réglages">
     <div id="set-gm" hidden style="display:flex;flex-direction:column;gap:10px">
@@ -448,6 +469,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-plateau-cartes.js"></script>
+<script src="js/jdr-plateau-audio.js"></script>
 <script>
 /* ======================= État ======================= */
 const CAMP = new URLSearchParams(location.search).get('campagne');
@@ -763,6 +785,7 @@ function subscribe(){
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'journal', filter: 'campaign_id=eq.' + CAMP }, onJournalChange)
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'play_states', filter: 'campaign_id=eq.' + CAMP }, e => PC.onChange(e))
     .on('broadcast', { event: 'reveal' }, ({ payload }) => PC.reveal(payload))
+    .on('broadcast', { event: 'sfx' }, ({ payload }) => AU.playSfx(payload))
     .on('postgres_changes', { event: 'UPDATE', schema: 'jdr', table: 'characters', filter: 'campaign_id=eq.' + CAMP }, ({ new: n }) => {
       const c = chars.find(x => x.id === n.id); if(!c) return; Object.assign(c, { name: n.name, data: n.data });
       [...items.values()].filter(x => x.character_id === c.id).forEach(renderItem); renderHud(); renderJournal(); })
@@ -789,7 +812,7 @@ function onSceneChange({ eventType, new: n, old: o }){
 // Scène d'un joueur : celle où le MJ l'a envoyé seul, sinon celle du marqueur « JOUEURS »
 function sceneOf(uid){ const ps = (camp && camp.player_scenes) || {}; return ps[uid] && scenes.some(s => s.id === ps[uid]) ? ps[uid] : camp.active_scene; }
 function onCampChange({ new: n }){
-  camp = Object.assign(camp, n); renderStrip();
+  camp = Object.assign(camp, n); renderStrip(); if(n.audio) AU.onCamp(n.audio);
   if(!isGM){ const target = sceneOf(me.id); if(!scene || target !== scene.id){ loadScene(target); toast('Le MJ t’emmène sur une autre scène'); } }
 }
 
@@ -979,6 +1002,7 @@ function openPane(p){
   setSide(true);
   if(p === 'images') loadLibrary();
   if(p === 'chat') scrollChat();
+  if(p === 'music') AU.loadSounds();
 }
 document.querySelectorAll('.stabs [data-pane]').forEach(b => b.addEventListener('click', () => openPane(b.dataset.pane)));
 function setSide(on){ document.body.classList.toggle('side-off', !on); document.body.classList.toggle('side-on', on); $id('sidetog').textContent = on ? '›' : '‹'; $id('sidetog').setAttribute('aria-label', on ? 'Replier la barre latérale' : 'Déplier la barre latérale'); setTimeout(drawFx, 220); }
@@ -1563,7 +1587,7 @@ async function chooseCampaign(){
   myName = await jdrUsername(me) || 'Joueur';
   setSide(innerWidth > 820);
   if(!CAMP){ document.querySelectorAll('.tb, .side, .sidetog, .zoomw').forEach(x => x.hidden = true); document.body.classList.add('side-off'); return chooseCampaign(); }
-  const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene,player_scenes').eq('id', CAMP).maybeSingle();
+  const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene,player_scenes,audio').eq('id', CAMP).maybeSingle();
   if(error || !c){ showMsg('<h2>Partie introuvable</h2><p style="margin:0">Ce plateau n’existe pas, ou tu n’en fais pas partie.</p><a href="plateau.html">Voir mes parties</a>'); return; }
   camp = c; isGM = c.gm_id === me.id;
   document.title = c.name + " — Plateau Un'Gara";
@@ -1581,7 +1605,7 @@ async function chooseCampaign(){
   try{ const ids = [...new Set(chars.map(x => x.owner_id))];   // pseudos (lecture seule du profil commun)
     if(ids.length){ const { data: pr } = await jdrSb.schema('public').from('profiles').select('id,username').in('id', ids); (pr || []).forEach(x => { if(x.username) playerNames[x.id] = x.username; }); } }catch(e){}
   (th.data || []).forEach(r => { if(r.data && r.data.img && !thumbs[r.scene_id]) thumbs[r.scene_id] = r.data.img; });
-  subscribe(); applyView(); loadChat(); loadJournal(); PC.load();
+  subscribe(); applyView(); loadChat(); loadJournal(); PC.load(); AU.init();
   jdrLoadKeywords().then(() => renderHud()).catch(() => {});   // afflictions (mots-clés) pour les états
   await loadScene(isGM ? (c.active_scene || (sortedScenes()[0] || {}).id) : sceneOf(me.id));
   if(isGM && scenes.length <= 1){ $id('pages').classList.remove('closed'); renderStrip(); }   // bandeau ouvert au début ; ensuite il se replie
