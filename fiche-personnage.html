@@ -210,15 +210,11 @@ summary{cursor:pointer;font-weight:700}
 .slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),var(--rh,clamp(40px,6.4vw,92px)));gap:6px;padding:8px;border-radius:12px;background:var(--cell);position:relative}
 .free{border-radius:9px;border:2px dashed var(--line)}
 /* Objets placés librement : on les déplace en les faisant glisser, on les pivote avec ⟳ (ou la touche R) */
-.item{position:relative;z-index:1;border:0;border-radius:9px;color:#fff;padding:6px 8px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-weight:700;font-size:.92rem;line-height:1.1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.item{position:relative;z-index:1;border:0;border-radius:9px;color:#fff;padding:6px 8px;text-align:left;display:flex;flex-direction:column;justify-content:flex-start;gap:2px;overflow:hidden;font-weight:700;font-size:.92rem;line-height:1.1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .item:focus-visible{outline:3px solid var(--accent2);outline-offset:1px}
 .item small{font-weight:500;font-size:.74rem;opacity:.9}
 .item.over{outline:3px solid var(--hurt);outline-offset:-3px}
-.item.drag{z-index:5;cursor:grabbing;opacity:.85;box-shadow:0 8px 22px rgba(0,0,0,.45)}
-.item .rot{position:absolute;bottom:3px;right:3px;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:rgba(0,0,0,.28);color:#fff;font-size:.95rem;line-height:1;display:grid;place-items:center;cursor:pointer}
-.item .rot:hover{background:rgba(0,0,0,.5)}
-.item.tall{writing-mode:vertical-rl;text-orientation:mixed;padding:8px 6px}
-.item.tall .rot{writing-mode:horizontal-tb}
+.item.drag{z-index:5;cursor:grabbing;opacity:.85;box-shadow:0 8px 22px rgba(0,0,0,.45);transition:width .1s,height .1s}
 .ghost-cell{z-index:4;border-radius:9px;border:3px solid #6FBF73;background:rgba(111,191,115,.22);pointer-events:none}
 .ghost-cell.bad{border-color:var(--hurt);background:rgba(200,60,50,.22)}
 .outside{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
@@ -419,7 +415,7 @@ summary{cursor:pointer;font-weight:700}
         <div class="cont-title">Sac à dos <span class="status" id="st-sac"></span></div>
         <div class="slots" id="sl-sac" data-cont="sac" style="--cols:7;--rows:6"></div>
         <div class="outside" id="out-sac"></div>
-        <div class="hint" style="margin-top:4px">Faites glisser un objet pour le déplacer (aussi vers la ceinture) · ⟳ ou touche R pour le pivoter · flèches du clavier pour le décaler.</div>
+        <div class="hint" style="margin-top:4px">Glisser-déposer pour déplacer un objet (aussi vers la ceinture) · clic droit pour le pivoter, même pendant qu'on le déplace.</div>
         <div class="tiny" id="tiny"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
@@ -748,14 +744,14 @@ function renderGrid(where){
   for(let y=0;y<c.rows;y++) for(let x=0;x<c.cols;x++) box.append(el("div",{class:"free",style:`grid-column:${x+1};grid-row:${y+1}`}));
   L.placed.forEach(({idx,x,y,w,h})=>{
     const it=S.items[idx], n=num(it.cases);
-    const d=el("div",{class:"item"+(h>w?" tall":""),tabindex:"0",role:"button","data-i":idx,
-      "aria-label":`${it.name||"Objet"}, ${n} case${n>1?"s":""}. Glisser pour déplacer, R pour pivoter, flèches pour décaler.`,
+    const d=el("div",{class:"item",tabindex:"0",role:"button","data-i":idx,
+      "aria-label":`${it.name||"Objet"}, ${n} case${n>1?"s":""}. Glisser pour déplacer, clic droit ou R pour pivoter, flèches pour décaler.`,
       title:`${it.name||"Objet"} · ${n} case${n>1?"s":""}`,
       style:`grid-column:${x+1}/span ${w};grid-row:${y+1}/span ${h};background:${sizeColor(n)}`},
       document.createTextNode(it.name||"Objet"),el("small",{text:n+" case"+(n>1?"s":"")}));
-    if(w!==h && !readOnly) d.append(el("button",{type:"button",class:"rot",title:"Pivoter","aria-label":"Pivoter "+(it.name||"l'objet"),text:"⟳",
-      onpointerdown:e=>e.stopPropagation(),onclick:e=>{e.stopPropagation();rotateItem(idx);}}));
     d.addEventListener("pointerdown",e=>startDrag(e,idx,d));
+    // clic droit = pivoter (sur place ; pendant un glisser, c'est keyDrag/ctxDrag qui s'en charge)
+    d.addEventListener("contextmenu",e=>{ e.preventDefault(); if(!drag){ d.focus({preventScroll:true}); rotateItem(idx); } });
     d.addEventListener("keydown",e=>keyItem(e,idx));
     box.append(d);
   });
@@ -771,8 +767,14 @@ function rotateItem(idx){
   if(readOnly) return;
   const it=S.items[idx], where=it.where||"sac", c=CONT[where], L=layout(where), p=it.pos; if(!p) return;
   const [w,h]=itemShape(it);
-  if(!fits(L.grid,c,p.x,p.y,h,w,idx)){ toast("Pas la place de le pivoter ici : déplacez-le d'abord"); return; }
-  it.rot=!it.rot; save(); renderInventory(); refocus(idx);
+  if(w===h) return;
+  // même coin en haut à gauche si possible, sinon la place libre la plus proche (l'objet pivote « autour » de lui-même)
+  const near=[]; const R=Math.max(w,h);
+  for(let y=p.y-R;y<=p.y+R;y++) for(let x=p.x-R;x<=p.x+R;x++) near.push({x,y,d:Math.abs(x-p.x)+Math.abs(y-p.y)});
+  near.sort((a,b)=>a.d-b.d);
+  const spot=near.find(q=>fits(L.grid,c,q.x,q.y,h,w,idx));
+  if(!spot){ toast("Pas la place de le pivoter ici : déplacez-le d'abord"); return; }
+  it.pos={x:spot.x,y:spot.y}; it.rot=!it.rot; save(); renderInventory(); refocus(idx);
 }
 // Clavier : flèches = décaler d'une case, R = pivoter, Entrée = aller à la ligne de l'objet
 function keyItem(e,idx){
@@ -795,7 +797,9 @@ function startDrag(e,idx,d){
   const r=d.getBoundingClientRect(), it=S.items[idx], [w,h]=itemShape(it);
   // case de l'objet qu'on a attrapée (pour que l'objet reste « sous le doigt »)
   const gx=Math.min(w-1,Math.floor((e.clientX-r.left)/(r.width/w))), gy=Math.min(h-1,Math.floor((e.clientY-r.top)/(r.height/h)));
-  drag={idx,d,x0:e.clientX,y0:e.clientY,moved:false,rot:!!it.rot,gx,gy,target:null,pid:e.pointerId};
+  const gap=parseFloat(getComputedStyle(d.parentElement).columnGap)||0;
+  drag={idx,d,x0:e.clientX,y0:e.clientY,moved:false,rot:!!it.rot,gx,gy,target:null,pid:e.pointerId,
+    left0:r.left,top0:r.top,ox:e.clientX-r.left,oy:e.clientY-r.top,cw:(r.width+gap)/w,ch:(r.height+gap)/h,gap};
   d.setPointerCapture(e.pointerId);
   d.addEventListener("pointermove",moveDrag); d.addEventListener("pointerup",endDrag); d.addEventListener("pointercancel",cancelDrag);
 }
@@ -820,13 +824,28 @@ function moveDrag(e){
   if(!drag) return;
   drag.cx=e.clientX; drag.cy=e.clientY;
   if(!drag.moved && Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)<6) return;
-  if(!drag.moved){ drag.moved=true; drag.d.classList.add("drag"); document.addEventListener("keydown",keyDrag); }
-  drag.d.style.transform=`translate(${e.clientX-drag.x0}px,${e.clientY-drag.y0}px)`;
+  if(!drag.moved){ drag.moved=true; drag.d.classList.add("drag"); document.addEventListener("keydown",keyDrag); document.addEventListener("contextmenu",ctxDrag,true); }
+  placeDragged();
   updateDrag(e.clientX,e.clientY);
 }
+// L'objet glissé suit le pointeur en gardant sous le pointeur le point qu'on a attrapé
+function placeDragged(){
+  drag.d.style.transform=`translate(${drag.cx-drag.ox-drag.left0}px,${drag.cy-drag.oy-drag.top0}px)`;
+}
+// Pivoter pendant le glisser : la forme change tout de suite, la case attrapée reste sous le pointeur
+function rotateDrag(){
+  const [w0,h0]=dragShape();                       // forme avant rotation
+  drag.rot=!drag.rot;
+  const t=drag.gx; drag.gx=drag.gy; drag.gy=t;
+  const [w,h]=[h0,w0];
+  drag.d.style.width=(w*drag.cw-drag.gap)+"px"; drag.d.style.height=(h*drag.ch-drag.gap)+"px";
+  drag.ox=(drag.gx+.5)*drag.cw; drag.oy=(drag.gy+.5)*drag.ch;
+  placeDragged(); updateDrag(drag.cx,drag.cy);
+}
+function ctxDrag(e){ if(!drag||!drag.moved) return; e.preventDefault(); e.stopPropagation(); rotateDrag(); }
 function keyDrag(e){
   if(!drag||!drag.moved) return;
-  if(e.key==="r"||e.key==="R"){ e.preventDefault(); drag.rot=!drag.rot; const t=drag.gx; drag.gx=drag.gy; drag.gy=t; drag.d.classList.toggle("tall"); updateDrag(drag.cx,drag.cy); }
+  if(e.key==="r"||e.key==="R"){ e.preventDefault(); rotateDrag(); }
   if(e.key==="Escape"){ e.preventDefault(); cancelDrag(); }
 }
 function stopDrag(){
@@ -834,6 +853,8 @@ function stopDrag(){
   const d=drag.d; d.removeEventListener("pointermove",moveDrag); d.removeEventListener("pointerup",endDrag); d.removeEventListener("pointercancel",cancelDrag);
   try{ d.releasePointerCapture(drag.pid); }catch(_){}
   document.removeEventListener("keydown",keyDrag);
+  // le menu du clic droit reste bloqué un instant (le clic droit qui a pivoté peut arriver juste après le lâcher)
+  setTimeout(()=>document.removeEventListener("contextmenu",ctxDrag,true),300);
   document.querySelectorAll(".ghost-cell").forEach(g=>g.remove());
   const g=drag; drag=null; return g;
 }
