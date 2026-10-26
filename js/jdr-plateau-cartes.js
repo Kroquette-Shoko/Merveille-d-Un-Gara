@@ -191,22 +191,32 @@ const PC = (() => {
   async function setPA(ch, v){ const m = paMax(ch); await mutate(ch, d => { d.pa = v === null ? null : Math.max(0, Math.min(m === null ? 99 : m, v)); }); }
   async function resetPA(ids){ for(const id of ids){ if(!states.has(id) || paMax(id) === null) continue; await mutate(id, d => { if(d.pa === null || d.pa === undefined) return false; d.pa = null; }); } }
 
-  /* ---------- RISQUES : en mélanger dans les decks (livret : les Risques s'activent quand on les pioche) ----------
-     - choisir les personnages, puis les cartes Risque (nombre de chaque) OU un nombre au hasard (Malus / Bonus / tous)
-     - où : mélangées dans la pioche, sur le dessus, ou directement en main
-     - fatigue (livret) : au début de chaque journée, autant de Risques que le niveau de fatigue → « Début de journée »
-       niveau de fatigue gardé dans data.fatigue (piles du personnage)
-     - un Repos retire tous les Risques ; « Retirer les Risques » le fait sans repos
-     Les cartes ajoutées restent secrètes dans le journal (on voit le nombre, pas lesquelles). */
-  const riskCards = kind => Object.values(cards).filter(c => c.type === 'Risque' && (!kind || kind === 'all' || (kind === 'bonus' ? c.subtype === 'Bonus' : c.subtype !== 'Bonus')))
-    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  async function addRisks(ch, ids, where){
-    if(!ids.length) return;
+  /* ---------- RISQUES ----------
+     Les Risques viennent du DECK DES RISQUES de la campagne (40 cartes par défaut, table jdr.risk_decks) :
+     on les tire avec jdr.risk_take (MJ et joueurs) ; quand ce deck est vide, il se régénère tout seul
+     avec sa composition et se remélange. Les joueurs ne savent pas combien il en reste (seul le MJ le voit).
+     - Pour qui : un ou plusieurs personnages ; Combien : N ; Où : mélangés dans la pioche, sur le dessus, ou en main
+       (en main = piochés : ils s'activent tout de suite)
+     - Fatigue (livret) : au début de chaque journée, autant de Risques que le niveau de fatigue → « Début de journée »
+       (niveau gardé dans data.fatigue des piles du personnage)
+     - MJ : composition du deck des Risques, cartes restantes, régénérer maintenant
+     - Un Repos retire tous les Risques du deck du personnage (ils ne retournent pas dans le deck des Risques). */
+  const riskCards = () => Object.values(cards).filter(c => c.type === 'Risque').sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  async function takeRisks(n){
+    const { data, error } = await jdrSb.rpc('risk_take', { p_campaign: CAMP, p_n: n });
+    if(error){ toast(jdrErrorText(error)); return null; }
+    if(data && data.regenerated && isGM) toast('Le deck des Risques était vide : il a été régénéré et remélangé.');   // pas annoncé aux joueurs (ils ne doivent pas savoir ce qu'il reste)
+    return (data && data.cards) || [];
+  }
+  async function addRisks(ch, n, where){
+    if(!(n > 0)) return;
+    const ids = await takeRisks(n); if(!ids || !ids.length) return;
     const list = ids.map(id => ({ u: uid(), c: id }));
-    const ok = await mutate(ch, d => { if(where === 'hand') d.hand.push(...list); else if(where === 'top') d.draw.unshift(...shuffle(list)); else d.draw = shuffle([...d.draw, ...list]); });
+    const ok = await mutate(ch, d => { if(where === 'hand') d.hand.push(...list); else if(where === 'top') d.draw.unshift(...list); else d.draw = shuffle([...d.draw, ...list]); });
     if(!ok) return;
-    const n = list.length, w = { hand: 'dans la main', top: 'sur le dessus de la pioche', shuffle: 'dans la pioche' }[where] || 'dans la pioche';
-    log(`${myCharName()} ${where === 'hand' ? 'donne' : 'mélange'} ${n} carte${n > 1 ? 's' : ''} Risque ${w} de ${nameOf(ch)}`);
+    const k = list.length;
+    if(where === 'hand') log(`${nameOf(ch)} pioche ${k} Risque${k > 1 ? 's' : ''} — ${list.map(c => '« ' + cardName(c) + ' »').join(', ')}`);
+    else log(`${nameOf(ch)} prend ${k} Risque${k > 1 ? 's' : ''} : ${k > 1 ? 'ils sont mélangés' : 'il est mélangé'} ${where === 'top' ? 'sur le dessus de' : 'dans'} sa pioche`);
     if(where === 'hand') await autoRisk(ch);
   }
   async function removeRisks(ch){
@@ -214,65 +224,82 @@ const PC = (() => {
     if(ok) log(`${myCharName()} retire ${n} Risque${n > 1 ? 's' : ''} du deck de ${nameOf(ch)}`); else toast(`Aucun Risque dans le deck de ${nameOf(ch)}.`);
   }
   const fatigueOf = ch => { const st = states.get(ch); return st ? Math.max(0, Number(st.data.fatigue) || 0) : 0; };
-  function openRisks(preset){
+  // Deck des Risques (MJ seulement : les joueurs n'y ont pas accès)
+  let riskDeck = null;
+  async function loadRiskDeck(){
+    if(!isGM) return null;
+    const { data } = await jdrSb.from('risk_decks').select('cards,composition').eq('campaign_id', CAMP).maybeSingle();
+    riskDeck = data || { cards: [], composition: null }; return riskDeck;
+  }
+  const DEFAULT_RISKS = { reussite_critique: 2, parade_parfaite: 2, guerison_surnaturel: 2, a_bout_de_souffle: 3, attirer_l_attention: 2, totalement_insignifiant: 2,
+    un_truc_dans_l_oeil: 2, se_tordre_la_cheville: 2, se_decourager: 3, porter_la_poisse: 3, perte_d_energie: 2, perdre_la_main: 2, magie_sauvage: 3,
+    main_glissante: 2, mauvaise_posture: 2, echec_critique: 3, deconcentration: 3 };
+  async function saveComposition(comp, rebuild){
+    const patch = { campaign_id: CAMP, composition: comp };
+    if(rebuild){ const { data, error } = await jdrSb.rpc('risk_build', { p_comp: comp }); if(error){ toast(jdrErrorText(error)); return false; } patch.cards = data || []; }
+    const { error } = await jdrSb.from('risk_decks').upsert(patch);
+    if(error){ toast(jdrErrorText(error)); return false; }
+    riskDeck = Object.assign(riskDeck || {}, patch); return true;
+  }
+  async function openRisks(preset){
     const w = makeWin('__risks', 'Risques'); w.tabs.hidden = true; w.el.classList.add('wide');
     const pcs = options(); const pick = new Set(preset ? [preset] : (cur ? [cur] : []));
-    const qty = {};
+    let n = 1, where = 'shuffle';
+    if(isGM) await loadRiskDeck();
+    const comp = Object.assign({}, (riskDeck && riskDeck.composition && Object.keys(riskDeck.composition).length) ? riskDeck.composition : DEFAULT_RISKS);
+    let compDirty = false;
     const body = () => {
       const kids = [];
-      // 1. personnages + fatigue
       kids.push(el('div', { class: 'au-sub', text: '1. Pour qui' }));
       const tbl = el('div', { class: 'rk-pcs' });
-      pcs.forEach(([id, n]) => {
-        const c = el('input', { type: 'checkbox', 'aria-label': n }); c.checked = pick.has(id); c.addEventListener('change', () => { c.checked ? pick.add(id) : pick.delete(id); });
-        const st = states.get(id); const inDeck = st ? Object.keys(ZONES).reduce((a, z) => a + st.data[z].filter(isRisk).length, 0) : 0;
-        const fat = el('input', { type: 'number', min: '0', max: '6', value: fatigueOf(id), style: 'width:4rem', 'aria-label': 'Fatigue de ' + n, title: 'Niveau de fatigue (0 à 6)' });
-        fat.addEventListener('change', async () => { const v = Math.max(0, Math.min(6, Number(fat.value) || 0)); await mutate(id, d => { d.fatigue = v; }); log(`Fatigue de ${n} : niveau ${v}`); });
-        tbl.append(el('label', { class: 'rk-pc' }, c, el('span', { class: 'rk-n', text: n }), el('span', { class: 'hint', text: inDeck ? `⚠ ${inDeck} Risque${inDeck > 1 ? 's' : ''} dans le deck` : 'aucun Risque' }),
+      pcs.forEach(([id, nm]) => {
+        const c = el('input', { type: 'checkbox', 'aria-label': nm }); c.checked = pick.has(id); c.addEventListener('change', () => { c.checked ? pick.add(id) : pick.delete(id); total(); });
+        const inDeck = riskCount(id);
+        const fat = el('input', { type: 'number', min: '0', max: '6', value: fatigueOf(id), style: 'width:4rem', 'aria-label': 'Fatigue de ' + nm, title: 'Niveau de fatigue (0 à 6)' });
+        fat.addEventListener('change', async () => { const v = Math.max(0, Math.min(6, Number(fat.value) || 0)); await mutate(id, d => { d.fatigue = v; }); log(`Fatigue de ${nm} : niveau ${v}`); });
+        tbl.append(el('label', { class: 'rk-pc' }, c, el('span', { class: 'rk-n', text: nm }), el('span', { class: 'hint', text: inDeck ? `⚠ ${inDeck} Risque${inDeck > 1 ? 's' : ''} dans son deck` : 'aucun Risque dans son deck' }),
           el('span', { class: 'rk-f' }, document.createTextNode('Fatigue '), fat)));
       });
       kids.push(tbl, el('div', { class: 'row', style: 'gap:6px' },
         el('button', { type: 'button', text: 'Tout le monde', onclick: () => { pcs.forEach(([id]) => pick.add(id)); render2(); } }),
         el('button', { type: 'button', text: 'Personne', onclick: () => { pick.clear(); render2(); } })));
-      // 2. cartes
-      kids.push(el('div', { class: 'au-sub', text: '2. Quelles cartes' }));
-      const all = riskCards('all');
-      if(!all.length) kids.push(el('p', { class: 'hint', style: 'margin:0', text: 'Aucune carte de type Risque dans l’éditeur de cartes.' }));
-      const grid = el('div', { class: 'rk-grid' });
-      all.forEach(c => { const q = el('span', { class: 'rk-q', text: String(qty[c.id] || 0) });
-        const m = el('div', { class: 'rk-c' + (qty[c.id] ? ' on' : '') }); m.innerHTML = jdrCardHTML(c, { width: '120px' });
-        m.addEventListener('click', () => { qty[c.id] = (qty[c.id] || 0) + 1; render2(); });
-        m.addEventListener('contextmenu', e => { e.preventDefault(); jdrZoomCard(c); });
-        grid.append(el('div', { class: 'rk-cw' }, m, el('div', { class: 'rk-s' },
-          el('button', { type: 'button', text: '−', 'aria-label': 'Moins de ' + c.name, onclick: () => { qty[c.id] = Math.max(0, (qty[c.id] || 0) - 1); render2(); } }), q,
-          el('button', { type: 'button', text: '+', 'aria-label': 'Plus de ' + c.name, onclick: () => { qty[c.id] = (qty[c.id] || 0) + 1; render2(); } })))); });
-      kids.push(grid, el('p', { class: 'hint', style: 'margin:0', text: 'Clic sur une carte : +1 · clic droit : agrandir.' }));
-      const rn = el('input', { type: 'number', min: '1', max: '20', value: '1', style: 'width:4rem', 'aria-label': 'Nombre au hasard' });
-      const rk = el('select', { 'aria-label': 'Type de Risque' }, el('option', { value: 'malus', text: 'Malus' }), el('option', { value: 'bonus', text: 'Bonus' }), el('option', { value: 'all', text: 'tous les Risques' }));
-      kids.push(el('div', { class: 'row', style: 'gap:6px;align-items:center' }, document.createTextNode('… ou au hasard :'), rn, document.createTextNode('parmi'), rk,
-        el('button', { type: 'button', text: 'Tirer', onclick: () => { const pool = riskCards(rk.value); if(!pool.length) return toast('Aucune carte de ce type.');
-          for(let i = 0; i < (Number(rn.value) || 1); i++){ const c = pool[Math.floor(Math.random() * pool.length)]; qty[c.id] = (qty[c.id] || 0) + 1; } render2(); } })));
-      // 3. où
+      kids.push(el('div', { class: 'au-sub', text: '2. Combien (tirés du deck des Risques)' }));
+      const ni = el('input', { type: 'number', min: '1', max: '20', value: n, style: 'width:5rem', 'aria-label': 'Nombre de Risques' });
+      ni.addEventListener('input', () => { n = Math.max(1, Math.min(20, Number(ni.value) || 1)); total(); });
+      kids.push(el('div', { class: 'row', style: 'gap:6px;align-items:center' }, ni, document.createTextNode('Risque(s) par personnage coché')));
       kids.push(el('div', { class: 'au-sub', text: '3. Où' }));
-      const where = el('select', { id: 'rk-where', 'aria-label': 'Où mettre les Risques' }, el('option', { value: 'shuffle', text: 'Mélangées dans la pioche' }), el('option', { value: 'top', text: 'Sur le dessus de la pioche' }), el('option', { value: 'hand', text: 'Directement en main (activées tout de suite)' }));
-      kids.push(where);
+      const ws = el('select', { 'aria-label': 'Où mettre les Risques' }, el('option', { value: 'shuffle', text: 'Mélangés dans sa pioche (prendre des risques)' }), el('option', { value: 'top', text: 'Sur le dessus de sa pioche' }), el('option', { value: 'hand', text: 'Piochés directement (activés tout de suite)' }));
+      ws.value = where; ws.addEventListener('change', () => { where = ws.value; });
+      kids.push(ws);
+      if(isGM){
+        kids.push(el('div', { class: 'au-sub', text: 'Deck des Risques (toi seul le vois)' }));
+        const left = riskDeck && Array.isArray(riskDeck.cards) && riskDeck.composition ? riskDeck.cards.length : null;
+        const tot = Object.values(comp).reduce((a, b) => a + (Number(b) || 0), 0);
+        kids.push(el('p', { style: 'margin:0', text: left === null ? `Pas encore créé : il le sera au premier tirage (${tot} cartes).` : `${left} carte${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''} sur ${tot}. Quand il est vide, il se régénère tout seul.` }));
+        const grid = el('div', { class: 'rk-grid' });
+        riskCards().forEach(c => { const q = Number(comp[c.id]) || 0;
+          const m = el('div', { class: 'rk-c' + (q ? ' on' : ''), title: 'Clic droit : agrandir' }); m.innerHTML = jdrCardHTML(c, { width: '110px' });
+          m.addEventListener('contextmenu', e => { e.preventDefault(); jdrZoomCard(c); });
+          const set = v => { comp[c.id] = Math.max(0, Math.min(20, v)); if(!comp[c.id]) delete comp[c.id]; compDirty = true; render2(); };
+          grid.append(el('div', { class: 'rk-cw' }, m, el('div', { class: 'rk-s' },
+            el('button', { type: 'button', text: '−', 'aria-label': 'Moins de ' + c.name, onclick: () => set(q - 1) }), el('span', { class: 'rk-q', text: String(q) }),
+            el('button', { type: 'button', text: '+', 'aria-label': 'Plus de ' + c.name, onclick: () => set(q + 1) })))); });
+        kids.push(grid, el('div', { class: 'row', style: 'gap:6px;align-items:center' },
+          el('span', { style: 'font-weight:700', text: `Composition : ${tot} cartes` }),
+          el('button', { type: 'button', class: compDirty ? 'primary' : '', text: 'Enregistrer la composition', disabled: !compDirty, title: 'Servira à la prochaine régénération', onclick: async () => { if(await saveComposition(comp, false)){ compDirty = false; toast('Composition enregistrée'); render2(); } } }),
+          el('button', { type: 'button', text: '↻ Régénérer le deck maintenant', title: 'Remet toutes les cartes de la composition et remélange', onclick: async () => { if(await saveComposition(comp, true)){ compDirty = false; log('Le MJ régénère et remélange le deck des Risques'); render2(); } } }),
+          el('button', { type: 'button', text: 'Composition par défaut (40)', onclick: () => { Object.keys(comp).forEach(k => delete comp[k]); Object.assign(comp, DEFAULT_RISKS); compDirty = true; render2(); } })));
+      }
       return kids;
     };
-    const render2 = () => { const sc = w.body.scrollTop; w.body.replaceChildren(...body()); w.body.scrollTop = sc; total(); };
     const okBtn = el('button', { type: 'button', class: 'primary' });
-    const total = () => { const n = Object.values(qty).reduce((a, b) => a + b, 0); okBtn.textContent = n ? `Ajouter ${n} Risque${n > 1 ? 's' : ''} × ${pick.size} personnage${pick.size > 1 ? 's' : ''}` : 'Choisis des cartes'; okBtn.disabled = !n || !pick.size; };
-    okBtn.addEventListener('click', async () => {
-      const ids = []; Object.entries(qty).forEach(([id, n]) => { for(let i = 0; i < n; i++) ids.push(id); });
-      const where = (w.body.querySelector('#rk-where') || {}).value || 'shuffle';
-      for(const ch of pick) await addRisks(ch, ids, where);
-      Object.keys(qty).forEach(k => delete qty[k]); render2();
-    });
+    const render2 = () => { const sc = w.body.scrollTop; w.body.replaceChildren(...body()); w.body.scrollTop = sc; total(); };
+    const total = () => { okBtn.textContent = `Tirer ${n} Risque${n > 1 ? 's' : ''} × ${pick.size} personnage${pick.size > 1 ? 's' : ''}`; okBtn.disabled = !pick.size; };
+    okBtn.addEventListener('click', async () => { okBtn.disabled = true; for(const ch of pick) await addRisks(ch, n, where); if(isGM) await loadRiskDeck(); render2(); });
     w.foot.replaceChildren(okBtn,
-      el('button', { type: 'button', text: '🌅 Début de journée (fatigue)', title: 'Chaque personnage coché reçoit autant de Risques Malus au hasard que son niveau de fatigue', onclick: async () => {
-        const pool = riskCards('malus'); if(!pool.length) return toast('Aucun Risque Malus dans l’éditeur.');
-        let any = false; for(const ch of pick){ const n = fatigueOf(ch); if(!n) continue; any = true;
-          await addRisks(ch, Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)].id), 'shuffle'); }
-        if(!any) toast('Aucun personnage coché n’a de fatigue.'); render2(); } }),
+      el('button', { type: 'button', text: '🌅 Début de journée (fatigue)', title: 'Chaque personnage coché tire autant de Risques que son niveau de fatigue (mélangés dans sa pioche)', onclick: async () => {
+        let any = false; for(const ch of pick){ const k = fatigueOf(ch); if(!k) continue; any = true; await addRisks(ch, k, 'shuffle'); }
+        if(!any) toast('Aucun personnage coché n’a de fatigue.'); if(isGM) await loadRiskDeck(); render2(); } }),
       el('button', { type: 'button', class: 'danger', text: 'Retirer les Risques', title: 'Retire toutes les cartes Risque du deck des personnages cochés', onclick: async () => { for(const ch of pick) await removeRisks(ch); render2(); } }));
     w.foot.hidden = false; render2();
   }
