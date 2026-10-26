@@ -37,6 +37,7 @@ a{color:var(--acc2)}
 .board{position:fixed;left:0;top:0;bottom:0;right:var(--sbw);overflow:hidden;cursor:default;touch-action:none;background:var(--scene-bg,#1d252b);
   background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:24px 24px;transition:right .2s}
 .board.panning{cursor:grabbing}
+.marq{position:fixed;z-index:30;border:1.5px dashed var(--acc2);background:rgba(217,76,156,.12);pointer-events:none;border-radius:3px}
 .board.t-measure,.board.t-calib{cursor:crosshair}
 .board.t-ping{cursor:cell}
 .board.dropping{outline:3px dashed var(--acc2);outline-offset:-6px}
@@ -440,6 +441,8 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
       <button type="button" tabindex="-1">Ping<kbd>Alt + clic</kbd></button>
       <button type="button" tabindex="-1">Ping + centrer les joueurs (MJ)<kbd>Maj+Alt+clic</kbd></button>
       <button type="button" tabindex="-1">Déplacer la vue<kbd>clic molette glissé</kbd></button>
+      <button type="button" tabindex="-1">Sélectionner plusieurs objets<kbd>clic gauche glissé</kbd></button>
+      <button type="button" tabindex="-1">Ajouter / retirer de la sélection<kbd>Maj + clic</kbd></button>
       <button type="button" tabindex="-1">Menu d'un pion<kbd>clic droit</kbd></button>
       <button type="button" tabindex="-1">Réglages d'un pion<kbd>double-clic</kbd></button>
       <button type="button" tabindex="-1">Supprimer (MJ)<kbd>Suppr</kbd></button></div></div>
@@ -562,6 +565,9 @@ let chars = [];                                // personnages de la campagne
 let layer = 'tokens', tool = 'select';
 let view = { x: 0, y: 0, z: 1 };
 let sel = null;                                // élément sélectionné
+// Sélection multiple : clic gauche enfoncé sur une zone vide = rectangle de sélection (objets d'un même calque),
+// Maj + clic = ajouter / retirer un objet. Glisser un des objets sélectionnés les déplace tous ; Suppr les supprime (MJ).
+const multi = new Set();
 let channel = null;
 let opt = { names: true, rings: true, bars: 'always' };
 const DEFAULT_SCALE = 50;                      // pixels par mètre
@@ -634,7 +640,7 @@ function renderItem(it){
   if(!e) e = el('div', { id: 'it-' + it.id, class: 'it', 'data-id': it.id });
   if(e.parentElement !== L) L.append(e);
   const d = it.data;
-  e.className = 'it' + (d.round ? ' round tok' : '') + (canMove(it) ? ' grab' : '') + (sel === it.id ? ' sel' : '') + (d.locked ? ' lockd' : '') + (typeof TO !== 'undefined' && TO.isCurrent(it) ? ' turn' : '');
+  e.className = 'it' + (d.round ? ' round tok' : '') + (canMove(it) ? ' grab' : '') + (sel === it.id || multi.has(it.id) ? ' sel' : '') + (d.locked ? ' lockd' : '') + (typeof TO !== 'undefined' && TO.isCurrent(it) ? ' turn' : '');
   e.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;z-index:${Math.round(d.z) + 1000};--oc:${it.owner_id ? userColor(it.owner_id) : '#9aa4ab'};--rot:${d.rot}deg`;
   e.removeAttribute('title');   // remplacé par l'infobulle du plateau
   const kids = [];
@@ -660,7 +666,15 @@ function renderItem(it){
 }
 function removeItemEl(id){ const e = document.getElementById('it-' + id); if(e) e.remove(); }
 function renderAll(){ ['map','tokens','gm'].forEach(l => $id('L-' + l).replaceChildren()); [...items.values()].forEach(renderItem); $id('L-gm').hidden = !isGM; }
-function select(id){ const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); renderHud(); }
+function select(id){ clearMulti(); const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); renderHud(); }
+function clearMulti(){ if(!multi.size) return; const ids = [...multi]; multi.clear(); ids.forEach(x => { const it = items.get(x); if(it) renderItem(it); }); }
+// objets qu'on peut sélectionner à plusieurs : MJ = ceux du calque actif ; joueur = ses pions
+const multiOk = it => !it.data.locked && (isGM ? it.layer === layer : canMove(it));
+function setMulti(ids){
+  clearMulti(); const old = sel; sel = null; if(old){ const o = items.get(old); if(o) renderItem(o); }
+  if(ids.length === 1){ select(ids[0]); return; }
+  ids.forEach(x => multi.add(x)); ids.forEach(x => { const it = items.get(x); if(it) renderItem(it); }); renderHud();
+}
 
 /* ======================= Pions : statistiques, barres, états, raccourcis =======================
    Source des valeurs :
@@ -1516,6 +1530,7 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if(k === 'v') setTool('select'); else if(k === 'm') setTool('measure'); else if(k === 'p') setTool('ping');
   else if(k === 'escape'){ select(null); setTool('select'); closeCtx(); }
+  else if((k === 'delete' || k === 'backspace') && isGM && multi.size){ const ids = [...multi]; clearMulti(); ids.forEach(x => { const it = items.get(x); if(it) delItem(it); }); }
   else if((k === 'delete' || k === 'backspace') && isGM && sel){ const it = items.get(sel); if(it) delItem(it); }
   else if(k === '+' || k === '=') zoomCenter(1.25); else if(k === '-') zoomCenter(0.8);
 });
@@ -1573,7 +1588,15 @@ $id('t-ok').addEventListener('click', async () => {
 });
 
 /* ======================= Souris sur le plateau ======================= */
-let drag = null, pan = null, meas = null, resize = null, rotate = null, rclick = null;
+let drag = null, pan = null, meas = null, resize = null, rotate = null, rclick = null, marq = null;
+// rectangle de sélection (dessiné en coordonnées d'écran)
+function drawMarq(){
+  let r = document.getElementById('marq');
+  if(!marq){ if(r) r.remove(); return; }
+  if(!r){ r = el('div', { id: 'marq', class: 'marq' }); document.body.append(r); }
+  const x = Math.min(marq.x0, marq.x1), y = Math.min(marq.y0, marq.y1);
+  Object.assign(r.style, { left: x + 'px', top: y + 'px', width: Math.abs(marq.x1 - marq.x0) + 'px', height: Math.abs(marq.y1 - marq.y0) + 'px' });
+}
 // Double-clic détecté à la main : la capture du pointeur (pour glisser) envoie le « dblclick » natif au plateau, pas au pion
 let lastTap = { id: null, t: 0 };
 B.addEventListener('pointerdown', e => {
@@ -1601,8 +1624,15 @@ B.addEventListener('pointerdown', e => {
   }
   if(it && e.target.dataset.handle === 'resize'){ resize = { id: it.id, x: p.x, w: it.data.w, h: it.data.h }; B.setPointerCapture(e.pointerId); return; }
   if(it && e.target.dataset.handle === 'rotate'){ rotate = { id: it.id }; B.setPointerCapture(e.pointerId); return; }
+  // Maj + clic : ajouter / retirer de la sélection multiple
+  if(it && e.shiftKey && multiOk(it)){ const ids = new Set(multi); if(sel) ids.add(sel); ids.has(it.id) ? ids.delete(it.id) : ids.add(it.id); setMulti([...ids]); return; }
+  if(it && canMove(it) && multi.has(it.id)){   // glisser un objet de la sélection : tout le groupe suit
+    drag = { id: it.id, dx: p.x - it.data.x, dy: p.y - it.data.y, moved: false, group: [...multi].map(x => items.get(x)).filter(Boolean).map(o => ({ it: o, ox: o.data.x - it.data.x, oy: o.data.y - it.data.y })) };
+    B.setPointerCapture(e.pointerId); return; }
   if(it && canMove(it)){ select(it.id); drag = { id: it.id, dx: p.x - it.data.x, dy: p.y - it.data.y, moved: false }; B.setPointerCapture(e.pointerId); return; }
   if(isGM && it && it.layer === layer) select(it.id); else select(null);
+  // zone vide (ou objet d'un autre calque) : clic gauche enfoncé = rectangle de sélection
+  if(e.pointerType !== 'touch' && tool === 'select'){ marq = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY }; drawMarq(); B.setPointerCapture(e.pointerId); return; }
   if(e.pointerType === 'touch'){ pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; B.classList.add('panning'); B.setPointerCapture(e.pointerId); }
 });
 // le clic molette ne doit pas lancer le défilement automatique du navigateur (Windows) ni ouvrir de lien
@@ -1611,6 +1641,12 @@ B.addEventListener('auxclick', e => { if(e.button === 1) e.preventDefault(); });
 B.addEventListener('pointermove', e => {
   const p = toWorld(e.clientX, e.clientY);
   if(pan){ if(Math.abs(e.clientX - pan.x) + Math.abs(e.clientY - pan.y) > 4) pan.moved = true; view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; applyView(); return; }
+  if(marq){ marq.x1 = e.clientX; marq.y1 = e.clientY; drawMarq(); return; }
+  if(drag && drag.group){ const lead = items.get(drag.id); if(!lead) return; const nx = p.x - drag.dx, ny = p.y - drag.dy; drag.moved = true; $id('ttip').hidden = true;
+    const t = performance.now(), live = t - lastSend > 45; if(live) lastSend = t;   // envoi aux autres joueurs, au plus ~20 fois par seconde
+    drag.group.forEach(g => { g.it.data.x = nx + g.ox; g.it.data.y = ny + g.oy; const e2 = document.getElementById('it-' + g.it.id); if(e2){ e2.style.left = g.it.data.x + 'px'; e2.style.top = g.it.data.y + 'px'; }
+      if(live && g.it.layer !== 'gm') send('drag', { id: g.it.id, d: { x: g.it.data.x, y: g.it.data.y }, scene: scene.id }); });
+    return; }
   if(drag){ const it = items.get(drag.id); if(!it) return; it.data.x = p.x - drag.dx; it.data.y = p.y - drag.dy; drag.moved = true; $id('ttip').hidden = true; if(sel === it.id) placeHud();
     const e2 = document.getElementById('it-' + it.id); if(e2){ e2.style.left = it.data.x + 'px'; e2.style.top = it.data.y + 'px'; }
     if(fx.rings === it.id) drawFx();
@@ -1632,6 +1668,16 @@ async function endPointer(e){
   if(rclick && e.button === 2){ const rc = rclick; rclick = null;
     const itEl = rc.target.closest && rc.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
     if(it && (isGM || controls(it))){ if(isGM && it.layer === layer) select(it.id); openCtx(it, e.clientX, e.clientY); } }
+  if(marq){ const m = marq; marq = null; drawMarq();
+    if(Math.abs(m.x1 - m.x0) + Math.abs(m.y1 - m.y0) > 6){
+      const a = toWorld(Math.min(m.x0, m.x1), Math.min(m.y0, m.y1)), b = toWorld(Math.max(m.x0, m.x1), Math.max(m.y0, m.y1));
+      const ids = [...items.values()].filter(it => multiOk(it) && it.data.x < b.x && it.data.x + it.data.w > a.x && it.data.y < b.y && it.data.y + it.data.h > a.y).map(it => it.id);
+      setMulti(ids);
+    } }
+  if(drag && drag.group){ const d = drag; drag = null;
+    if(d.moved) for(const g of d.group){ send('drag', { id: g.it.id, d: { x: g.it.data.x, y: g.it.data.y }, scene: scene.id });
+      const { error } = await jdrSb.from('board_items').update({ data: g.it.data }).eq('id', g.it.id); if(error) toast(jdrErrorText(error)); }
+    return; }
   if(drag){ const d = drag; drag = null; const it = items.get(d.id);
     if(it && d.moved){ send('drag', { id: it.id, d: { x: it.data.x, y: it.data.y }, scene: scene.id });
       const { error } = await jdrSb.from('board_items').update({ data: it.data }).eq('id', it.id); if(error) toast(jdrErrorText(error)); } }
