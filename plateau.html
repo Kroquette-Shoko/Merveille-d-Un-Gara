@@ -225,15 +225,50 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .beasts button{display:flex;gap:8px;align-items:center;text-align:left}
 .beasts .av{width:34px;height:34px;border-radius:50%;background:#4b4b55 center/cover no-repeat;flex:0 0 34px}
 
+/* ---------- Main et piles de cartes (bandeau du bas) ---------- */
+.tray{position:fixed;left:0;right:var(--sbw);bottom:0;z-index:18;background:rgba(30,30,34,.95);border-top:1px solid var(--uil);display:flex;flex-direction:column;transition:right .2s}
+.trh{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 64px;flex-wrap:wrap}
+.trh select{width:auto;max-width:200px;padding:3px 6px}
+.trh button{padding:3px 10px;font-size:.85rem}
+.trh .trtog{width:30px;padding:3px 0}
+.trc{color:var(--uim);font-size:.85rem}
+.tray.closed .trb{display:none}
+.trb{display:flex;gap:12px;align-items:flex-end;padding:2px 12px 10px 64px;min-height:150px}
+.hand{flex:1;min-width:0;display:flex;align-items:flex-end;overflow:visible;padding:18px 8px 2px;border-radius:10px;min-height:166px}
+.hand .pcard,.hand .cback{transition:transform .12s;position:relative}
+.hand .cback{width:112px}
+/* survol d'une carte de la main : elle grandit pour être lisible */
+.hand .pcard:hover{transform:translateY(-8px) scale(1.75);transform-origin:50% 100%;z-index:5}
+.pcard{position:relative;cursor:grab;flex:0 0 auto}
+.pcard .jcard{pointer-events:none}
+.pcard.dragging{opacity:.35}
+.cmiss{width:96px;aspect-ratio:5/7;border:2px dashed var(--uil);border-radius:8px;display:grid;place-items:center;font-size:.7rem;text-align:center;padding:4px}
+.cback{width:96px;aspect-ratio:5/7;border-radius:8px;background:repeating-linear-gradient(45deg,#3a2350,#3a2350 6px,#4a2d66 6px,#4a2d66 12px);border:3px solid #c9a227;display:grid;place-items:center;color:#fff;font-weight:800;font-size:1.3rem;flex:0 0 auto;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.pile{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border-radius:10px;padding:4px;flex:0 0 auto}
+.pile:hover{background:var(--ui2)}
+.pile small{font-size:.75rem;color:var(--uim);white-space:nowrap}
+.pile .cback{width:70px}
+.piles{display:flex;gap:6px}
+.ptop{pointer-events:none}
+.pempty2{width:58px;aspect-ratio:5/7;border:2px dashed var(--uil);border-radius:8px}
+.over{outline:3px dashed var(--acc2);outline-offset:2px}
+.hand.over{background:rgba(217,76,156,.08)}
+.trempty{display:flex;gap:10px;align-items:center}
+.pgrid{display:flex;flex-wrap:wrap;gap:8px;min-height:120px;padding:6px;border-radius:8px}
+.pgrid .cback{width:120px}
+.reveal{position:fixed;top:60px;left:calc((100vw - var(--sbw)) / 2);transform:translateX(-50%);z-index:55;background:var(--ui);border:1px solid var(--acc);border-radius:14px;padding:10px;box-shadow:0 14px 40px rgba(0,0,0,.6);cursor:zoom-in;display:flex;flex-direction:column;align-items:center;gap:6px}
+.reveal .rv-h{font-weight:700}
+.m .zc{margin-left:6px;padding:0 6px;font-size:.75rem;border-radius:6px}
+
 /* ---------- Joueurs connectés (bas gauche) ---------- */
-.plist{position:fixed;left:10px;bottom:10px;z-index:20;display:flex;gap:8px;align-items:flex-end}
+.plist{position:fixed;left:10px;bottom:calc(var(--trayh, 0px) + 10px);z-index:20;display:flex;gap:8px;align-items:flex-end}
 .pav{display:flex;flex-direction:column;align-items:center;gap:3px;width:62px}
 .pav .c{width:48px;height:48px;border-radius:50%;background:var(--pc);display:grid;place-items:center;font-weight:800;font-size:1.2rem;color:#fff;border:3px solid var(--ui);box-shadow:0 0 0 2px var(--pc),0 4px 12px rgba(0,0,0,.5);position:relative}
 .pav .c i{position:absolute;top:-8px;right:-8px;font-style:normal;font-size:.62rem;font-weight:800;background:var(--acc);color:#fff;border-radius:999px;padding:1px 5px}
 .pav span{font-size:.75rem;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.6);border-radius:999px;padding:0 6px}
 
 /* ---------- Zoom (bas droite) ---------- */
-.zoomw{position:fixed;right:calc(var(--sbw) + 12px);bottom:12px;z-index:20;display:flex;gap:4px;align-items:center;background:var(--ui);border:1px solid var(--uil);border-radius:999px;padding:3px;transition:right .2s}
+.zoomw{position:fixed;right:calc(var(--sbw) + 12px);bottom:calc(var(--trayh, 0px) + 12px);z-index:20;display:flex;gap:4px;align-items:center;background:var(--ui);border:1px solid var(--uil);border-radius:999px;padding:3px;transition:right .2s}
 .zoomw button{border:0;background:transparent;width:30px;height:30px;padding:0;border-radius:50%}
 .zoomw button:hover{background:var(--ui3)}
 .zoomw span{font-size:.8rem;min-width:46px;text-align:center;cursor:pointer}
@@ -379,6 +414,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <button type="button" class="sidetog" id="sidetog" aria-label="Replier la barre latérale" title="Replier / déplier">›</button>
 
 <div class="plist" id="plist" aria-label="Joueurs connectés"></div>
+<div class="tray" id="tray" aria-label="Main et piles de cartes"></div>
 <div class="zoomw"><button type="button" id="z-out" aria-label="Dézoomer">−</button><span id="z-val" title="Tout voir">100 %</span><button type="button" id="z-in" aria-label="Zoomer">+</button><span class="scl" id="scale-info"></span></div>
 <div class="ctx" id="ctx" hidden role="menu"></div>
 <div class="thud" id="thud" hidden role="dialog" aria-label="Raccourcis du pion"></div>
@@ -411,6 +447,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <script src="js/jdr-rules.js"></script>
 <script src="js/jdr-ui.js"></script>
 <script src="js/jdr-card-render.js"></script>
+<script src="js/jdr-plateau-cartes.js"></script>
 <script>
 /* ======================= État ======================= */
 const CAMP = new URLSearchParams(location.search).get('campagne');
@@ -724,6 +761,8 @@ function subscribe(){
     .on('broadcast', { event: 'measure' }, ({ payload }) => { if(!scene || payload.scene !== scene.id) return; if(payload.clear) fx.measures.delete(payload.uid); else fx.measures.set(payload.uid, payload); drawFx(); })
     .on('broadcast', { event: 'ping' }, ({ payload }) => { if(scene && payload.scene === scene.id) showPing(Object.assign({}, payload, { focus: payload.focus && !isGM })); })
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'journal', filter: 'campaign_id=eq.' + CAMP }, onJournalChange)
+    .on('postgres_changes', { event: '*', schema: 'jdr', table: 'play_states', filter: 'campaign_id=eq.' + CAMP }, e => PC.onChange(e))
+    .on('broadcast', { event: 'reveal' }, ({ payload }) => PC.reveal(payload))
     .on('postgres_changes', { event: 'UPDATE', schema: 'jdr', table: 'characters', filter: 'campaign_id=eq.' + CAMP }, ({ new: n }) => {
       const c = chars.find(x => x.id === n.id); if(!c) return; Object.assign(c, { name: n.name, data: n.data });
       [...items.values()].filter(x => x.character_id === c.id).forEach(renderItem); renderHud(); renderJournal(); })
@@ -957,6 +996,7 @@ function addMsg(m){
   const e = el('div', { class: 'm ' + m.kind, id: 'm-' + m.id, style: `--mc:${userColor(m.author_id)}` });
   if(m.kind === 'system') e.textContent = m.text;
   else e.append(el('b', { text: (m.author_name || 'Quelqu’un') + ' ' }), document.createTextNode(m.text), el('span', { class: 't', text: t }));
+  if(m.data && m.data.card) e.append(el('button', { type: 'button', class: 'zc', text: '🔍', title: 'Voir la carte', 'aria-label': 'Voir la carte', onclick: () => { const c = PC.cards[m.data.card]; if(c) jdrZoomCard(c); } }));
   box.append(e); if(near || m.author_id === me.id) scrollChat();
 }
 async function loadChat(){
@@ -1031,10 +1071,13 @@ async function placeImage(url, name, cx, cy){
   if(it){ select(it.id); toast(`Ajouté sur la couche « ${LAYER_NAME[L]} »`); }
 }
 const B = $id('board');
-B.addEventListener('dragover', e => { if(isGM && [...e.dataTransfer.types].some(t => t === 'text/x-jdr-img' || t === 'text/x-journal' || t === 'Files')){ e.preventDefault(); B.classList.add('dropping'); } });
+B.addEventListener('dragover', e => { const t = [...e.dataTransfer.types];
+  if(t.includes('text/x-pcard') || (isGM && t.some(x => x === 'text/x-jdr-img' || x === 'text/x-journal' || x === 'Files'))){ e.preventDefault(); B.classList.add('dropping'); } });
 B.addEventListener('dragleave', () => B.classList.remove('dropping'));
 B.addEventListener('drop', async e => {
-  B.classList.remove('dropping'); if(!isGM) return; e.preventDefault();
+  B.classList.remove('dropping');
+  const pc = e.dataTransfer.getData('text/x-pcard'); if(pc){ e.preventDefault(); return PC.dropOnBoard(pc); }   // carte posée sur le plateau = jouée
+  if(!isGM) return; e.preventDefault();
   const jid = e.dataTransfer.getData('text/x-journal'); if(jid) return placeEntry(jid, e.clientX, e.clientY);
   const raw = e.dataTransfer.getData('text/x-jdr-img');
   if(raw){ const { url, name } = JSON.parse(raw); return placeImage(url, name, e.clientX, e.clientY); }
@@ -1529,7 +1572,7 @@ async function chooseCampaign(){
   if(isGM) setLayer('tokens');
   const [sc, ch, th] = await Promise.all([
     jdrSb.from('scenes').select('*').eq('campaign_id', CAMP).order('created_at'),
-    jdrSb.from('characters').select('id,name,owner_id,data').eq('campaign_id', CAMP).order('name'),
+    jdrSb.from('characters').select('id,name,owner_id,data,deck').eq('campaign_id', CAMP).order('name'),
     isGM ? jdrSb.from('board_items').select('scene_id,data').eq('campaign_id', CAMP).eq('layer', 'map') : Promise.resolve({ data: [] })
   ]);
   scenes = sc.data || []; chars = ch.data || [];
@@ -1538,7 +1581,7 @@ async function chooseCampaign(){
   try{ const ids = [...new Set(chars.map(x => x.owner_id))];   // pseudos (lecture seule du profil commun)
     if(ids.length){ const { data: pr } = await jdrSb.schema('public').from('profiles').select('id,username').in('id', ids); (pr || []).forEach(x => { if(x.username) playerNames[x.id] = x.username; }); } }catch(e){}
   (th.data || []).forEach(r => { if(r.data && r.data.img && !thumbs[r.scene_id]) thumbs[r.scene_id] = r.data.img; });
-  subscribe(); applyView(); loadChat(); loadJournal();
+  subscribe(); applyView(); loadChat(); loadJournal(); PC.load();
   jdrLoadKeywords().then(() => renderHud()).catch(() => {});   // afflictions (mots-clés) pour les états
   await loadScene(isGM ? (c.active_scene || (sortedScenes()[0] || {}).id) : sceneOf(me.id));
   if(isGM && scenes.length <= 1){ $id('pages').classList.remove('closed'); renderStrip(); }   // bandeau ouvert au début ; ensuite il se replie
