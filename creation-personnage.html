@@ -282,7 +282,8 @@ function renderVoieChoices(){
     const on = C.voie === c.id;
     box.append(el('button', { type:'button', role:'option', 'aria-selected': on ? 'true' : 'false', class: 'choice' + (on ? ' on' : ''),
       html: `<span class="th" ${thumb(c)}>${c.image_url ? '' : jdrEsc((c.name || '?')[0])}</span><span><b>${jdrEsc(c.name)}</b><small>Carte de voie</small></span>${on ? '<span class="tick">✓</span>' : ''}`,
-      onclick: () => { C.voie = c.id; $id('need').textContent = ''; render(); } }));
+      // choisir la voie ET l'afficher en grand pour bien la lire
+      onclick: () => { C.voie = c.id; $id('need').textContent = ''; render(); jdrZoomCard(c); } }));
   });
   L.append(box);
 }
@@ -361,7 +362,9 @@ function renderRight(){
     const o = oById(C[key]);
     // Spécialisation : la voie choisie en grand, puis la fiche de la spécialisation
     if(k === 'spe' && o && cardsById[C.voie]){
-      return show(`<p class="grp" style="margin-top:0">Voie choisie</p><div style="display:flex;justify-content:center;margin-bottom:12px">${jdrCardHTML(cardsById[C.voie], { width: '260px' })}</div>` + jdrOriginHTML(o, { byId: map, cards: cardsById, hideVoies: true }));
+      show(`<p class="grp" style="margin-top:0">Voie choisie <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">· clique sur la carte pour l'agrandir</span></p><div style="display:flex;justify-content:center;margin-bottom:12px" id="voie-big">${jdrCardHTML(cardsById[C.voie], { width: 'min(100%, 340px)' })}</div>` + jdrOriginHTML(o, { byId: map, cards: cardsById, hideVoies: true }));
+      const vc = R.querySelector('#voie-big .jcard'); if(vc){ vc.classList.add('zoomable'); vc.addEventListener('click', () => jdrZoomCard(cardsById[C.voie])); }
+      return;
     }
     return show(o ? jdrOriginHTML(o, { byId: map, cards: cardsById }) : `<p class="hintbox">Choisis ${k === 'spe' ? 'une spécialisation' : k === 'classe' ? 'une classe' : k === 'peuple' ? 'un peuple' : 'un passé'} dans la liste pour voir sa description.</p>`);
   }

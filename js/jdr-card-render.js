@@ -97,7 +97,7 @@ function jdrCardHTML(card, opts = {}){
   }
   const showVal = c.value !== null && c.value !== '' && c.value !== undefined;
 
-  return `<div class="${cls}" data-card="${esc(c.id)}" title="${esc(c.name)}" style="--cc:${col.color};--ci:${col.ink}">
+  return `<div class="${cls}" data-card="${esc(c.id)}" title="${esc(c.name)}" style="--cc:${col.color};--ci:${col.ink}${opts.width ? ';--w:' + esc(opts.width) : ''}">
     <div class="col">
       ${showVal ? `<div class="vbox"><div class="val" aria-label="Valeur : ${esc(c.value)}">${esc(c.value)}</div><span class="vlab">Valeur</span></div>` : ''}
       ${hasMana ? `<div class="mana" aria-label="Coût en mana : ${esc(c.mana)}">${esc(c.mana)}</div>` : ''}
@@ -191,3 +191,26 @@ jdrCardHTML = function(card, opts = {}){
   if(card && card.type === 'Créature') return jdrCreatureHTML(card, opts);
   return jdrCardHTMLClassic(card, opts);
 };
+
+
+/* ============================================================
+   ZOOM : affiche une carte en grand par-dessus la page (lisible).
+   jdrZoomCard(card) — se ferme par un clic, la touche Échap ou le bouton ✕.
+   ============================================================ */
+function jdrZoomCard(card){
+  if(!card) return;
+  let z = document.getElementById('jdr-zoom');
+  if(!z){
+    z = document.createElement('div'); z.id = 'jdr-zoom'; z.className = 'jdr-zoom'; z.hidden = true;
+    z.setAttribute('role', 'dialog'); z.setAttribute('aria-modal', 'true');
+    z.addEventListener('click', () => { z.hidden = true; });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && !z.hidden) z.hidden = true; });
+    document.body.appendChild(z);
+  }
+  z.setAttribute('aria-label', 'Carte agrandie : ' + (card.name || ''));
+  // largeur : la plus grande possible sans dépasser l'écran (format 5/7)
+  z.innerHTML = `<button type="button" class="jdr-zoom-x" aria-label="Fermer">✕</button>`
+    + jdrCardHTML(card, { width: 'min(460px, 92vw, calc(88vh * 5 / 7))' })
+    + `<p class="jdr-zoom-h">Clique n'importe où ou appuie sur Échap pour fermer</p>`;
+  z.hidden = false;
+}

@@ -86,7 +86,7 @@ function openDetail(id){
   const c = all.find(x => x.id === id); if(!c) return;
   const isC = c.type === 'Créature';
   $id('dlg').classList.toggle('wide', isC);
-  $id('dlg-card').innerHTML = jdrCardHTML(c, { sheet, groups, width: 'min(1040px, calc(96vw - 40px))' });
+  $id('dlg-card').innerHTML = jdrCardHTML(c, isC ? { sheet, groups, width: 'min(1040px, calc(96vw - 40px))' } : { sheet, groups });
   $id('dlg-title').textContent = c.name;
   const acc = (l, all) => l.length ? l.join(', ') : all;
   const rows = [

@@ -113,6 +113,13 @@ label.chk{display:inline-flex;align-items:center;gap:6px;font-size:.92rem;cursor
 .jcard .spec p,.jcard .spec .p{margin:0;padding:1.7cqw 2.9cqw 2.3cqw;font-size:3.7cqw;line-height:1.35}
 .jcard .foot{font-size:3.4cqw;color:#7a5d17;font-weight:700;text-align:center;padding:0 3cqw 2.3cqw}
 .jcard.small{--w:150px}
+/* Zoom d'une carte (jdrZoomCard) */
+.jdr-zoom{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:zoom-out;padding:12px}
+.jdr-zoom[hidden]{display:none}
+.jdr-zoom .jcard{box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.jdr-zoom-x{position:absolute;top:12px;right:12px;background:#F3E8CF;color:#2B2016;border:0;border-radius:50%;width:38px;height:38px;font-size:1.1rem;cursor:pointer}
+.jdr-zoom-h{color:#F3E8CF;font-size:.85rem;margin:0;opacity:.85}
+.jcard.zoomable{cursor:zoom-in}
 /* ----- Pacte : 3 parties (24/10/2026) -----
    gauche = le pouvoir du pacte (le plus de texte) ; droite = engagement / mission, puis la récompense (une carte) */
 .jcard.pact .art{flex-basis:38cqw}
