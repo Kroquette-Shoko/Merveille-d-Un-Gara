@@ -250,6 +250,29 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .pile small{font-size:.75rem;color:var(--uim);white-space:nowrap}
 .pile .cback{width:70px}
 .piles{display:flex;gap:6px}
+/* Bloc du personnage, avant la main : portrait + étoile des PA + triangle des actions spéciales · Opp / Ant / En jeu · Deck */
+.tme{display:flex;align-items:flex-end;gap:10px;flex:0 0 auto}
+.tme-avw{position:relative;width:132px;height:140px;flex:0 0 auto}
+.tme-av{position:absolute;left:0;bottom:4px;width:118px;height:118px;border-radius:50%;overflow:hidden;background:var(--ui3);border:3px solid var(--uil);display:grid;place-items:center;box-shadow:0 3px 10px rgba(0,0,0,.45)}
+.tme-av img{width:100%;height:100%;object-fit:cover}
+.tme-av .tme-ini{font-family:var(--f-display,serif);font-weight:800;font-size:3rem;color:var(--uit)}
+.tme-star{position:absolute;right:2px;top:0;width:54px;height:54px;display:grid;place-items:center;background:#f3e6c4;color:#2b1d05;font-weight:800;font-size:1.05rem;
+  clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.tme-star span{margin-top:6px}
+.tme-tri{position:absolute;right:0;bottom:0;width:58px;height:52px;padding:0;border:0;border-radius:0;background:#d8262f;color:#fff;font-weight:800;font-size:1rem;cursor:pointer;
+  clip-path:polygon(50% 0%,100% 100%,0% 100%);display:grid;place-items:end center;padding-bottom:6px;opacity:.75}
+.tme-tri.on{opacity:1}
+.tme-tri:hover{background:#ef3a43}
+.tme-tri.over{background:#ff5a62}
+.tme-stats{display:flex;flex-direction:column;gap:5px;width:92px}
+.tme-st{display:flex;align-items:baseline;gap:6px;border:2px solid var(--uil);border-radius:8px;padding:3px 8px;background:var(--ui2);min-height:40px}
+.tme-st small{color:var(--uim);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.tme-st b{font-size:1.25rem;margin-left:auto}
+.tme-st.excess{border-color:var(--hurt)}
+.tme-st.excess b{color:var(--hurt)}
+.tme-st.tme-play{cursor:pointer}
+.tme-st.tme-play:hover,.tme-st.tme-play.over{border-color:var(--acc2)}
+.tme-deck .cback{width:100px}
 .ptop{pointer-events:none}
 .pempty2{width:58px;aspect-ratio:5/7;border:2px dashed var(--uil);border-radius:8px}
 .over{outline:3px dashed var(--acc2);outline-offset:2px}

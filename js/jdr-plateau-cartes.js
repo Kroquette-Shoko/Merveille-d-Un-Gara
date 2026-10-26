@@ -4,6 +4,7 @@
 
    Piles d'un personnage (table jdr.play_states, une ligne par personnage) :
      draw (pioche, [0] = dessus) · hand (main) · discard (défausse, dernier = dessus) · banished (bannies) · play (en jeu)
+     · special (actions spéciales : cartes mises de côté qu'on peut jouer d'ailleurs que la main, ex. une chanson « redite »)
    Une carte en jeu = un exemplaire { u: identifiant unique, c: id de la carte }.
    Accès libre (choix du MJ) : tout joueur de la partie peut agir sur les piles des autres ; tout est noté dans la discussion.
    Les mains des autres joueurs sont montrées de dos (sauf au MJ).
@@ -11,7 +12,8 @@
    on relit et on rejoue l'action (jusqu'à 4 fois).
    ============================================================ */
 const PC = (() => {
-  const ZONES = { draw: 'Pioche', hand: 'Main', discard: 'Défausse', banished: 'Bannies', play: 'En jeu' };
+  const ZONES = { draw: 'Pioche', hand: 'Main', discard: 'Défausse', banished: 'Bannies', play: 'En jeu', special: 'Actions spéciales' };
+  const HIS = { draw: 'sa pioche', hand: 'sa main', discard: 'sa défausse', banished: 'ses cartes bannies', play: 'ses cartes en jeu', special: 'ses actions spéciales' };
   const states = new Map();          // character_id → { character_id, char_name, owner_id, version, data }
   let cards = {};                    // id → carte
   let origins = [];                  // classes et spécialisations (pour savoir qui a accès à la magie)
@@ -19,7 +21,7 @@ const PC = (() => {
   let open = true;                   // bandeau déplié
   try{ open = localStorage.getItem('jdr-tray-open') !== '0'; }catch(e){}
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-  const blank = () => ({ draw: [], hand: [], discard: [], banished: [], play: [] });
+  const blank = () => ({ draw: [], hand: [], discard: [], banished: [], play: [], special: [] });
   const norm = r => Object.assign({}, r, { data: Object.assign(blank(), r.data || {}) });
   const shuffle = a => { for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const cardName = c => (cards[c.c] && cards[c.c].name) || c.c;
@@ -124,7 +126,7 @@ const PC = (() => {
   async function shuffleDraw(ch){ if(!guard(ch)) return; if(await mutate(ch, d => { shuffle(d.draw); })) log(`${nameOf(ch)} mélange sa pioche`); }
   async function rest(ch){
     let removed = 0, total = 0;
-    const ok = await mutate(ch, d => { const all = [...d.draw, ...d.hand, ...d.discard, ...d.banished, ...d.play];
+    const ok = await mutate(ch, d => { const all = Object.keys(ZONES).flatMap(z => d[z] || []);
       const keep = all.filter(c => !isRisk(c)); removed = all.length - keep.length; total = keep.length; if(d.pending){ all.push(d.pending.card); d.pending = null; } Object.assign(d, blank(), { draw: shuffle(keep) }); });
     if(ok) log(`${nameOf(ch)} se repose : toutes ses cartes reviennent dans la pioche (${total})${removed ? `, ${removed} Risque${removed > 1 ? 's' : ''} retiré${removed > 1 ? 's' : ''}` : ''}`);
   }
@@ -133,7 +135,7 @@ const PC = (() => {
     // joueur bloqué en fin de tour : il peut seulement défausser des cartes de sa main
     const discarding = from.ch === to.ch && from.z === 'hand' && to.z === 'discard';
     if(!discarding && (!guard(from.ch) || !guard(to.ch))) return;
-    const verb = { hand: 'prend en main', discard: 'défausse', banished: 'bannit', play: 'met en jeu', draw: pos === 'bottom' ? 'remet sous la pioche' : 'remet sur la pioche' }[to.z];
+    const verb = { hand: 'prend en main', discard: 'défausse', banished: 'bannit', play: 'met en jeu', special: 'met de côté (action spéciale)', draw: pos === 'bottom' ? 'remet sous la pioche' : 'remet sur la pioche' }[to.z];
     let card = null;
     if(from.ch === to.ch){
       const ok = await mutate(from.ch, d => { const i = d[from.z].findIndex(c => c.u === from.u); if(i < 0) return false; card = d[from.z].splice(i, 1)[0];
@@ -150,7 +152,7 @@ const PC = (() => {
     const actor = myCharName();
     const whose = z => ZONES[z].toLowerCase();
     let text;
-    if(from.ch === to.ch) text = `${nameOf(to.ch)} ${verb} ${what}${from.z !== 'hand' ? ` (depuis sa ${whose(from.z)})` : ''}`;
+    if(from.ch === to.ch) text = `${nameOf(to.ch)} ${verb} ${what}${from.z !== 'hand' ? ` (depuis ${HIS[from.z]})` : ''}`;
     else text = `${actor} déplace ${what} : ${whose(from.z)} de ${nameOf(from.ch)} → ${whose(to.z)} de ${nameOf(to.ch)}`;
     log(text, secret ? {} : { card: card.c });
     // une carte qui arrive « En jeu » est jouée : elle est montrée à toute la table (par défaut)
@@ -203,8 +205,8 @@ const PC = (() => {
   }
   async function cancel(ch){
     const st = states.get(ch); const p = st && st.data.pending; if(!p) return;
-    const ok = await mutate(ch, d => { if(!d.pending) return false; d[d.pending.from || 'hand'].push(d.pending.card); d.pending = null; });
-    if(ok) log(`${nameOf(ch)} annule « ${cardName(p.card)} » (la carte revient ${p.from === 'play' ? 'en jeu' : 'en main'})`);
+    const ok = await mutate(ch, d => { if(!d.pending) return false; const z = d.pending.from || 'hand'; (d[z] = d[z] || []).push(d.pending.card); d.pending = null; });
+    if(ok) log(`${nameOf(ch)} annule « ${cardName(p.card)} » (la carte revient ${p.from === 'play' ? 'en jeu' : p.from === 'special' ? 'dans ses actions spéciales' : 'en main'})`);
   }
   function paPopup(ch, eff, left){
     document.getElementById('padlg')?.remove();
@@ -424,7 +426,7 @@ const PC = (() => {
           el('span', { class: 'pd-pa', text: left !== null ? `${left} / ${max} PA` : 'PA non renseignés' })),
         el('div', { class: 'pd-b' }, cw, el('div', { class: 'pd-effs' },
           el('div', { class: 'hint', style: 'margin:0', text: can ? 'Clique sur l’effet que tu résous :' : `En attente du choix de ${nameOf(ch)}…` }), ...effs,
-          el('button', { type: 'button', class: 'pd-cancel', disabled: !can, text: 'Annuler (la carte revient en main)', onclick: () => cancel(ch) }))));
+          el('button', { type: 'button', class: 'pd-cancel', disabled: !can, text: `Annuler (la carte revient ${p.from === 'play' ? 'en jeu' : p.from === 'special' ? 'dans les actions spéciales' : 'en main'})`, onclick: () => cancel(ch) }))));
     }));
     box.hidden = !list.length;
   }
@@ -496,7 +498,7 @@ const PC = (() => {
         ['⚠ Risques… (ajouter, fatigue, retirer)', () => openRisks(cur)],
         '-',
         ['Fouiller la pioche', () => openPile(cur, 'draw')], ['Voir la défausse', () => openPile(cur, 'discard')],
-        ['Voir les cartes bannies', () => openPile(cur, 'banished')], ['Voir les cartes en jeu', () => openPile(cur, 'play')]]));
+        ['Voir les cartes bannies', () => openPile(cur, 'banished')], ['Voir les cartes en jeu', () => openPile(cur, 'play')], ['Voir les actions spéciales', () => openPile(cur, 'special')]]));
       head.append(more);
     }
     const body = el('div', { class: 'trb' });
@@ -505,14 +507,35 @@ const PC = (() => {
     else if(!st) body.append(el('div', { class: 'trempty' }, el('span', { text: 'Pas encore de cartes en jeu pour ' + nameOf(cur) + '.' }),
       el('button', { type: 'button', class: 'primary', text: 'Préparer le deck', onclick: () => prepare(cur) })));
     else {
-      // pile de pioche
-      const pd = el('div', { class: 'pile', title: 'Pioche — clic : fouiller ; dépose une carte ici pour la remettre dessus (Maj = dessous)' }, back(d.draw.length), el('small', { text: 'Pioche' }));
+      // ---- Bloc du personnage, avant la main : portrait (+ étoile des PA, triangle des actions spéciales) · Opp / Ant / En jeu · DECK
+      const cd = charData(cur) || {}, stats = cd.stats || {};
+      const statN = k => (stats[k] === undefined || stats[k] === '' || isNaN(Number(stats[k]))) ? '—' : Number(stats[k]);
+      const av = el('div', { class: 'tme-av', title: nameOf(cur) });
+      if(cd.portrait) av.append(el('img', { src: cd.portrait, alt: '' })); else av.append(el('span', { class: 'tme-ini', text: (nameOf(cur) || '?').trim().charAt(0).toUpperCase() }));
+      const left = paLeft(cur), max = paMax(cur);
+      const star = el('div', { class: 'tme-star', title: left === null ? 'Points d’action : non renseignés sur la fiche' : `Points d’action restants : ${left} sur ${max}` },
+        el('span', { text: left === null ? '–' : String(left) }));
+      const sp = d.special || [];
+      const tri = el('button', { type: 'button', class: 'tme-tri' + (sp.length ? ' on' : ''), title: `Actions spéciales (${sp.length}) — cartes jouables depuis ailleurs que la main. Clic : voir ; glisse une carte ici pour la mettre de côté.`,
+        'aria-label': `Actions spéciales : ${sp.length}`, onclick: () => openPile(cur, 'special') }, el('span', { text: String(sp.length) }));
+      dropTarget(tri, cur, 'special');
+      const ant = antOf(cur), over = ant !== null && d.hand.length > ant;
+      const box = (cls, lab, val, extra) => el('div', { class: 'tme-st ' + cls }, el('small', { text: lab }), el('b', { text: String(val) }), ...(extra ? [extra] : []));
+      const playBox = box('tme-play', 'En jeu', (d.play || []).length);
+      playBox.title = 'Cartes persistantes (en jeu) — clic : voir ; glisse une carte ici pour la mettre en jeu';
+      playBox.addEventListener('click', () => openPile(cur, 'play')); dropTarget(playBox, cur, 'play');
+      const stack = el('div', { class: 'tme-stats' },
+        Object.assign(box('', 'Opp', statN('opp')), { title: 'Opportunisme : cartes piochées en prenant le tour' }),
+        Object.assign(box(over ? 'excess' : '', 'Ant', statN('ant')), { title: `Anticipation : cartes gardées en fin de tour — ${d.hand.length} en main${over ? ' (trop !)' : ''}` }),
+        playBox);
+      const pd = el('div', { class: 'pile tme-deck', title: 'Deck (pioche) — clic : fouiller ; dépose une carte ici pour la remettre dessus (Maj = dessous)' }, back(d.draw.length), el('small', { text: 'Deck' }));
       pd.addEventListener('click', () => openPile(cur, 'draw')); dropTarget(pd, cur, 'draw', 'top');
+      const me2 = el('div', { class: 'tme' }, el('div', { class: 'tme-avw' }, av, star, tri), stack, pd);
       // main
       const hand = el('div', { class: 'hand' });
       if(handHidden(cur)) d.hand.forEach(() => hand.append(back()));
       else d.hand.forEach(c => hand.append(mini(cur, 'hand', c, { w: 112 })));
-      if(!d.hand.length) hand.append(el('span', { class: 'hint', text: 'Main vide — clique sur « Piocher »' }));
+      if(!d.hand.length) hand.append(el('span', { class: 'hint', text: 'Main vide — « Prendre le tour » ou « Piocher une carte »' }));
       dropTarget(hand, cur, 'hand');
       // piles de droite
       const top = a => a.length ? a[a.length - 1] : null;
@@ -521,7 +544,7 @@ const PC = (() => {
         if(t && cards[t.c]){ const m = el('div', { class: 'ptop' }); m.innerHTML = jdrCardHTML(cards[t.c], { width: '58px' }); p.append(m); } else p.append(el('div', { class: 'pempty2' }));
         p.append(el('small', { text: `${label} (${a.length})` }));
         p.addEventListener('click', () => openPile(cur, z)); dropTarget(p, cur, z); return p; };
-      body.append(pd, hand, el('div', { class: 'piles' }, pile('play', 'En jeu'), pile('discard', 'Défausse'), pile('banished', 'Bannies')));
+      body.append(me2, hand, el('div', { class: 'piles' }, pile('discard', 'Défausse'), pile('banished', 'Bannies')));
     }
     T.replaceChildren(head, body);
     // les cartes de la main se chevauchent juste assez pour tenir dans la largeur
@@ -550,11 +573,12 @@ const PC = (() => {
   function cardMenu(ch, z, c, x, y){
     const card = cards[c.c]; const go = (tz, pos) => move({ ch, z, u: c.u }, { ch, z: tz }, pos);
     const e = [];
-    if(z === 'hand' || z === 'play') e.push(['Jouer (montrer à tous)', () => play(ch, c.u, z)]);
+    if(z === 'hand' || z === 'play' || z === 'special') e.push(['Jouer (montrer à tous)', () => play(ch, c.u, z)]);
     if(z !== 'hand') e.push(['Prendre en main', () => go('hand')]);
     if(z !== 'discard') e.push(['Défausser', () => go('discard')]);
     if(z !== 'banished') e.push(['Bannir', () => go('banished')]);
     if(z !== 'play') e.push(['Mettre en jeu (reste posée)', () => go('play')]);
+    if(z !== 'special') e.push(['Mettre de côté (action spéciale)', () => go('special')]);
     e.push(['Remettre sur la pioche', () => go('draw', 'top')], ['Remettre sous la pioche', () => go('draw', 'bottom')]);
     const others = options().filter(([id]) => id !== ch);
     if(others.length){ e.push('-'); others.forEach(([id, n]) => e.push([`Donner à ${n} (sa main)`, () => move({ ch, z, u: c.u }, { ch: id, z: 'hand' })])); }
@@ -576,7 +600,7 @@ const PC = (() => {
     w.head.querySelector('b').textContent = `${ZONES[z]} de ${nameOf(ch)} (${a.length})`;
     const grid = el('div', { class: 'pgrid' });
     const hidden = z === 'hand' && handHidden(ch);
-    const list = z === 'discard' || z === 'banished' || z === 'play' ? a.slice().reverse() : a;   // dessus en premier
+    const list = z === 'discard' || z === 'banished' || z === 'play' || z === 'special' ? a.slice().reverse() : a;   // dessus en premier
     list.forEach(c => grid.append(hidden ? back() : mini(ch, z, c, { w: 120 })));
     if(!a.length) grid.append(el('p', { class: 'hint', style: 'margin:0', text: 'Pile vide — glisse une carte ici.' }));
     dropTarget(grid, ch, z, 'top');
@@ -589,7 +613,7 @@ const PC = (() => {
   function refreshWins(){ [...pileWins.keys()].forEach(renderPile); }
 
   /* ---------- Carte glissée sur le plateau = jouée ---------- */
-  function dropOnBoard(raw){ const f = JSON.parse(raw); if(f.z === 'hand' || f.z === 'play') play(f.ch, f.u, f.z); else move(f, { ch: f.ch, z: 'discard' }); }
+  function dropOnBoard(raw){ const f = JSON.parse(raw); if(f.z === 'hand' || f.z === 'play' || f.z === 'special') play(f.ch, f.u, f.z); else move(f, { ch: f.ch, z: 'discard' }); }
 
   // Défausser plusieurs cartes de la main d'un coup (fin de tour : limite d'Anticipation)
   async function discardMany(ch, us){
