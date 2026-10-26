@@ -50,6 +50,31 @@ a{color:var(--acc2)}
 .it.round{border-radius:50%}
 .it.tok{box-shadow:0 0 0 3px var(--oc,#ddd),0 3px 8px rgba(0,0,0,.55)}
 .it .ini{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:var(--oc,#667);color:#fff;font-family:var(--f-display);font-weight:800}
+/* Barres (PV / armure / mana) et états au-dessus des pions — tailles d'écran grâce à --k = 1 / zoom */
+.bars{position:absolute;left:0;right:0;bottom:calc(100% + 4px * var(--k,1));display:flex;flex-direction:column;gap:calc(2px * var(--k,1));pointer-events:none}
+.bar{height:calc(6px * var(--k,1));border-radius:calc(3px * var(--k,1));background:rgba(0,0,0,.55);overflow:hidden;box-shadow:0 0 0 calc(1px * var(--k,1)) rgba(0,0,0,.6)}
+.bar i{display:block;height:100%;width:var(--p);background:var(--bc)}
+.sts{position:absolute;right:calc(-6px * var(--k,1));top:calc(-6px * var(--k,1));display:flex;flex-direction:column;gap:calc(2px * var(--k,1));pointer-events:none}
+.sts b{min-width:calc(16px * var(--k,1));height:calc(16px * var(--k,1));padding:0 calc(3px * var(--k,1));border-radius:calc(8px * var(--k,1));background:#7a2d8c;color:#fff;font:700 calc(10px * var(--k,1))/calc(16px * var(--k,1)) var(--f-body);text-align:center;box-shadow:0 0 0 calc(1.5px * var(--k,1)) #1d1a16}
+/* Raccourcis du pion sélectionné + infobulle */
+.thud{position:fixed;z-index:30;transform:translate(-50%,-100%);background:var(--ui);border:1px solid var(--uil);border-radius:12px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:5px;min-width:250px;font-size:.88rem}
+.thud .th1{display:flex;align-items:center;gap:6px}
+.thud .th1 b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thud button{padding:2px 7px;font-size:.8rem;border-radius:6px}
+.thud .sr{display:grid;grid-template-columns:62px 1fr;align-items:center;gap:6px}
+.thud .sr>span{color:var(--uim);font-size:.78rem}
+.thud .sv{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.thud .val{min-width:52px;text-align:center;font-weight:700;cursor:default}
+.thud .val.ed{cursor:pointer;text-decoration:underline dotted}
+.thud .dmg{background:#5a2626;border-color:#7a3333}
+.thud .heal{background:#24503a;border-color:#2f6b4c}
+.thud .chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.thud .chip{background:#7a2d8c;border:0;color:#fff;border-radius:999px;padding:1px 8px;font-size:.78rem}
+.thud select,.thud input{padding:2px 4px;font-size:.8rem;width:auto}
+.ttip{position:fixed;z-index:35;pointer-events:none;background:rgba(20,20,24,.95);border:1px solid var(--uil);border-radius:9px;padding:6px 9px;font-size:.82rem;line-height:1.4;max-width:240px}
+.ttip b{display:block;font-size:.9rem}
+.ttip .tl{display:flex;justify-content:space-between;gap:10px}
+.ttip .tl span:first-child{color:var(--uim)}
 .it .nm{position:absolute;left:50%;top:100%;transform:translate(-50%,4px);white-space:nowrap;font-weight:700;color:#fff;
   background:rgba(0,0,0,.65);padding:1px 7px;border-radius:999px;pointer-events:none}
 .it.grab{cursor:move}
@@ -348,6 +373,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     <h2>Affichage</h2>
     <label class="chk"><input type="checkbox" id="o-names" checked> Afficher les noms sous les pions</label>
     <label class="chk"><input type="checkbox" id="o-rings" checked> Cercles de portée au survol de mes pions</label>
+    <label class="f">Barres de mes pions (PV, armure, mana)<select id="o-bars"><option value="always">Toujours affichées</option><option value="hover">Au survol / à la sélection</option><option value="never">Jamais</option></select></label>
   </section>
 </aside>
 <button type="button" class="sidetog" id="sidetog" aria-label="Replier la barre latérale" title="Replier / déplier">›</button>
@@ -355,6 +381,8 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <div class="plist" id="plist" aria-label="Joueurs connectés"></div>
 <div class="zoomw"><button type="button" id="z-out" aria-label="Dézoomer">−</button><span id="z-val" title="Tout voir">100 %</span><button type="button" id="z-in" aria-label="Zoomer">+</button><span class="scl" id="scale-info"></span></div>
 <div class="ctx" id="ctx" hidden role="menu"></div>
+<div class="thud" id="thud" hidden role="dialog" aria-label="Raccourcis du pion"></div>
+<div class="ttip" id="ttip" hidden></div>
 <div class="msg" id="msg" hidden><div id="msg-in"></div></div>
 <div class="toastp" id="toastp" hidden role="status"></div>
 
@@ -395,7 +423,7 @@ let layer = 'tokens', tool = 'select';
 let view = { x: 0, y: 0, z: 1 };
 let sel = null;                                // élément sélectionné
 let channel = null;
-let opt = { names: true, rings: true };
+let opt = { names: true, rings: true, bars: 'always' };
 const DEFAULT_SCALE = 50;                      // pixels par mètre
 const RANGES = [['Contact', 1.5], ['Allonge', 3], ['Proche', 9], ['Moyenne portée', 18], ['Grande portée', 36], ['Très grande portée', 72]];
 const RING_RANGES = RANGES.slice(0, 4);
@@ -424,6 +452,8 @@ function applyView(){
   $id('world').style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
   $id('z-val').textContent = Math.round(view.z * 100) + ' %'; $id('z-range').value = Math.round(view.z * 100);
   document.querySelectorAll('.it .nm').forEach(n => n.style.fontSize = Math.max(11, 13 / view.z) + 'px');
+  $id('world').style.setProperty('--k', 1 / view.z);
+  placeHud();
 }
 function zoomAt(f, cx, cy){
   const b = boardRect(); const px = cx - b.left, py = cy - b.top;
@@ -465,11 +495,21 @@ function renderItem(it){
   const d = it.data;
   e.className = 'it' + (d.round ? ' round tok' : '') + (canMove(it) ? ' grab' : '') + (sel === it.id ? ' sel' : '') + (d.locked ? ' lockd' : '');
   e.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;z-index:${Math.round(d.z) + 1000};--oc:${it.owner_id ? userColor(it.owner_id) : '#9aa4ab'};--rot:${d.rot}deg`;
-  e.title = d.name || '';
+  e.removeAttribute('title');   // remplacé par l'infobulle du plateau
   const kids = [];
   if(d.img) kids.push(el('img', { src: d.img, alt: '', draggable: 'false' }));
   else kids.push(el('div', { class: 'ini', text: (d.name || '?')[0].toUpperCase(), style: `font-size:${Math.max(12, d.h * .45)}px;${d.round ? '' : 'border-radius:8px'}` }));
   if(opt.names && d.name && it.layer === 'tokens') kids.push(el('span', { class: 'nm', text: d.name, style: `font-size:${Math.max(11, 13 / view.z)}px` }));
+  // barres : seulement pour qui contrôle le pion
+  if(it.layer !== 'map' && controls(it) && (opt.bars === 'always' || (opt.bars === 'hover' && (hovered === it.id || sel === it.id)))){
+    const st = statsOf(it); const bars = [];
+    const bar = (v, c) => v && v.max > 0 ? bars.push(el('div', { class: 'bar', title: '' }, el('i', { style: `--p:${Math.max(0, Math.min(100, v.cur / v.max * 100))}%;--bc:${c}` }))) : 0;
+    bar(st.hp, st.hp.max && st.hp.cur / st.hp.max <= .34 ? '#e04c3c' : st.hp.max && st.hp.cur / st.hp.max <= .67 ? '#e0a83c' : '#45c06a');
+    bar(st.armor, '#8ea3b8'); bar(st.armag, '#c9a227'); bar(st.mana, '#3f7fe0');
+    if(bars.length) kids.push(el('div', { class: 'bars' }, ...bars));
+  }
+  const sts = Array.isArray(d.status) ? d.status : [];
+  if(sts.length && it.layer !== 'map') kids.push(el('div', { class: 'sts' }, ...sts.slice(0, 6).map(n => el('b', { text: String(n).slice(0, 3), title: n }))));
   if(sel === it.id && isGM && it.layer === layer && !d.locked){
     const k = 1 / view.z;
     kids.push(el('div', { class: 'hdl rs', 'data-handle': 'resize', title: 'Redimensionner', style: `transform:scale(${k});transform-origin:0 0` }));
@@ -479,7 +519,136 @@ function renderItem(it){
 }
 function removeItemEl(id){ const e = document.getElementById('it-' + id); if(e) e.remove(); }
 function renderAll(){ ['map','tokens','gm'].forEach(l => $id('L-' + l).replaceChildren()); [...items.values()].forEach(renderItem); $id('L-gm').hidden = !isGM; }
-function select(id){ const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); }
+function select(id){ const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); renderHud(); }
+
+/* ======================= Pions : statistiques, barres, états, raccourcis =======================
+   Source des valeurs :
+   - pion d'un PERSONNAGE (character_id) : la fiche (PV = cases non perdues, armure, armure magique, ressource « Mana »)
+   - pion d'un PNJ du journal (data.journal) : la fiche du journal (ou la créature du bestiaire liée pour les maximums)
+   - autre pion : ses propres barres (data.bars), réglées par le MJ */
+let hovered = null;
+const charOf = it => it.character_id ? chars.find(c => c.id === it.character_id) || null : null;
+const entryOf = it => it.data.journal ? journal.get(it.data.journal) || null : null;
+const creaOf = e => e && e.data.creature && creatures ? creatures.find(c => c.id === e.data.creature) || null : null;
+const numOr = (v, d) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? d : Number(v);
+function statsOf(it){
+  const c = charOf(it);
+  if(c){ const d = c.data || {}; const max = Number(d.woundsMax) || (Array.isArray(d.wounds) ? d.wounds.length : 0);
+    const lost = Array.isArray(d.wounds) ? d.wounds.slice(0, max).filter(Boolean).length : 0;
+    const sum = k => Math.min(18, (d.armors || []).reduce((a, x) => a + (Number(x[k]) || 0), 0));
+    const mana = (d.resources || []).find(r => /mana/i.test(r.name || ''));
+    return { src: 'pj', hp: { cur: Math.max(0, max - lost), max }, armor: { cur: Number(d.armor) || 0, max: sum('pa') }, armag: { cur: Number(d.armag) || 0, max: sum('pam') },
+      mana: mana ? { cur: Number(mana.val) || 0, max: Number(mana.max) || 0 } : null }; }
+  const e = entryOf(it);
+  if(e){ const cr = creaOf(e); const crn = cr ? jdrNormalizeCreature(cr.creature) : null; const ed = e.data;
+    const hmax = crn ? crn.hearts * 6 : numOr(ed.hp && ed.hp.max, 0);
+    const amax = crn ? Number(crn.armor) || 0 : numOr(ed.stats && ed.stats.armor, 0), mmax = crn ? Number(crn.armorMagic) || 0 : 0;
+    return { src: 'pnj', hp: { cur: numOr(ed.hp && ed.hp.cur, hmax), max: hmax }, armor: { cur: numOr(ed.armorCur, amax), max: amax }, armag: { cur: numOr(ed.armagCur, mmax), max: mmax },
+      mana: ed.mana && Number(ed.mana.max) ? { cur: numOr(ed.mana.cur, 0), max: Number(ed.mana.max) } : null }; }
+  const b = it.data.bars || {}; const g = k => b[k] && Number(b[k].max) ? { cur: numOr(b[k].cur, Number(b[k].max)), max: Number(b[k].max) } : { cur: 0, max: 0 };
+  const m = g('mana');
+  return { src: 'tok', hp: g('hp'), armor: g('armor'), armag: g('armag'), mana: m.max ? m : null };
+}
+function refreshTokensOf(it){
+  [...items.values()].filter(x => x === it || (it.character_id && x.character_id === it.character_id) || (it.data.journal && x.data.journal === it.data.journal)).forEach(renderItem);
+  renderHud();
+}
+// Dégâts / soins notés dans la discussion (regroupés : un message après 1,5 s sans clic)
+const hpLog = new Map();
+function logHp(it, delta, after, max){
+  const k = it.character_id || it.data.journal || it.id; const p = hpLog.get(k) || { d: 0 }; clearTimeout(p.t);
+  p.d += delta; p.t = setTimeout(() => { hpLog.delete(k); if(!p.d) return;
+    postMsg('action', `${it.data.name || 'Un pion'} ${p.d < 0 ? 'perd' : 'récupère'} ${Math.abs(p.d)} PV — ${after}/${max}`); }, 1500);
+  hpLog.set(k, p);
+}
+async function setStat(it, key, val){
+  const st = statsOf(it); const cur = st[key]; if(!cur) return;
+  const v = Math.max(0, cur.max ? Math.min(cur.max, Math.round(val)) : Math.round(val));
+  if(v === cur.cur) return;
+  const delta = v - cur.cur;
+  if(st.src === 'pj'){
+    const c = charOf(it); const d = structuredClone(c.data || {});
+    if(key === 'hp'){ const n = Number(d.woundsMax) || 0; const lost = n - v; d.wounds = Array.from({ length: n }, (_, i) => i < lost); }   // cases perdues dans l'ordre, comme sur la fiche
+    else if(key === 'armor') d.armor = v; else if(key === 'armag') d.armag = v;
+    else if(key === 'mana'){ const r = (d.resources || []).find(x => /mana/i.test(x.name || '')); if(r) r.val = v; }
+    c.data = d; refreshTokensOf(it);
+    const { error } = await jdrSb.from('characters').update({ data: d }).eq('id', c.id); if(error) toast(jdrErrorText(error));
+  } else if(st.src === 'pnj'){
+    const e = entryOf(it); const d = structuredClone(e.data);
+    if(key === 'hp') d.hp = Object.assign({}, d.hp, { cur: v }); else if(key === 'armor') d.armorCur = v; else if(key === 'armag') d.armagCur = v;
+    else if(key === 'mana') d.mana = Object.assign({}, d.mana, { cur: v });
+    e.data = d; refreshTokensOf(it); await saveEntry(e, { data: d });
+  } else {
+    const bars = structuredClone(it.data.bars || {}); bars[key] = Object.assign({}, bars[key], { cur: v }); await save(it, { bars }); renderHud();
+  }
+  if(key === 'hp') logHp(it, delta, v, cur.max);
+}
+async function setMax(it, key, max){   // pion non lié (MJ) : maximum d'une barre
+  const bars = structuredClone(it.data.bars || {}); const m = Math.max(0, Math.round(Number(max) || 0));
+  bars[key] = { max: m, cur: Math.min(m, numOr(bars[key] && bars[key].cur, m)) }; await save(it, { bars }); renderHud();
+}
+function afflictions(){ return Object.values(typeof JDR_KW === 'object' && JDR_KW ? JDR_KW : {}).filter(k => k.category === 'Affliction').map(k => k.name).sort((a, b) => a.localeCompare(b, 'fr')); }
+async function setStatus(it, list){ await save(it, { status: [...new Set(list.map(x => String(x).trim()).filter(Boolean))].slice(0, 12) }); renderHud(); }
+function openSheet(it){
+  const e = entryOf(it);
+  if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener');
+  else if(e) openWin(e.id); else if(isGM) openTok(it);
+}
+// Panneau de raccourcis du pion sélectionné (seulement si on le contrôle)
+function renderHud(){
+  const H = $id('thud'); const it = sel && items.get(sel);
+  if(!it || it.layer === 'map' || !controls(it)){ H.hidden = true; return; }
+  if(H.contains(document.activeElement) && document.activeElement.matches('input')) return;
+  const st = statsOf(it), canMax = isGM && st.src === 'tok';
+  const btn = (t, fn, cls, title) => el('button', { type: 'button', class: cls || '', text: t, title: title || '', onclick: fn });
+  const val = (key, v) => { const sp = el('span', { class: 'val' + (canMax ? ' ed' : ''), text: v.max ? `${v.cur} / ${v.max}` : '—', title: canMax ? 'Clique pour régler le maximum' : '' });
+    if(canMax) sp.addEventListener('click', () => { const i = el('input', { type: 'number', min: '0', value: v.max || '', style: 'width:4.5rem', 'aria-label': 'Maximum' });
+      sp.replaceWith(i); i.focus(); i.select(); const go = () => setMax(it, key, i.value);
+      i.addEventListener('keydown', e => { if(e.key === 'Enter') go(); if(e.key === 'Escape') renderHud(); }); i.addEventListener('blur', go); });
+    return sp; };
+  const rows = [];
+  rows.push(el('div', { class: 'th1' }, el('b', { text: it.data.name || 'Pion' }),
+    btn('Fiche', () => openSheet(it), '', 'Ouvrir la fiche'), btn('Centrer', () => centerOn(it.data.x + it.data.w / 2, it.data.y + it.data.h / 2)), btn('✕', () => select(null), '', 'Fermer')));
+  const hp = st.hp;
+  rows.push(el('div', { class: 'sr' }, el('span', { text: 'Points de vie' }), el('div', { class: 'sv' },
+    btn('−6', () => setStat(it, 'hp', statsOf(it).hp.cur - 6), 'dmg', 'Blessure grave'), btn('−3', () => setStat(it, 'hp', statsOf(it).hp.cur - 3), 'dmg', 'Blessure'), btn('−1', () => setStat(it, 'hp', statsOf(it).hp.cur - 1), 'dmg', 'Blessure légère'),
+    val('hp', hp), btn('+1', () => setStat(it, 'hp', statsOf(it).hp.cur + 1), 'heal', 'Soigner 1'), btn('Tout', () => setStat(it, 'hp', statsOf(it).hp.max), 'heal', 'Soigner entièrement'))));
+  const simple = (key, label, show) => { if(!show) return; rows.push(el('div', { class: 'sr' }, el('span', { text: label }), el('div', { class: 'sv' },
+    btn('−1', () => setStat(it, key, statsOf(it)[key].cur - 1)), val(key, st[key]), btn('+1', () => setStat(it, key, statsOf(it)[key].cur + 1)),
+    btn('Max', () => setStat(it, key, statsOf(it)[key].max), '', 'Remettre au maximum')))); };
+  simple('armor', 'Armure', st.armor.max > 0 || canMax);
+  simple('armag', 'Armure magique', st.armag.max > 0 || canMax);
+  if(st.mana) simple('mana', 'Mana', true); else if(canMax) rows.push(el('div', { class: 'sr' }, el('span', { text: 'Mana' }), el('div', { class: 'sv' }, val('mana', { cur: 0, max: 0 }))));
+  // états (afflictions)
+  const sts = Array.isArray(it.data.status) ? it.data.status : [];
+  const pick = el('select', { 'aria-label': 'Ajouter un état' }, el('option', { value: '', text: '+ état…' }), ...afflictions().filter(a => !sts.includes(a)).map(a => el('option', { value: a, text: a })), el('option', { value: '__autre', text: 'Autre (écrire)…' }));
+  pick.addEventListener('change', () => { if(pick.value === '__autre'){ const i = el('input', { placeholder: 'Nom de l’état', maxlength: 30, style: 'width:8rem' }); pick.replaceWith(i); i.focus();
+      i.addEventListener('keydown', e => { if(e.key === 'Enter' && i.value.trim()) setStatus(it, [...sts, i.value]); if(e.key === 'Escape') renderHud(); }); }
+    else if(pick.value) setStatus(it, [...sts, pick.value]); });
+  rows.push(el('div', { class: 'sr' }, el('span', { text: 'États' }), el('div', { class: 'chips' },
+    ...sts.map(n => el('button', { type: 'button', class: 'chip', text: n + ' ✕', title: 'Retirer cet état', onclick: () => setStatus(it, sts.filter(x => x !== n)) })), pick)));
+  if(st.src === 'pj' && !charOf(it)) rows.push(el('p', { class: 'hint', style: 'margin:0;font-size:.75rem', text: 'Fiche non chargée.' }));
+  H.replaceChildren(...rows); H.hidden = false; placeHud();
+}
+function placeHud(){
+  const H = $id('thud'); if(!H || H.hidden) return; const it = sel && items.get(sel); if(!it) return;
+  const b = boardRect(); const x = b.left + view.x + (it.data.x + it.data.w / 2) * view.z, y = b.top + view.y + it.data.y * view.z - 30;
+  const w = H.offsetWidth || 260, h = H.offsetHeight || 150;
+  H.style.left = Math.max(w / 2 + 8, Math.min(b.right - w / 2 - 8, x)) + 'px';
+  H.style.top = Math.max(h + 8, y) + 'px';
+}
+// Infobulle au survol : valeurs pour qui contrôle le pion, sinon nom et états
+function showTip(it, cx, cy){
+  const T = $id('ttip'); if(!it || it.layer === 'map' || (it.id === sel && !$id('thud').hidden)){ T.hidden = true; return; }   // pas de doublon avec le panneau
+  const kids = [el('b', { text: it.data.name || (it.layer === 'gm' ? 'Élément caché' : 'Pion') })];
+  if(controls(it)){ const st = statsOf(it); const line = (l, v) => v && v.max > 0 ? kids.push(el('div', { class: 'tl' }, el('span', { text: l }), el('span', { text: `${v.cur} / ${v.max}` }))) : 0;
+    line('Points de vie', st.hp); line('Armure', st.armor); line('Armure magique', st.armag); line('Mana', st.mana); }
+  const sts = Array.isArray(it.data.status) ? it.data.status : [];
+  if(sts.length) kids.push(el('div', { style: 'color:#d9a6e6', text: sts.join(' · ') }));
+  if(kids.length === 1 && !it.data.name){ T.hidden = true; return; }
+  T.replaceChildren(...kids); T.hidden = false;
+  T.style.left = Math.min(innerWidth - T.offsetWidth - 8, cx + 16) + 'px'; T.style.top = Math.min(innerHeight - T.offsetHeight - 8, cy + 16) + 'px';
+}
 
 /* ======================= Enregistrement ======================= */
 async function save(it, patch){
@@ -503,7 +672,7 @@ async function insertItem(row){
 async function delItem(it){
   const { error } = await jdrSb.from('board_items').delete().eq('id', it.id);
   if(error){ toast(jdrErrorText(error)); return; }
-  items.delete(it.id); removeItemEl(it.id); if(sel === it.id) sel = null;
+  items.delete(it.id); removeItemEl(it.id); if(sel === it.id){ sel = null; renderHud(); }
 }
 async function duplicate(it){
   const n = await insertItem({ layer: it.layer, owner_id: it.owner_id, character_id: it.character_id, data: Object.assign({}, it.data, { x: it.data.x + 30, y: it.data.y + 30 }) });
@@ -555,6 +724,9 @@ function subscribe(){
     .on('broadcast', { event: 'measure' }, ({ payload }) => { if(!scene || payload.scene !== scene.id) return; if(payload.clear) fx.measures.delete(payload.uid); else fx.measures.set(payload.uid, payload); drawFx(); })
     .on('broadcast', { event: 'ping' }, ({ payload }) => { if(scene && payload.scene === scene.id) showPing(Object.assign({}, payload, { focus: payload.focus && !isGM })); })
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'journal', filter: 'campaign_id=eq.' + CAMP }, onJournalChange)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'jdr', table: 'characters', filter: 'campaign_id=eq.' + CAMP }, ({ new: n }) => {
+      const c = chars.find(x => x.id === n.id); if(!c) return; Object.assign(c, { name: n.name, data: n.data });
+      [...items.values()].filter(x => x.character_id === c.id).forEach(renderItem); renderHud(); renderJournal(); })
     .on('broadcast', { event: 'journal-refresh' }, () => { if(!isGM) loadJournal(); })
     .on('broadcast', { event: 'show-entry' }, async ({ payload }) => { if(isGM) return; await loadJournal(); if(journal.has(payload.id)){ openWin(payload.id); toast('Le MJ te montre une fiche'); } })
     .on('presence', { event: 'sync' }, () => { renderPlayers(); renderStrip(); })
@@ -567,7 +739,7 @@ function onItemChange({ eventType, new: n, old: o }){
   if(eventType === 'DELETE'){ if(o && items.has(o.id)){ items.delete(o.id); removeItemEl(o.id); if(sel === o.id) sel = null; } return; }
   if(!scene || n.scene_id !== scene.id){ if(items.has(n.id)){ items.delete(n.id); removeItemEl(n.id); } return; }
   if(drag && drag.id === n.id) return;
-  const it = normItem(n); items.set(it.id, it); renderItem(it);
+  const it = normItem(n); items.set(it.id, it); renderItem(it); if(sel === it.id) renderHud();
 }
 function onSceneChange({ eventType, new: n, old: o }){
   if(eventType === 'DELETE'){ scenes = scenes.filter(s => s.id !== o.id); renderStrip(); if(scene && scene.id === o.id){ scene = null; loadScene(isGM ? (sortedScenes()[0] || {}).id : sceneOf(me.id)); } return; }
@@ -583,6 +755,7 @@ function onCampChange({ new: n }){
 }
 
 function onJournalChange({ eventType, new: n, old: o }){
+  setTimeout(() => { [...items.values()].filter(x => x.data.journal === (n || o || {}).id).forEach(renderItem); renderHud(); }, 0);
   if(eventType === 'DELETE'){ if(o && journal.has(o.id)){ journal.delete(o.id); const w = wins.get(o.id); if(w) closeWin(w); renderJournal(); } return; }
   const e = normEntry(n); const was = journal.get(e.id);
   if(!isGM && !(e.visible_all || e.visible_to.includes(me.id) || e.controlled_by.includes(me.id))){ if(was){ journal.delete(e.id); const w = wins.get(e.id); if(w) closeWin(w); renderJournal(); } return; }
@@ -719,7 +892,7 @@ function applyScene(){
   [...items.values()].forEach(renderItem); drawFx();
 }
 async function loadScene(id){
-  items.clear(); sel = null; fx.measures.clear(); fx.rings = null; closeCtx();
+  items.clear(); sel = null; hovered = null; fx.measures.clear(); fx.rings = null; closeCtx(); renderHud();
   scene = scenes.find(s => s.id === id) || null;
   renderStrip(); applyScene(); renderAll();
   if(!scene){
@@ -773,6 +946,7 @@ function setSide(on){ document.body.classList.toggle('side-off', !on); document.
 $id('sidetog').addEventListener('click', () => setSide(document.body.classList.contains('side-off') || !document.body.classList.contains('side-on')));
 $id('o-names').addEventListener('change', e => { opt.names = e.target.checked; saveOpt(); renderAll(); });
 $id('o-rings').addEventListener('change', e => { opt.rings = e.target.checked; saveOpt(); drawFx(); });
+$id('o-bars').addEventListener('change', e => { opt.bars = e.target.value; saveOpt(); renderAll(); });
 
 /* ---------- Discussion (et journal des actions) ---------- */
 function scrollChat(){ const m = $id('msgs'); m.scrollTop = m.scrollHeight; }
@@ -1280,7 +1454,7 @@ B.addEventListener('pointerdown', e => {
 B.addEventListener('pointermove', e => {
   const p = toWorld(e.clientX, e.clientY);
   if(pan){ if(Math.abs(e.clientX - pan.x) + Math.abs(e.clientY - pan.y) > 4) pan.moved = true; view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; applyView(); return; }
-  if(drag){ const it = items.get(drag.id); if(!it) return; it.data.x = p.x - drag.dx; it.data.y = p.y - drag.dy; drag.moved = true;
+  if(drag){ const it = items.get(drag.id); if(!it) return; it.data.x = p.x - drag.dx; it.data.y = p.y - drag.dy; drag.moved = true; $id('ttip').hidden = true; if(sel === it.id) placeHud();
     const e2 = document.getElementById('it-' + it.id); if(e2){ e2.style.left = it.data.x + 'px'; e2.style.top = it.data.y + 'px'; }
     if(fx.rings === it.id) drawFx();
     if(it.layer !== 'gm') sendThrottled('drag', { id: it.id, d: { x: it.data.x, y: it.data.y }, scene: scene.id }); return; }
@@ -1291,6 +1465,8 @@ B.addEventListener('pointermove', e => {
     d.rot = Math.round(((a % 360) + 360) % 360); const e2 = document.getElementById('it-' + it.id); if(e2) e2.style.setProperty('--rot', d.rot + 'deg'); return; }
   if(meas){ meas.b = p; drawFx(); if(!meas.calib) sendThrottled('measure', meas); return; }
   const itEl = e.target.closest && e.target.closest('.it'); const it = itEl && items.get(itEl.dataset.id);
+  showTip(it, e.clientX, e.clientY);
+  const hv = it ? it.id : null; if(hv !== hovered){ const old = hovered; hovered = hv; if(opt.bars === 'hover') [old, hv].forEach(x => { const t = x && items.get(x); if(t) renderItem(t); }); }
   const ring = it && it.data.round && controls(it) && tool === 'select' ? it.id : null;
   if(ring !== fx.rings){ fx.rings = ring; drawFx(); }
 });
@@ -1308,6 +1484,7 @@ async function endPointer(e){
     send('measure', m); setTimeout(() => { if(fx.measures.get(me.id) === m){ fx.measures.delete(me.id); drawFx(); send('measure', { uid: me.id, clear: true, scene: m.scene }); } }, 2500); }
 }
 B.addEventListener('pointerup', endPointer);
+B.addEventListener('pointerleave', () => { $id('ttip').hidden = true; });
 B.addEventListener('pointercancel', endPointer);
 B.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -1337,7 +1514,7 @@ async function chooseCampaign(){
     : '<p style="margin:0">Tu n’es dans aucune partie. Le MJ crée une campagne et te donne son code (Joueur → Rejoindre une partie).</p>'));
 }
 (async () => {
-  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings;
+  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings; $id('o-bars').value = opt.bars;
   if(!jdrSb){ showMsg('<p>Connexion au serveur impossible.</p>'); return; }
   me = await jdrPage('plateau', { requireLogin: true, noNav: true }); if(!me) return;
   myName = await jdrUsername(me) || 'Joueur';
@@ -1362,6 +1539,7 @@ async function chooseCampaign(){
     if(ids.length){ const { data: pr } = await jdrSb.schema('public').from('profiles').select('id,username').in('id', ids); (pr || []).forEach(x => { if(x.username) playerNames[x.id] = x.username; }); } }catch(e){}
   (th.data || []).forEach(r => { if(r.data && r.data.img && !thumbs[r.scene_id]) thumbs[r.scene_id] = r.data.img; });
   subscribe(); applyView(); loadChat(); loadJournal();
+  jdrLoadKeywords().then(() => renderHud()).catch(() => {});   // afflictions (mots-clés) pour les états
   await loadScene(isGM ? (c.active_scene || (sortedScenes()[0] || {}).id) : sceneOf(me.id));
   if(isGM && scenes.length <= 1){ $id('pages').classList.remove('closed'); renderStrip(); }   // bandeau ouvert au début ; ensuite il se replie
   renderJournal();
