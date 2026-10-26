@@ -18,17 +18,24 @@ Jeu de rôle (JDR) en ligne avec un système de deckbuilding, dans l'univers d'U
 | Serveur | Supabase, **même projet que Rimd'Orël**, isolé dans le schéma `jdr` |
 | Comptes | Communs avec Rimd'Orël |
 
+## Navigation (26/10/2026)
+Le menu n'a que 2 entrées, avec des onglets secondaires selon l'espace (réglés dans `JDR_SECTIONS`, `js/jdr-ui.js`) :
+- **Joueur** : Mes personnages · Créer un personnage · Rejoindre une partie (la fiche et le deck en font partie)
+- **Maître du jeu** : *Parties* (Héberger et gérer) · *Éditeur* (Cartes, Bestiaire, Actions de groupe, Équipement, Origines, Mots-clés, Bibliothèque)
+
 ## Contenu du dépôt
 
 | Chemin | Rôle |
 |---|---|
-| `index.html` | Page d'accueil |
+| `index.html` | Page d'accueil : 2 choix, **Joueur** ou **Maître du jeu** |
+| `joueur.html` | Espace joueur : mes personnages (ouvrir la fiche), créer un personnage (assistant guidé), rejoindre une partie avec le code du MJ |
+| `mj.html` | Espace maître du jeu : **Parties** (héberger et gérer une campagne) et **Éditeur** (cartes, bestiaire, actions de groupe, équipement, origines, mots-clés, bibliothèque — compte éditeur) |
 | `connexion.html` | Connexion (compte commun avec Rimd'Orël) |
 | `creation-personnage.html` | Assistant de création en 8 étapes (peuple, classe, spécialisation, passé, équipement de base, informations, résumé, deck) : choix à gauche, tableau des caractéristiques au centre, informations et illustration à droite. Enregistre le personnage en ligne puis ouvre la construction du deck |
 | `fiche-personnage.html` | Fiche de personnage (modèle « parchemin ») : portrait entouré des caractéristiques, blessures en 5 paliers de 6 cases, armures, ressources, armes, armure et bouclier, inventaire avec charge. Sauvegarde dans le navigateur, ou en ligne une fois connecté ; rejoindre une campagne ; lien vers le deck ; affiche les effets du deck sur les caractéristiques |
-| `deck.html` | Construction du deck (navigation reprise du deckbuilder de Rimd'Orël) : onglets des types de cartes et coût en mana en haut, filtres secondaires à gauche (sous-type, super-types, mot-clé, rang), classeur paginé au centre (clic gauche ajouter, clic droit agrandir), deck à droite (compteur, courbe de mana, liste / détails). Seules les cartes jouables par le personnage sont proposées |
+| `deck.html` | Construction du deck, ouverte **depuis le bouton « Deck » de la fiche** (`deck.html?character=…`) (navigation reprise du deckbuilder de Rimd'Orël) : onglets des types de cartes et coût en mana en haut, filtres secondaires à gauche (sous-type, super-types, mot-clé, rang), classeur paginé au centre (clic gauche ajouter, clic droit agrandir), deck à droite (compteur, courbe de mana, liste / détails). Seules les cartes jouables par le personnage sont proposées |
 | `bibliotheque.html` | Toutes les cartes avec filtres |
-| `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur). Type « Créature » : formulaire et fiche paysage dédiés |
+| `editeur-cartes.html` | Création / modification des cartes (réservé au compte éditeur). `editeur-cartes.html?type=Créature` = **Bestiaire** (seulement les créatures, formulaire et fiche paysage dédiés) |
 | `editeur-groupes.html` | Tableaux d'action de groupe des créatures, attribués ensuite aux créatures (réservé au compte éditeur) |
 | `mots-cles.html` | Liste des mots-clés (mécaniques, super-types, afflictions, propriétés) avec leur définition. Tout le monde lit ; le compte éditeur ajoute / modifie / supprime. Les mots-clés s'ajoutent aux cartes dans l'éditeur de cartes |
 | `equipement.html` | Équipement : armes, armures, boucliers, objets magiques (emplacement, rareté, bonus, pouvoirs) et objets divers (catégorie, consommable, effet), avec aperçu de la fiche d'objet. Tout le monde consulte ; le compte éditeur modifie |

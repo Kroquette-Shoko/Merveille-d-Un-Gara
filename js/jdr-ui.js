@@ -2,19 +2,39 @@
    À charger après js/jdr-supabase.js.
    Usage dans une page :  const me = await jdrPage('bibliotheque', { requireLogin: true });  */
 
-const JDR_PAGES = [
-  { id: 'accueil',      href: 'index.html',            label: 'Accueil' },
-  { id: 'fiche',        href: 'fiche-personnage.html', label: 'Fiche' },
-  { id: 'creation',     href: 'creation-personnage.html', label: 'Nouveau perso' },
-  { id: 'deck',         href: 'deck.html',             label: 'Deck' },
-  { id: 'bibliotheque', href: 'bibliotheque.html',     label: 'Bibliothèque' },
-  { id: 'editeur',      href: 'editeur-cartes.html',   label: 'Éditeur de cartes', editorOnly: true },
-  { id: 'groupes',      href: 'editeur-groupes.html',  label: 'Actions de groupe', editorOnly: true },
-  { id: 'motscles',     href: 'mots-cles.html',        label: 'Mots-clés' },
-  { id: 'equipement',   href: 'equipement.html',       label: 'Équipement' },
-  { id: 'origines',     href: 'origines.html',         label: 'Origines' },
-  { id: 'campagnes',    href: 'campagnes.html',        label: 'Campagnes' }
+/* ---------- Organisation du site (26/10/2026) ----------
+   Le menu n'a que 2 entrées : JOUEUR et MAÎTRE DU JEU.
+   Chaque espace a une rangée d'onglets secondaires (groupes) affichée sous le menu.
+   - pages : fichiers qui appartiennent à l'onglet (pour l'allumer), match : condition sur l'adresse (?type=…)
+   - editorOnly : visible seulement pour le compte éditeur
+   La fiche et le deck font partie de l'espace Joueur sans être des onglets :
+   la fiche s'ouvre depuis « Mes personnages », le deck depuis le bouton de la fiche. */
+const JDR_SECTIONS = [
+  { id: 'joueur', label: 'Joueur', href: 'joueur.html',
+    pages: ['joueur.html', 'creation-personnage.html', 'fiche-personnage.html', 'deck.html'],
+    groups: [ { label: '', tabs: [
+      { label: 'Mes personnages',      href: 'joueur.html',              pages: ['joueur.html', 'fiche-personnage.html', 'deck.html'] },
+      { label: 'Créer un personnage',  href: 'creation-personnage.html', pages: ['creation-personnage.html'] },
+      { label: 'Rejoindre une partie', href: 'joueur.html#rejoindre',    pages: [] }
+    ] } ] },
+  { id: 'mj', label: 'Maître du jeu', href: 'mj.html',
+    pages: ['mj.html', 'campagnes.html', 'editeur-cartes.html', 'editeur-groupes.html', 'equipement.html', 'origines.html', 'mots-cles.html', 'bibliotheque.html'],
+    groups: [
+      { label: 'Parties', tabs: [
+        { label: 'Héberger et gérer', href: 'campagnes.html', pages: ['campagnes.html'] }
+      ] },
+      { label: 'Éditeur', editorOnly: true, tabs: [
+        { label: 'Cartes',            href: 'editeur-cartes.html',               pages: ['editeur-cartes.html'], match: q => q.get('type') !== 'Créature' },
+        { label: 'Bestiaire',         href: 'editeur-cartes.html?type=Créature', pages: ['editeur-cartes.html'], match: q => q.get('type') === 'Créature' },
+        { label: 'Actions de groupe', href: 'editeur-groupes.html',              pages: ['editeur-groupes.html'] },
+        { label: 'Équipement',        href: 'equipement.html',                   pages: ['equipement.html'] },
+        { label: 'Origines',          href: 'origines.html',                     pages: ['origines.html'] },
+        { label: 'Mots-clés',         href: 'mots-cles.html',                    pages: ['mots-cles.html'] },
+        { label: 'Bibliothèque',      href: 'bibliotheque.html',                 pages: ['bibliotheque.html'] }
+      ] }
+    ] }
 ];
+function jdrCurrentFile(){ return location.pathname.split('/').pop() || 'index.html'; }
 
 let JDR_IS_EDITOR = false;
 
@@ -40,9 +60,19 @@ async function jdrUsername(user){
 async function jdrRenderNav(current, me){
   const bar = document.createElement('header');
   bar.className = 'jdr-nav';
-  const links = JDR_PAGES.filter(p => !p.editorOnly || JDR_IS_EDITOR)
-    .map(p => `<a href="${p.href}" class="${p.id === current ? 'on' : ''}">${p.label}</a>`).join('');
+  // « current » (ancien identifiant de page) n'est plus utilisé : on se repère au nom du fichier
+  const file = jdrCurrentFile(), q = new URLSearchParams(location.search);
+  const sec = JDR_SECTIONS.find(s => s.pages.includes(file)) || null;
+  const links = JDR_SECTIONS.map(s => `<a href="${s.href}" class="${sec === s ? 'on' : ''}"${sec === s ? ' aria-current="true"' : ''}>${s.label}</a>`).join('');
   bar.innerHTML = `<a class="brand" href="index.html">Merveille d'Un'Gara</a><nav aria-label="Navigation">${links}</nav><div class="who" id="jdr-who"></div>`;
+  // Onglets secondaires de l'espace courant
+  if(sec){
+    const isOn = t => t.pages.includes(file) && (!t.match || t.match(q));
+    const groups = sec.groups.filter(g => !g.editorOnly || JDR_IS_EDITOR).map(g => `<div class="sg">${g.label ? `<span class="sgl">${g.label}</span>` : ''}${
+      g.tabs.map(t => `<a href="${t.href}" class="${isOn(t) ? 'on' : ''}"${isOn(t) ? ' aria-current="page"' : ''}>${t.label}</a>`).join('')}</div>`).join('');
+    const sub = document.createElement('nav'); sub.className = 'jdr-subnav'; sub.setAttribute('aria-label', 'Pages de l’espace ' + sec.label);
+    sub.innerHTML = groups; bar.append(sub);
+  }
   document.body.prepend(bar);
   const who = $id('jdr-who');
   if(me){

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Espace joueur Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Espace joueur : mes personnages (cartes cliquables) + rejoindre une partie. Une colonne sur téléphone. */
+.pj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.pj{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--ink);text-decoration:none;min-width:0}
+.pj:hover{border-color:var(--accent)}
+.pj .av{flex:0 0 52px;width:52px;height:52px;border-radius:50%;background:#55606b center/cover no-repeat;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:800;font-size:1.3rem}
+.pj .tx{min-width:0;display:flex;flex-direction:column;gap:2px}
+.pj b{font-size:1.08rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj small{color:var(--muted);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a.pj.new{border-style:dashed;justify-content:center;color:var(--accent);font-weight:700;min-height:78px}
+.join{display:grid;grid-template-columns:minmax(140px,220px) minmax(0,1fr) auto;gap:10px;align-items:end}
+@media (max-width:640px){.join{grid-template-columns:1fr}}
+.sheet h2{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap" style="display:flex;flex-direction:column;gap:16px">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <div><h1>Espace joueur</h1><p class="sub">Tes personnages, leur création guidée, et les parties que tu rejoins.</p></div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+
+  <!-- Mes personnages -->
+  <section class="sheet" aria-labelledby="h-chars">
+    <h2 id="h-chars">Mes personnages</h2>
+    <p class="hint" style="margin:0">Ouvre la fiche d'un personnage. Son deck se construit depuis le bouton « Deck » de la fiche.</p>
+    <div class="pj-grid" id="chars"><p class="empty">Chargement…</p></div>
+  </section>
+
+  <!-- Rejoindre une partie -->
+  <section class="sheet" id="rejoindre" aria-labelledby="h-join">
+    <h2 id="h-join">Rejoindre une partie</h2>
+    <p class="hint" style="margin:0">Le maître du jeu te donne un code d'invitation. Choisis le personnage que tu joues dans cette partie.</p>
+    <div class="join">
+      <label class="f">Code de la partie<input id="j-code" maxlength="8" placeholder="ex. 3f9a1c2b" autocomplete="off"></label>
+      <label class="f">Personnage<select id="j-char"></select></label>
+      <button class="primary" type="button" id="j-go">Rejoindre</button>
+    </div>
+    <p class="status" id="j-status" role="status"></p>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script>
+let chars = [], camps = {};
+function status(id, t, bad){ const s = $id(id); s.textContent = t || ''; s.className = 'status' + (bad ? ' bad' : t ? ' good' : ''); }
+
+// Une carte par personnage : portrait (ou initiale), nom, peuple · classe · spécialisation, partie rejointe
+function renderChars(){
+  const box = $id('chars');
+  const items = chars.map(c => {
+    const d = c.data || {};
+    const who = [d.peuple, d.classe, d.specialisation || d.spe].filter(Boolean).join(' · ') || 'Origines non choisies';
+    const camp = c.campaign_id ? (camps[c.campaign_id] ? 'Partie : ' + camps[c.campaign_id] : 'Dans une partie') : 'Pas encore dans une partie';
+    const pic = d.portrait ? ` style="background-image:url('${jdrEsc(d.portrait)}')"` : '';
+    return `<a class="pj" href="fiche-personnage.html?id=${encodeURIComponent(c.id)}">
+      <span class="av"${pic}>${d.portrait ? '' : jdrEsc((c.name || '?')[0].toUpperCase())}</span>
+      <span class="tx"><b>${jdrEsc(c.name || 'Sans nom')}</b><small>${jdrEsc(who)}</small><small>${jdrEsc(camp)}</small></span></a>`;
+  });
+  items.push(`<a class="pj new" href="creation-personnage.html">+ Créer un personnage</a>`);
+  box.innerHTML = items.join('');
+  const sel = $id('j-char');
+  sel.replaceChildren(...(chars.length ? chars.map(c => new Option(c.name || 'Sans nom', c.id)) : [new Option('Crée d’abord un personnage', '')]));
+  $id('j-go').disabled = !chars.length;
+}
+
+$id('j-go').addEventListener('click', async () => {
+  const code = $id('j-code').value.trim().toLowerCase(), ch = $id('j-char').value;
+  if(!code){ status('j-status', 'Entre le code donné par le maître du jeu.', true); return; }
+  if(!ch){ status('j-status', 'Choisis un personnage.', true); return; }
+  status('j-status', 'Connexion à la partie…');
+  const { data, error } = await jdrSb.rpc('join_campaign', { p_code: code, p_character: ch });
+  if(error){ status('j-status', jdrErrorText(error), true); return; }
+  $id('j-code').value = '';
+  await load();
+  const c = chars.find(x => x.id === ch);
+  status('j-status', `${c ? c.name : 'Ton personnage'} a rejoint la partie${camps[data] ? ' « ' + camps[data] + ' »' : ''}.`);
+});
+
+async function load(){
+  const me = await jdrCurrentUser();
+  const [r, k] = await Promise.all([
+    jdrSb.from('characters').select('id,name,data,campaign_id,updated_at').eq('owner_id', me.id).order('updated_at', { ascending: false }),
+    jdrSb.from('campaigns').select('id,name')
+  ]);
+  if(r.error){ status('status', jdrErrorText(r.error), true); chars = []; }
+  else chars = r.data || [];
+  camps = Object.fromEntries(((k && k.data) || []).map(c => [c.id, c.name]));
+  renderChars();
+}
+
+(async () => {
+  if(!jdrSb){ status('status', 'Connexion au serveur impossible.', true); return; }
+  const me = await jdrPage('joueur', { requireLogin: true }); if(!me) return;
+  await load();
+  if(location.hash === '#rejoindre') $id('j-code').focus();
+})();
+</script>
+</body>
+</html>

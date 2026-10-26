@@ -33,6 +33,14 @@ body{background:var(--bg);color:var(--ink)}
 h1{color:var(--bg-ink)} .sub{color:var(--bg-muted)}
 .jdr-nav{border-bottom-color:rgba(243,232,207,.25)} .jdr-nav .brand{color:var(--bg-ink)} .jdr-nav nav a{color:var(--bg-muted)}
 .jdr-nav nav a.on{background:var(--panel);color:var(--ink)} .jdr-nav .who,.jdr-nav .who button{color:var(--bg-muted)}
+/* Onglets secondaires (Joueur / MJ) sur fond sombre */
+.jdr-subnav{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;border-top:1px solid rgba(243,232,207,.25);padding-top:8px;margin-top:2px}
+.jdr-subnav .sg{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center}
+.jdr-subnav .sgl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--bg-muted);margin-right:4px}
+.jdr-subnav a{padding:3px 10px;border-radius:999px;text-decoration:none;color:var(--bg-muted);font-size:.9rem}
+.jdr-subnav a:hover{color:var(--bg-ink)}
+.jdr-subnav a.on{background:var(--panel);color:var(--ink);font-weight:700}
+.jdr-nav nav a{font-weight:700}
 
 .cc{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr) minmax(300px,420px);gap:18px;align-items:start}
 @media (max-width:1150px){.cc{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cc .mid{grid-column:1/-1;order:-1}}

@@ -239,6 +239,14 @@ summary{cursor:pointer;font-weight:700}
 .jdr-nav nav a.on{background:var(--panel);color:var(--ink)}
 .jdr-nav .who{display:flex;gap:8px;align-items:center;font-size:.92rem;color:var(--bg-muted)}
 .jdr-nav .who button{color:var(--bg-muted)}
+/* Onglets secondaires (Joueur / MJ) sur fond sombre */
+.jdr-subnav{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;border-top:1px solid rgba(243,232,207,.25);padding-top:8px;margin-top:2px}
+.jdr-subnav .sg{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center}
+.jdr-subnav .sgl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--bg-muted);margin-right:4px}
+.jdr-subnav a{padding:3px 10px;border-radius:999px;text-decoration:none;color:var(--bg-muted);font-size:.9rem}
+.jdr-subnav a:hover{color:var(--bg-ink)}
+.jdr-subnav a.on{background:var(--panel);color:var(--ink);font-weight:700}
+.jdr-nav nav a{font-weight:700}
 </style>
 </head>
 <body>
@@ -252,8 +260,9 @@ summary{cursor:pointer;font-weight:700}
     <div class="actions">
       <button id="btn-export" type="button">Exporter</button>
       <button id="btn-import" type="button">Importer</button>
-      <a href="creation-personnage.html" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:var(--on-accent);font-weight:700;text-decoration:none">Créer avec l'assistant</a>
-      <button id="btn-new" type="button">Nouvelle fiche</button>
+      <a href="creation-personnage.html" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:var(--on-accent);font-weight:700;text-decoration:none">Nouveau personnage (assistant)</a>
+      <!-- la création passe toujours par l'assistant guidé : plus de « fiche vierge » (bouton gardé caché pour le code) -->
+      <button id="btn-new" type="button" hidden>Nouvelle fiche</button>
     </div>
   </div>
 
@@ -272,7 +281,6 @@ summary{cursor:pointer;font-weight:700}
         <label class="f">Mes personnages<select id="on-list"></select></label>
         <div style="display:flex;align-items:end;gap:8px;flex-wrap:wrap">
           <button id="on-upload" type="button">Mettre la fiche actuelle en ligne</button>
-          <button id="on-new" type="button">Nouveau personnage</button>
         </div>
         <label class="f">Code de campagne<input id="on-code" placeholder="ex. 3f9a1c2b" maxlength="8"></label>
         <div style="display:flex;align-items:end;gap:8px;flex-wrap:wrap">
@@ -916,7 +924,7 @@ $("on-login").addEventListener("submit", async e=>{
 $("on-logout").addEventListener("click", async ()=>{ await jdrSb.auth.signOut(); me=null; myChars=[]; closeCharacter(); renderAccount(); onlineStatus(""); });
 $("on-list").addEventListener("change", e=>{ e.target.value ? openCharacter(e.target.value) : closeCharacter(); });
 $("on-upload").addEventListener("click", ()=>createOnline(structuredClone(S)));
-$("on-new").addEventListener("click", ()=>createOnline(BLANK()));
+// « Nouveau personnage » : la création passe toujours par l'assistant guidé (lien vers creation-personnage.html)
 $("on-join").addEventListener("click", async ()=>{
   if(!currentId || readOnly){ onlineStatus("Choisis d'abord un de tes personnages en ligne.", true); return; }
   const code=$("on-code").value.trim().toLowerCase();

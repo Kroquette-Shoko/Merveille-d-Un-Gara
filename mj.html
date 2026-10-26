@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Espace maître du jeu Un'Gara</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/jdr-ui.css">
+<style>
+/* Espace MJ : 2 catégories — Parties (héberger / gérer) et Éditeur (contenu du jeu). Grille de raccourcis. */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+a.tile{display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--ink);text-decoration:none}
+a.tile b{color:var(--accent);font-size:1.1rem}
+a.tile:hover{border-color:var(--accent)}
+a.tile.big{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+a.tile.big b{font-size:1.3rem}
+.soon{font-size:.85rem;color:var(--muted);font-style:italic}
+.sheet h2{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap" style="display:flex;flex-direction:column;gap:16px">
+  <div><h1>Espace maître du jeu</h1><p class="sub">Héberger et gérer tes parties, et préparer le contenu du jeu.</p></div>
+
+  <!-- 1. Parties -->
+  <section class="sheet" aria-labelledby="h-parties">
+    <h2 id="h-parties">Parties</h2>
+    <div class="tiles">
+      <a class="tile big" href="campagnes.html">
+        <span style="display:flex;flex-direction:column;gap:4px"><b>Héberger et gérer une partie</b>
+        <span class="hint">Crée une campagne, donne le code d'invitation à tes joueurs, suis leurs fiches et leurs decks.</span></span>
+        <span class="soon">Le plateau de jeu viendra se brancher ici.</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 2. Éditeur (compte éditeur) -->
+  <section class="sheet" aria-labelledby="h-editeur">
+    <h2 id="h-editeur">Éditeur</h2>
+    <p class="hint" id="ed-ro" hidden style="margin:0">Réservé au compte éditeur : c'est lui qui crée les cartes, les créatures, l'équipement et les origines du jeu.</p>
+    <div class="tiles" id="ed-tiles" hidden>
+      <a class="tile" href="editeur-cartes.html"><b>Cartes</b><span class="hint">Manœuvres, capacités, sortilèges, risques, passifs, exploits, pactes…</span></a>
+      <a class="tile" href="editeur-cartes.html?type=Créature"><b>Bestiaire</b><span class="hint">Les créatures et adversaires contrôlés par le MJ.</span></a>
+      <a class="tile" href="editeur-groupes.html"><b>Actions de groupe</b><span class="hint">Les tableaux d'actions des groupes de créatures (dé de groupe).</span></a>
+      <a class="tile" href="equipement.html"><b>Équipement</b><span class="hint">Armes, armures, boucliers, objets magiques et objets divers.</span></a>
+      <a class="tile" href="origines.html"><b>Origines</b><span class="hint">Peuples, classes, spécialisations et passés.</span></a>
+      <a class="tile" href="mots-cles.html"><b>Mots-clés</b><span class="hint">Les mots-clés et super-types, avec leur définition.</span></a>
+      <a class="tile" href="bibliotheque.html"><b>Bibliothèque</b><span class="hint">Toutes les cartes du jeu, avec filtres, pour les consulter.</span></a>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/jdr-supabase.js"></script>
+<script src="js/jdr-rules.js"></script>
+<script src="js/jdr-ui.js"></script>
+<script>
+(async () => {
+  if(!jdrSb){ $id('ed-ro').hidden = false; $id('ed-ro').textContent = 'Connexion au serveur impossible.'; return; }
+  await jdrPage('mj', { requireLogin: true });
+  $id('ed-tiles').hidden = !JDR_IS_EDITOR;
+  $id('ed-ro').hidden = JDR_IS_EDITOR;
+})();
+</script>
+</body>
+</html>

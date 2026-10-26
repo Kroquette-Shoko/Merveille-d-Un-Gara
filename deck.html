@@ -160,7 +160,7 @@
     <aside class="pnl deckc" aria-label="Deck">
       <div class="dk-top">
         <h2 id="dk-title">Deck</h2>
-        <label class="f">Personnage<select id="char"></select></label>
+        <label class="f" id="char-lab" hidden>Personnage<select id="char"></select></label>
         <div class="dk-who" id="who"></div>
         <div class="dk-count"><b id="dk-n">0</b><span id="dk-lim"></span><span class="pill" id="dk-ok"></span></div>
         <div class="meter" aria-hidden="true"><div id="meter" style="width:0"></div></div>
@@ -452,10 +452,11 @@ window.addEventListener('beforeunload', () => { if(saveTimer && !readOnly) saveD
     cards = c.list; byId = c.byId; chars = r.data || []; groups = g.byId;
   }catch(err){ status(jdrErrorText(err), true); return; }
   chars.forEach(x => $id('char').append(new Option(x.name || 'Sans nom', x.id)));
+  // Le deck s'ouvre depuis le bouton « Deck » de la fiche (deck.html?character=…) : pas de choix du personnage ici
   const wanted = new URLSearchParams(location.search).get('character');
   if(wanted) await openChar(wanted);
-  else if(chars.length) await openChar(chars[0].id);
-  else { $id('char').append(new Option('Aucun personnage en ligne', '')); status('Crée d’abord un personnage (menu « Nouveau perso »).', true); render(); }
+  else { status('Ouvre le deck depuis la fiche de ton personnage (Joueur → Mes personnages → fiche → bouton « Deck »).', true);
+    $id('dk-title').innerHTML = 'Deck <a href="joueur.html" style="font-size:.9rem;font-weight:400">← Mes personnages</a>'; render(); }
 })();
 </script>
 </body>

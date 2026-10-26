@@ -68,7 +68,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 <body>
 <div class="wrap">
   <div class="row" style="justify-content:space-between;align-items:baseline">
-    <div><h1>Éditeur de cartes</h1><p class="sub">Identité, illustration, capacités : l'aperçu se met à jour en direct.</p></div>
+    <div><h1 id="ed-h1">Éditeur de cartes</h1><p class="sub" id="ed-sub">Identité, illustration, capacités : l'aperçu se met à jour en direct.</p></div>
     <span class="status" id="status" role="status"></span>
   </div>
   <p class="ro-banner" id="ro" hidden>Lecture seule : seul le compte éditeur peut créer ou modifier des cartes.</p>
@@ -276,14 +276,23 @@ function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(
 function changed(){ dirty = true; renderPreview(); }
 const num = v => v === '' ? null : Number(v);
 
+/* ================= Cartes / Bestiaire =================
+   editeur-cartes.html            → toutes les cartes SAUF les créatures (onglet « Cartes »)
+   editeur-cartes.html?type=Créature → seulement les créatures (onglet « Bestiaire ») */
+const BESTIAIRE = new URLSearchParams(location.search).get('type') === 'Créature';
+const inSpace = c => BESTIAIRE ? c.type === 'Créature' : c.type !== 'Créature';
+if(BESTIAIRE){ document.title = "Bestiaire Un'Gara"; $id('ed-h1').textContent = 'Bestiaire'; $id('ed-sub').textContent = "Les créatures (cartes de type Créature) : fiche, attaques, résistances, actions de groupe."; }
+
 /* ================= Liste (filtres + rangement) ================= */
 // v3 (24/10/2026) : rangement par TYPE par défaut (les anciens réglages enregistrés ne sont pas repris)
 const LF_KEY = 'jdr-editeur-filtres-v3';
 const LF = { type:'', sub:'', rank:'', classe:'', st:'', sort:'type' };
 try{ Object.assign(LF, JSON.parse(localStorage.getItem(LF_KEY) || '{}')); }catch(e){}
+if(LF.type === 'Créature') LF.type = '';   // les créatures ont leur propre onglet (Bestiaire)
 function fillListFilters(){
   const opts = (id, all, list, labels) => { const s = $id(id); const v = LF[id.slice(3)] ?? ''; s.replaceChildren(new Option(all, ''), ...list.map((x, i) => new Option(labels ? labels[i] : x, String(x)))); s.value = v; };
-  opts('lf-type', 'Tous les types', JDR_CARD_TYPES);
+  opts('lf-type', 'Tous les types', JDR_CARD_TYPES.filter(t => t !== 'Créature'));
+  $id('lf-type').hidden = BESTIAIRE;
   const subs = JDR_SUBTYPES.filter(x => cards.some(c => c.subtype === x));   // seulement les sous-types utilisés
   opts('lf-sub', 'Tous les sous-types', [...subs, 'none'], [...subs, 'Sans sous-type']);
   opts('lf-rank', 'Tous les rangs', [...JDR_CARD_RANKS, 'none'], [...JDR_CARD_RANKS.map(r => 'Rang ' + r), 'Sans rang']);
@@ -298,9 +307,9 @@ $id('lf-reset').addEventListener('click', () => { Object.assign(LF, { type:'', s
 function renderList(){
   const q = jdrNorm($id('search').value);
   const ul = $id('cards'); ul.replaceChildren();
-  const list = cards.filter(c =>
+  const list = cards.filter(c => inSpace(c) &&
     (!q || jdrNorm(c.name).includes(q) || c.id.includes(q) || jdrNorm(jdrCardText(c).join(' ')).includes(q)) &&
-    (!LF.type || c.type === LF.type) &&
+    (BESTIAIRE || !LF.type || c.type === LF.type) &&
     (!LF.sub || (LF.sub === 'none' ? !c.subtype : c.subtype === LF.sub)) &&
     (!LF.rank || (LF.rank === 'none' ? !c.rank : c.rank === Number(LF.rank))) &&
     (!LF.classe || (LF.classe === 'none' ? !c.classes.length : c.classes.includes(LF.classe))) &&
@@ -321,8 +330,9 @@ function renderList(){
     ul.append(el('li', {}, el('button', { type:'button', class: c.id === savedId ? 'on' : '', onclick: () => openCard(c.id) },
       el('span', { text: c.name }), el('span', { class:'ty', text: [LF.sort === 'type' ? c.subtype : c.type, LF.sort !== 'rank' && c.rank ? 'R' + c.rank : ''].filter(Boolean).join(' · ') }))));
   });
-  $id('lf-count').textContent = cards.length ? `${list.length} carte${list.length > 1 ? 's' : ''} sur ${cards.length}` : '';
-  if(!list.length) ul.append(el('li', { class:'empty', text: cards.length ? 'Aucune carte ne correspond aux filtres' : 'Aucune carte pour l’instant' }));
+  const total = cards.filter(inSpace).length;
+  $id('lf-count').textContent = total ? `${list.length} ${BESTIAIRE ? 'créature' : 'carte'}${list.length > 1 ? 's' : ''} sur ${total}` : '';
+  if(!list.length) ul.append(el('li', { class:'empty', text: cards.some(inSpace) ? 'Aucune carte ne correspond aux filtres' : (BESTIAIRE ? 'Aucune créature pour l’instant' : 'Aucune carte pour l’instant') }));
 }
 $id('search').addEventListener('input', renderList);
 function openCard(id){
@@ -331,7 +341,7 @@ function openCard(id){
   cur = jdrNormalizeCard(structuredClone(c)); savedId = id; dirty = false;
   renderForm(); renderList(); status('');
 }
-function newCard(){ cur = jdrBlankCard(); cur.abilities.push(jdrBlankAbility()); savedId = null; dirty = false; renderForm(); renderList(); $id('f-name').focus(); }
+function newCard(){ cur = jdrBlankCard(); if(BESTIAIRE){ cur.type = 'Créature'; cur = jdrNormalizeCard(cur); } else cur.abilities.push(jdrBlankAbility()); savedId = null; dirty = false; renderForm(); renderList(); $id('f-name').focus(); }
 let leaveArmed = false;
 function confirmLeave(){ // pas de confirm() dans certains navigateurs intégrés : on demande un 2e clic
   if(leaveArmed){ leaveArmed = false; return true; }

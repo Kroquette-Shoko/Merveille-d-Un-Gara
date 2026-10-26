@@ -12,18 +12,18 @@
 a.tile{display:flex;flex-direction:column;gap:4px;background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;color:var(--ink);text-decoration:none}
 a.tile b{color:var(--accent);font-size:1.12rem}
 a.tile:hover{border-color:var(--accent)}
+.tiles.two{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:8px}
+.tiles.two a.tile{padding:26px 24px;min-height:150px;justify-content:center}
+.tiles.two a.tile b{font-size:1.6rem}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div><h1>Merveille d'Un'Gara</h1><p class="sub">Jeu de rôle avec deckbuilding, dans l'univers d'Un'Gara.</p></div>
-  <div class="tiles" id="tiles">
-    <a class="tile" href="creation-personnage.html"><b>Créer un personnage</b><span class="hint">Assistant pas à pas : peuple, classe, spécialisation, passé, équipement, puis deck.</span></a>
-    <a class="tile" href="fiche-personnage.html"><b>Fiche de personnage</b><span class="hint">Créer ton personnage, l'enregistrer en ligne, rejoindre une campagne.</span></a>
-    <a class="tile" href="deck.html"><b>Deck</b><span class="hint">Construire le deck de ton personnage selon sa classe, son passé et son niveau.</span></a>
-    <a class="tile" href="bibliotheque.html"><b>Bibliothèque</b><span class="hint">Toutes les cartes, avec filtres.</span></a>
-    <a class="tile" href="campagnes.html"><b>Campagnes</b><span class="hint">Pour le MJ : créer une campagne, partager le code, voir les fiches et les decks.</span></a>
-    <a class="tile" href="editeur-cartes.html" id="t-editor" hidden><b>Éditeur de cartes</b><span class="hint">Créer et modifier les cartes du jeu.</span></a>
+  <!-- 2 espaces seulement (26/10/2026) : Joueur et Maître du jeu -->
+  <div class="tiles two" id="tiles">
+    <a class="tile" href="joueur.html"><b>Joueur</b><span class="hint">Créer un personnage (assistant guidé), ouvrir ses fiches, construire son deck depuis la fiche, rejoindre une partie.</span></a>
+    <a class="tile" href="mj.html"><b>Maître du jeu</b><span class="hint">Héberger et gérer une partie. Éditeur : cartes, bestiaire, actions de groupe, équipement, origines.</span></a>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -31,7 +31,7 @@ a.tile:hover{border-color:var(--accent)}
 <script src="js/jdr-rules.js"></script>
 <script src="js/jdr-ui.js"></script>
 <script>
-(async () => { if(!jdrSb) return; await jdrPage('accueil'); $id('t-editor').hidden = !JDR_IS_EDITOR; })();
+(async () => { if(!jdrSb) return; await jdrPage('accueil'); })();
 </script>
 </body>
 </html>

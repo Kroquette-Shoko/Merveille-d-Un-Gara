@@ -35,6 +35,14 @@ a{color:var(--accent)}
 .jdr-nav nav a{padding:5px 10px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:500}
 .jdr-nav nav a.on{background:var(--panel);color:var(--ink)}
 .jdr-nav .who{display:flex;gap:8px;align-items:center;font-size:.92rem;color:var(--muted)}
+/* Menu principal à 2 entrées (Joueur / Maître du jeu) + onglets secondaires de l'espace courant */
+.jdr-nav nav a{font-weight:700}
+.jdr-subnav{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.jdr-subnav .sg{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center}
+.jdr-subnav .sgl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:4px}
+.jdr-subnav a{padding:3px 10px;border-radius:999px;text-decoration:none;color:var(--muted);font-size:.9rem}
+.jdr-subnav a:hover{color:var(--ink)}
+.jdr-subnav a.on{background:var(--panel);color:var(--ink);font-weight:700}
 
 /* Contrôles */
 button{font:inherit;font-weight:500;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:7px 12px}
