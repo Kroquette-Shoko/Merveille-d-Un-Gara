@@ -77,6 +77,9 @@ const PC = (() => {
     if(await mutate(ch, d => { Object.assign(d, blank(), { draw: shuffle(list) }); })) log(`${nameOf(ch)} prépare son deck (${list.length} cartes mélangées)`);
   }
   async function draw(ch, n){
+    // aucune carte nulle part (deck jamais préparé) : on prépare d'abord le deck construit
+    const st0 = states.get(ch); const total = st0 ? Object.values(st0.data).reduce((a, z) => a + z.length, 0) : 0;
+    if(!total){ await prepare(ch); if(!states.get(ch) || !states.get(ch).data.draw.length) return; }
     let reshuffled = false, risks = [], got = 0;
     const ok = await mutate(ch, d => { reshuffled = false; risks = []; got = 0;
       for(let i = 0; i < n; i++){
@@ -279,5 +282,13 @@ const PC = (() => {
   /* ---------- Carte glissée sur le plateau = jouée ---------- */
   function dropOnBoard(raw){ const f = JSON.parse(raw); if(f.z === 'hand' || f.z === 'play') play(f.ch, f.u, f.z); else move(f, { ch: f.ch, z: 'discard' }); }
 
-  return { load, render, onChange, reveal, dropOnBoard, openPile, states, get cards(){ return cards; } };
+  // Défausser plusieurs cartes de la main d'un coup (fin de tour : limite d'Anticipation)
+  async function discardMany(ch, us){
+    let names = [];
+    const ok = await mutate(ch, d => { names = []; us.forEach(u => { const i = d.hand.findIndex(c => c.u === u); if(i >= 0){ const c = d.hand.splice(i, 1)[0]; d.discard.push(c); names.push(cardName(c)); } }); if(!names.length) return false; });
+    if(ok) log(`${nameOf(ch)} défausse ${names.map(n => '« ' + n + ' »').join(', ')} (limite de main)`);
+    return !!ok;
+  }
+  const stateOf = ch => states.get(ch) || null;
+  return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, states, get cards(){ return cards; } };
 })();

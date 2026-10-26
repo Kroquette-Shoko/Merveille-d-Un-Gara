@@ -282,6 +282,21 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .au-t input[type=range]{padding:0}
 .au-unlock{position:fixed;top:12px;left:calc((100vw - var(--sbw)) / 2);transform:translateX(-50%);z-index:60;background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700;padding:8px 16px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 
+/* ---------- Tours et scènes ---------- */
+.turnb{position:fixed;top:12px;left:74px;z-index:21;background:var(--ui);border:1px solid var(--acc);color:var(--uit);border-radius:999px;padding:5px 14px;font-weight:700;font-size:.88rem;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.to-h{display:flex;flex-direction:column;gap:2px}
+.to-r{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--ui2)}
+.to-r.now{outline:2px solid #ffd257}
+.to-r.done{opacity:.6}
+.to-r.foe .to-n{color:#ffb0a8}
+.to-s{width:16px;text-align:center;font-weight:800}
+.to-n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.to-r button{padding:3px 9px;font-size:.82rem}
+.to-r .to-x{background:transparent;border-color:transparent;color:var(--uim)}
+.pcard.pick{cursor:pointer}
+.pcard.pick.on{outline:4px solid var(--hurt);outline-offset:2px;border-radius:8px}
+.it.turn{filter:drop-shadow(0 0 10px #ffd257)}
+
 /* ---------- Joueurs connectés (bas gauche) ---------- */
 .plist{position:fixed;left:10px;bottom:calc(var(--trayh, 0px) + 10px);z-index:20;display:flex;gap:8px;align-items:flex-end}
 .pav{display:flex;flex-direction:column;align-items:center;gap:3px;width:62px}
@@ -350,6 +365,8 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     <svg class="ico" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M10 7v6M7 10h6"/></svg></button>
     <div class="fly"><div class="fh">Zoom</div><input type="range" id="z-range" min="10" max="400" step="5" aria-label="Zoom">
       <button type="button" id="z-100">100 %</button><button type="button" id="z-fit2">Tout voir</button></div></div>
+  <div class="tw"><button type="button" class="tbtn" id="b-turn" title="Ordre du tour (combat, scènes)" aria-label="Ordre du tour">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9"/></svg></button></div>
   <div class="tw" id="tw-add" hidden><button type="button" class="tbtn" id="b-addimg" title="Ajouter une image (onglet Images)" aria-label="Ajouter une image">
     <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></button></div>
   <div class="tw"><button type="button" class="tbtn" title="Aide et raccourcis" aria-label="Aide">
@@ -470,6 +487,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <script src="js/jdr-card-render.js"></script>
 <script src="js/jdr-plateau-cartes.js"></script>
 <script src="js/jdr-plateau-audio.js"></script>
+<script src="js/jdr-plateau-tours.js"></script>
 <script>
 /* ======================= État ======================= */
 const CAMP = new URLSearchParams(location.search).get('campagne');
@@ -552,7 +570,7 @@ function renderItem(it){
   if(!e) e = el('div', { id: 'it-' + it.id, class: 'it', 'data-id': it.id });
   if(e.parentElement !== L) L.append(e);
   const d = it.data;
-  e.className = 'it' + (d.round ? ' round tok' : '') + (canMove(it) ? ' grab' : '') + (sel === it.id ? ' sel' : '') + (d.locked ? ' lockd' : '');
+  e.className = 'it' + (d.round ? ' round tok' : '') + (canMove(it) ? ' grab' : '') + (sel === it.id ? ' sel' : '') + (d.locked ? ' lockd' : '') + (typeof TO !== 'undefined' && TO.isCurrent(it) ? ' turn' : '');
   e.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;z-index:${Math.round(d.z) + 1000};--oc:${it.owner_id ? userColor(it.owner_id) : '#9aa4ab'};--rot:${d.rot}deg`;
   e.removeAttribute('title');   // remplacé par l'infobulle du plateau
   const kids = [];
@@ -786,6 +804,7 @@ function subscribe(){
     .on('postgres_changes', { event: '*', schema: 'jdr', table: 'play_states', filter: 'campaign_id=eq.' + CAMP }, e => PC.onChange(e))
     .on('broadcast', { event: 'reveal' }, ({ payload }) => PC.reveal(payload))
     .on('broadcast', { event: 'sfx' }, ({ payload }) => AU.playSfx(payload))
+    .on('broadcast', { event: 'discard-check' }, () => TO.checkMyHands())
     .on('postgres_changes', { event: 'UPDATE', schema: 'jdr', table: 'characters', filter: 'campaign_id=eq.' + CAMP }, ({ new: n }) => {
       const c = chars.find(x => x.id === n.id); if(!c) return; Object.assign(c, { name: n.name, data: n.data });
       [...items.values()].filter(x => x.character_id === c.id).forEach(renderItem); renderHud(); renderJournal(); })
@@ -812,7 +831,7 @@ function onSceneChange({ eventType, new: n, old: o }){
 // Scène d'un joueur : celle où le MJ l'a envoyé seul, sinon celle du marqueur « JOUEURS »
 function sceneOf(uid){ const ps = (camp && camp.player_scenes) || {}; return ps[uid] && scenes.some(s => s.id === ps[uid]) ? ps[uid] : camp.active_scene; }
 function onCampChange({ new: n }){
-  camp = Object.assign(camp, n); renderStrip(); if(n.audio) AU.onCamp(n.audio);
+  camp = Object.assign(camp, n); renderStrip(); if(n.audio) AU.onCamp(n.audio); if(n.turn) TO.onCamp(n.turn);
   if(!isGM){ const target = sceneOf(me.id); if(!scene || target !== scene.id){ loadScene(target); toast('Le MJ t’emmène sur une autre scène'); } }
 }
 
@@ -1109,6 +1128,7 @@ B.addEventListener('drop', async e => {
   try{ toast('Envoi de l’image…'); const url = await upload(f); libTile(url, f.name.replace(/\.[^.]+$/, '')); placeImage(url, f.name.replace(/\.[^.]+$/, ''), e.clientX, e.clientY); }catch(err){ toast(jdrErrorText(err)); }
 });
 $id('b-addimg').addEventListener('click', () => openPane('images'));
+$id('b-turn').addEventListener('click', () => TO.open());
 
 /* ---------- Journal : personnages joueurs, PNJ, documents (façon Roll20) ----------
    Entrées = table jdr.journal ; notes MJ = jdr.journal_secret (MJ seulement).
@@ -1587,7 +1607,7 @@ async function chooseCampaign(){
   myName = await jdrUsername(me) || 'Joueur';
   setSide(innerWidth > 820);
   if(!CAMP){ document.querySelectorAll('.tb, .side, .sidetog, .zoomw').forEach(x => x.hidden = true); document.body.classList.add('side-off'); return chooseCampaign(); }
-  const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene,player_scenes,audio').eq('id', CAMP).maybeSingle();
+  const { data: c, error } = await jdrSb.from('campaigns').select('id,name,gm_id,active_scene,player_scenes,audio,turn').eq('id', CAMP).maybeSingle();
   if(error || !c){ showMsg('<h2>Partie introuvable</h2><p style="margin:0">Ce plateau n’existe pas, ou tu n’en fais pas partie.</p><a href="plateau.html">Voir mes parties</a>'); return; }
   camp = c; isGM = c.gm_id === me.id;
   document.title = c.name + " — Plateau Un'Gara";
@@ -1605,7 +1625,7 @@ async function chooseCampaign(){
   try{ const ids = [...new Set(chars.map(x => x.owner_id))];   // pseudos (lecture seule du profil commun)
     if(ids.length){ const { data: pr } = await jdrSb.schema('public').from('profiles').select('id,username').in('id', ids); (pr || []).forEach(x => { if(x.username) playerNames[x.id] = x.username; }); } }catch(e){}
   (th.data || []).forEach(r => { if(r.data && r.data.img && !thumbs[r.scene_id]) thumbs[r.scene_id] = r.data.img; });
-  subscribe(); applyView(); loadChat(); loadJournal(); PC.load(); AU.init();
+  subscribe(); applyView(); loadChat(); loadJournal(); PC.load(); AU.init(); TO.init();
   jdrLoadKeywords().then(() => renderHud()).catch(() => {});   // afflictions (mots-clés) pour les états
   await loadScene(isGM ? (c.active_scene || (sortedScenes()[0] || {}).id) : sceneOf(me.id));
   if(isGM && scenes.length <= 1){ $id('pages').classList.remove('closed'); renderStrip(); }   // bandeau ouvert au début ; ensuite il se replie
