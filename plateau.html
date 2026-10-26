@@ -554,7 +554,8 @@ function saveOpt(){ try{ localStorage.setItem('jdr-plateau-opt', JSON.stringify(
 /* ======================= Droits ======================= */
 // joueur : ses pions + ceux des PNJ du journal qu'il contrôle
 const mine = it => it.layer === 'tokens' && (it.owner_id === me.id || controlsEntry(it.data.journal));
-const canMove = it => isGM ? (it.layer === layer && !it.data.locked) : (mine(it) && !it.data.locked);
+// un joueur bloqué en fin de tour (cartes à défausser) ne peut plus déplacer le pion de son personnage
+const canMove = it => isGM ? (it.layer === layer && !it.data.locked) : (mine(it) && !it.data.locked && !(it.character_id && typeof PC !== 'undefined' && PC.blockedForMe(it.character_id)));
 const controls = it => isGM || mine(it);
 
 /* ======================= Vue ======================= */

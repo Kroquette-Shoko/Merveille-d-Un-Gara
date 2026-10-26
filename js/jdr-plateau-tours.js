@@ -65,22 +65,36 @@ const TO = (() => {
     await setTurn(Object.assign(t, patch));
   }
 
-  /* ---------- Joueur ---------- */
+  /* ---------- Joueur ----------
+     Prendre le tour (bandeau ou fenêtre « Ordre du tour ») : pendant un combat ou une scène, le tour est enregistré
+     (jdr.turn_player) ; ensuite, dans tous les cas : PA remis au maximum + pioche de l'Opportunisme.
+     Fin de tour : s'il a trop de cartes, le joueur doit défausser l'excédent (il est bloqué tant qu'il ne l'a pas fait,
+     voir js/jdr-plateau-cartes.js) ; une fois la main à la bonne taille, le tour se termine (finishTurn). */
+  const nameOfPc = id => (pcList().find(p => p.id === id) || {}).name || PC.nameOf(id) || 'Un joueur';
   async function takeTurn(id){
-    const { data, error } = await jdrSb.rpc('turn_player', { p_campaign: CAMP, p_character: id, p_action: 'start' });
-    if(error){ toast(jdrErrorText(error)); return; }
-    turn = data; render(); refreshTokens();
+    if(PC.blockedForMe(id)){ toast('Fin de tour en attente : défausse d’abord les cartes en trop.'); return; }
+    if(T().mode){
+      const { data, error } = await jdrSb.rpc('turn_player', { p_campaign: CAMP, p_character: id, p_action: 'start' });
+      if(error){ toast(jdrErrorText(error)); return; }
+      turn = data; render(); refreshTokens();
+    }
     await PC.resetPA([id]);   // début du tour : PA au maximum
-    const name = (pcList().find(p => p.id === id) || {}).name || 'Un joueur';
-    postMsg('system', `▶ ${name} commence son tour`);
-    if(T().mode === 'combat') await PC.draw(id, opp(id) || 1);   // début du tour : pioche (Opportunisme)
+    postMsg('system', `▶ ${nameOfPc(id)} commence son tour`);
+    await PC.draw(id, opp(id) || 1);   // début du tour : pioche (Opportunisme)
   }
   async function endTurn(id){
     const over = handExcess(id);
-    if(over > 0) return discardPicker(id, over, () => endTurn(id));
-    const { data, error } = await jdrSb.rpc('turn_player', { p_campaign: CAMP, p_character: id, p_action: 'end' });
-    if(error){ toast(jdrErrorText(error)); return; }
-    turn = data; render(); refreshTokens();
+    if(over > 0){ await PC.setEndLock(id, true); return discardPicker(id, over); }   // la fin du tour suivra la défausse
+    await finishTurn(id);
+  }
+  async function finishTurn(id){
+    const t = T();
+    if(t.mode && t.current && t.current.kind === 'pc' && t.current.id === id){
+      const { data, error } = await jdrSb.rpc('turn_player', { p_campaign: CAMP, p_character: id, p_action: 'end' });
+      if(error){ toast(jdrErrorText(error)); return; }
+      turn = data; render(); refreshTokens();
+    }
+    postMsg('system', `■ ${nameOfPc(id)} termine son tour`);
   }
   function handExcess(id){ const a = ant(id); const st = PC.stateOf(id); if(a === null || !st) return 0; return Math.max(0, st.data.hand.length - a); }
   function checkMyHands(){ chars.filter(c => c.owner_id === me.id).forEach(c => { const n = handExcess(c.id); if(n > 0) discardPicker(c.id, n); }); }
@@ -99,6 +113,7 @@ const TO = (() => {
     const d = el('dialog', { class: 'dlg', id: 'dpick', style: 'width:min(720px, calc(100vw - 24px))' },
       el('div', { class: 'bd' }, el('h2', { text: 'Limite de main' }),
         el('p', { style: 'margin:0', text: `${PC.nameOf(id)} a ${st.data.hand.length} cartes pour une Anticipation de ${ant(id)} : choisis ${n} carte${n > 1 ? 's' : ''} à défausser.` }),
+        PC.isLocked(id) ? el('p', { class: 'hint', style: 'margin:0;color:#ff9b8f', text: 'Tant que ces cartes ne sont pas défaussées, ce personnage ne peut plus agir (pion, cartes…). Tu peux aussi les glisser dans la défausse.' }) : document.createTextNode(''),
         grid, el('div', { class: 'row', style: 'justify-content:flex-end' }, el('button', { type: 'button', text: 'Plus tard', onclick: () => d.close() }), ok)));
     ok.addEventListener('click', async () => { ok.disabled = true; if(await PC.discardMany(id, [...chosen])){ d.close(); d.remove(); if(then) then(); } else ok.disabled = false; });
     d.addEventListener('close', () => setTimeout(() => d.remove(), 0));
@@ -192,5 +207,5 @@ const TO = (() => {
   /* ---------- Entrées ---------- */
   function init(){ turn = Object.assign({}, (camp && camp.turn) || {}); render(); }
   function onCamp(t){ const before = JSON.stringify(turn); turn = Object.assign({}, t || {}); if(JSON.stringify(turn) !== before){ render(); refreshTokens(); } }
-  return { init, onCamp, render, open, isCurrent, checkMyHands, get state(){ return T(); } };
+  return { init, onCamp, render, open, isCurrent, checkMyHands, takeTurn, endTurn, finishTurn, get state(){ return T(); } };
 })();

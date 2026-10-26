@@ -14,6 +14,7 @@ const PC = (() => {
   const ZONES = { draw: 'Pioche', hand: 'Main', discard: 'Défausse', banished: 'Bannies', play: 'En jeu' };
   const states = new Map();          // character_id → { character_id, char_name, owner_id, version, data }
   let cards = {};                    // id → carte
+  let origins = [];                  // classes et spécialisations (pour savoir qui a accès à la magie)
   let cur = null;                    // personnage affiché dans le bandeau
   let open = true;                   // bandeau déplié
   try{ open = localStorage.getItem('jdr-tray-open') !== '0'; }catch(e){}
@@ -30,6 +31,7 @@ const PC = (() => {
   /* ---------- Chargement ---------- */
   async function load(){
     try{ const c = await jdrLoadCards(); cards = c.byId; }catch(e){ toast('Cartes non chargées : ' + jdrErrorText(e)); }
+    try{ const { data: o } = await jdrSb.from('origins').select('name,data'); origins = o || []; }catch(e){ origins = []; }
     const { data, error } = await jdrSb.from('play_states').select('*').eq('campaign_id', CAMP);
     if(error){ toast('Piles indisponibles : ' + jdrErrorText(error)); return; }
     (data || []).forEach(r => states.set(r.character_id, norm(r)));
@@ -42,6 +44,9 @@ const PC = (() => {
     if(eventType === 'DELETE'){ if(o) states.delete(o.character_id); }
     else { const was = states.get(n.character_id); if(was && was.version > n.version) return; states.set(n.character_id, norm(n)); }
     render(); refreshWins();
+    // fin de tour bloquée ou débloquée : le pion du personnage change (on peut / ne peut plus le déplacer)
+    const ch = (n && n.character_id) || (o && o.character_id);
+    if(ch && typeof items !== 'undefined') [...items.values()].filter(x => x.character_id === ch).forEach(renderItem);
   }
 
   /* ---------- Écriture (avec contrôle de version) ---------- */
@@ -66,6 +71,25 @@ const PC = (() => {
   }
   const log = (text, data) => postMsg('action', text, data);
 
+  /* ---------- Fin de tour bloquée ----------
+     « Fin de tour » avec plus de cartes en main que l'Anticipation : data.endLock = vrai tant que le joueur n'a pas défaussé l'excédent.
+     Pendant ce temps, LE JOUEUR DE CE PERSONNAGE ne peut plus rien faire avec lui (jouer, piocher, déplacer son pion…).
+     Le MJ et les autres joueurs ne sont pas bloqués. Dès que la main est à la bonne taille, le tour se termine tout seul. */
+  const ownsChar = ch => chars.some(x => x.id === ch && x.owner_id === me.id);
+  const antOf = ch => { const cd = charData(ch); const v = cd && cd.stats ? cd.stats.ant : undefined; return v === undefined || v === '' || v === null || isNaN(Number(v)) ? null : Math.max(0, Number(v)); };
+  const excessOf = ch => { const st = states.get(ch), a = antOf(ch); return !st || a === null ? 0 : Math.max(0, st.data.hand.length - a); };
+  const isLocked = ch => { const st = states.get(ch); return !!(st && st.data.endLock); };
+  const blockedForMe = ch => !isGM && ownsChar(ch) && isLocked(ch);
+  function guard(ch){ if(blockedForMe(ch)){ toast(`Fin de tour : défausse d'abord ${excessOf(ch)} carte${excessOf(ch) > 1 ? 's' : ''}.`); return false; } return true; }
+  async function setEndLock(ch, on){ await mutate(ch, d => { if(!!d.endLock === !!on) return false; d.endLock = on ? true : null; }); }
+  // appelé après chaque défausse : si l'excédent est parti, on termine le tour
+  async function checkEndLock(ch){
+    if(!isLocked(ch) || excessOf(ch) > 0) return;
+    if(!(isGM || ownsChar(ch))) return;
+    await setEndLock(ch, false);
+    if(typeof TO !== 'undefined') await TO.finishTurn(ch);
+  }
+
   /* ---------- Actions ---------- */
   async function prepare(ch){
     const c = chars.find(x => x.id === ch);
@@ -77,6 +101,7 @@ const PC = (() => {
     if(await mutate(ch, d => { Object.assign(d, blank(), { draw: shuffle(list), pending: null }); })) log(`${nameOf(ch)} prépare son deck (${list.length} cartes mélangées)`);
   }
   async function draw(ch, n){
+    if(!guard(ch)) return;
     // aucune carte nulle part (deck jamais préparé) : on prépare d'abord le deck construit
     const st0 = states.get(ch); const total = st0 ? Object.keys(ZONES).reduce((a, z) => a + st0.data[z].length, 0) + (st0.data.pending ? 1 : 0) : 0;
     if(!total){ await prepare(ch); if(!states.get(ch) || !states.get(ch).data.draw.length) return; }
@@ -96,7 +121,7 @@ const PC = (() => {
     const st = states.get(ch); if(!st || st.data.pending) return;
     const r = st.data.hand.find(isRisk); if(r) await play(ch, r.u, 'hand');
   }
-  async function shuffleDraw(ch){ if(await mutate(ch, d => { shuffle(d.draw); })) log(`${nameOf(ch)} mélange sa pioche`); }
+  async function shuffleDraw(ch){ if(!guard(ch)) return; if(await mutate(ch, d => { shuffle(d.draw); })) log(`${nameOf(ch)} mélange sa pioche`); }
   async function rest(ch){
     let removed = 0, total = 0;
     const ok = await mutate(ch, d => { const all = [...d.draw, ...d.hand, ...d.discard, ...d.banished, ...d.play];
@@ -105,6 +130,9 @@ const PC = (() => {
   }
   // Déplacer un exemplaire d'une pile à une autre (éventuellement d'un personnage à un autre)
   async function move(from, to, pos){
+    // joueur bloqué en fin de tour : il peut seulement défausser des cartes de sa main
+    const discarding = from.ch === to.ch && from.z === 'hand' && to.z === 'discard';
+    if(!discarding && (!guard(from.ch) || !guard(to.ch))) return;
     const verb = { hand: 'prend en main', discard: 'défausse', banished: 'bannit', play: 'met en jeu', draw: pos === 'bottom' ? 'remet sous la pioche' : 'remet sur la pioche' }[to.z];
     let card = null;
     if(from.ch === to.ch){
@@ -127,6 +155,7 @@ const PC = (() => {
     log(text, secret ? {} : { card: card.c });
     // une carte qui arrive « En jeu » est jouée : elle est montrée à toute la table (par défaut)
     if(to.z === 'play' && from.z !== 'play'){ const p = { card: card.c, who: nameOf(to.ch) }; reveal(p); send('reveal', p); }
+    if(discarding) await checkEndLock(from.ch);
   }
   /* ---------- Jouer une carte : choix de l'effet, points d'action (PA), annulation ----------
      1. « Jouer » : la carte quitte la main et devient « en attente » (data.pending) ; elle s'affiche chez TOUT LE MONDE.
@@ -148,6 +177,7 @@ const PC = (() => {
   }
   async function play(ch, u, zone){
     zone = zone || 'hand';
+    if(!guard(ch)) return;
     const st = states.get(ch); if(st && st.data.pending){ toast('Une carte de ' + nameOf(ch) + ' attend déjà son effet : résous-la ou annule-la d’abord.'); return; }
     const c = st && st.data[zone].find(x => x.u === u); if(!c) return;
     const ok = await mutate(ch, d => { if(d.pending) return false; const i = d[zone].findIndex(x => x.u === u); if(i < 0) return false;
@@ -190,6 +220,75 @@ const PC = (() => {
   }
   async function setPA(ch, v){ const m = paMax(ch); await mutate(ch, d => { d.pa = v === null ? null : Math.max(0, Math.min(m === null ? 99 : m, v)); }); }
   async function resetPA(ids){ for(const id of ids){ if(!states.has(id) || paMax(id) === null) continue; await mutate(id, d => { if(d.pa === null || d.pa === undefined) return false; d.pa = null; }); } }
+
+  /* ---------- CONVERTIR DU MANA ----------
+     Accès à la magie : la spécialisation du personnage décide (magie oui / non) ; sans spécialisation, sa classe
+     (« aucune » = non ; « certaines » ou « toutes » = oui). Personnage sans classe connue : bouton affiché.
+     Fenêtre : on choisit un sort (Sortilège) de sa main → il est banni et on gagne 2 × son coût en mana.
+     Le montant reste modifiable (règles spéciales) ; on peut aussi gagner du mana sans bannir de carte. */
+  const norm2 = t => String(t || '').trim().toLowerCase();
+  function hasMagic(ch){
+    const cd = charData(ch) || {};
+    const spec = origins.find(o => o.data && o.data.kind === 'specialisation' && norm2(o.name) === norm2(cd.specialisation));
+    if(spec) return spec.data.magic === true || spec.data.magic === 'true';
+    const cls = origins.find(o => o.data && o.data.kind === 'classe' && norm2(o.name) === norm2(cd.classe));
+    if(cls) return cls.data.magic !== 'aucune';
+    return true;
+  }
+  const isSpell = c => cards[c.c] && cards[c.c].type === 'Sortilège';
+  const manaCost = c => { const v = cards[c.c] && cards[c.c].mana; return v === null || v === undefined || v === '' || isNaN(Number(v)) ? 0 : Math.max(0, Number(v)); };
+  function manaOf(ch){ const cd = charData(ch) || {}; const r = (cd.resources || []).find(x => /mana/i.test(x.name || '')); return r ? { cur: Number(r.val) || 0, max: Number(r.max) || 0 } : { cur: 0, max: 0 }; }
+  async function gainMana(ch, n){
+    const c = chars.find(x => x.id === ch); if(!c) return null;
+    const d = structuredClone(c.data || {}); d.resources = Array.isArray(d.resources) ? d.resources : [];
+    let r = d.resources.find(x => /mana/i.test(x.name || '')); if(!r){ r = { name: 'Mana', max: 0, val: 0 }; d.resources.push(r); }
+    const before = Number(r.val) || 0, max = Number(r.max) || 0;
+    r.val = max ? Math.min(max, before + n) : before + n;          // plafonné au maximum de la fiche (s'il y en a un)
+    const { error } = await jdrSb.from('characters').update({ data: d }).eq('id', ch);
+    if(error){ toast(jdrErrorText(error)); return null; }
+    c.data = d;
+    if(typeof items !== 'undefined') [...items.values()].filter(x => x.character_id === ch).forEach(renderItem);
+    if(typeof renderHud === 'function') renderHud();
+    return { before, after: r.val, max };
+  }
+  function openConvert(ch){
+    if(!guard(ch)) return;
+    const st = states.get(ch); const spells = st ? st.data.hand.filter(isSpell) : [];
+    let picked = null, amount = 0, touched = false;
+    document.getElementById('cvdlg')?.remove();
+    const amt = el('input', { type: 'number', min: '0', max: '99', value: '0', style: 'width:5rem', 'aria-label': 'Mana gagné' });
+    const preview = el('span', { class: 'hint' });
+    const ok = el('button', { type: 'button', class: 'primary' });
+    const refresh = () => { const m = manaOf(ch); const after = m.max ? Math.min(m.max, m.cur + amount) : m.cur + amount;
+      preview.textContent = `Mana : ${m.cur}${m.max ? ' / ' + m.max : ''} → ${after}${m.max && m.cur + amount > m.max ? ' (maximum atteint)' : ''}`;
+      ok.textContent = picked ? `Bannir « ${cardName(picked)} » et gagner ${amount} mana` : `Gagner ${amount} mana (sans bannir de carte)`;
+      ok.disabled = !(amount > 0); };
+    amt.addEventListener('input', () => { amount = Math.max(0, Math.min(99, Math.round(Number(amt.value) || 0))); touched = true; refresh(); });
+    const grid = el('div', { class: 'pgrid' });
+    spells.forEach(c => { const m = mini(ch, 'hand', c, { w: 110 }); m.draggable = false; m.classList.add('pick');
+      m.addEventListener('click', () => { picked = picked && picked.u === c.u ? null : c;
+        grid.querySelectorAll('.pick').forEach(x => x.classList.toggle('on', !!picked && x.dataset.u === picked.u));
+        if(!touched || picked){ amount = picked ? 2 * manaCost(picked) : 0; amt.value = amount; touched = false; } refresh(); });
+      grid.append(m); });
+    if(!spells.length) grid.append(el('p', { class: 'hint', style: 'margin:0', text: 'Aucun sort (Sortilège) en main.' }));
+    const d = el('dialog', { class: 'dlg', id: 'cvdlg', style: 'width:min(720px, calc(100vw - 24px))' },
+      el('div', { class: 'bd' }, el('h2', { text: `Convertir du mana — ${nameOf(ch)}` }),
+        el('p', { style: 'margin:0', text: 'Choisis le sort à bannir : tu gagnes le double de son coût en mana.' }), grid,
+        el('div', { class: 'row', style: 'gap:8px;align-items:center;flex-wrap:wrap' }, document.createTextNode('Mana gagné :'), amt,
+          el('span', { class: 'hint', text: '(modifiable pour les règles spéciales)' })), preview,
+        el('div', { class: 'row', style: 'justify-content:flex-end' }, el('button', { type: 'button', text: 'Annuler', onclick: () => d.close() }), ok)));
+    ok.addEventListener('click', async () => {
+      ok.disabled = true;
+      if(picked){ const pu = picked.u; let gone = false;
+        const done = await mutate(ch, x => { const i = x.hand.findIndex(c => c.u === pu); if(i < 0) return false; x.banished.push(x.hand.splice(i, 1)[0]); gone = true; });
+        if(!done || !gone){ toast('Cette carte n’est plus dans la main.'); ok.disabled = false; return; } }
+      const res = await gainMana(ch, amount); if(!res){ ok.disabled = false; return; }
+      log(`${nameOf(ch)} ${picked ? `bannit « ${cardName(picked)} » et ` : ''}gagne ${amount} mana — mana : ${res.after}${res.max ? ' / ' + res.max : ''}`, picked ? { card: picked.c } : {});
+      d.close();
+    });
+    d.addEventListener('close', () => setTimeout(() => d.remove(), 0));
+    document.body.append(d); refresh(); d.showModal();
+  }
 
   /* ---------- RISQUES ----------
      Les Risques viennent du DECK DES RISQUES de la campagne (40 cartes par défaut, table jdr.risk_decks) :
@@ -374,25 +473,28 @@ const PC = (() => {
       ...opts.map(([id, n]) => el('option', { value: id, text: n + (chars.some(c => c.id === id && c.owner_id === me.id) ? ' (moi)' : '') })));
     sel.value = cur || '';
     sel.addEventListener('change', () => { cur = sel.value || null; try{ localStorage.setItem('jdr-tray-char-' + CAMP, cur || ''); }catch(e){} render(); });
-    const cd = cur ? charData(cur) : null; const stats = (cd && cd.stats) || {};
-    const opp = Number(stats.opp) || 0, ant = Number(stats.ant);
+    // Bandeau, dans l'ordre : Main de [personnage] · Prendre le tour · Convertir du mana (si magie) · Piocher une carte · Fin de tour · ⋯
     const head = el('div', { class: 'trh' },
       el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: open ? 'Replier la main' : 'Déplier la main', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
-      el('b', { text: 'Main de' }), sel,
-      cur ? el('span', { class: 'trc', text: `${d.hand.length} en main${!isNaN(ant) && cd ? ` · limite ${ant} (Anticipation)` : ''}`, style: !isNaN(ant) && cd && d.hand.length > ant ? 'color:#ff9b8f' : '' }) : document.createTextNode(''),
-      cur && riskCount(cur) ? el('span', { class: 'trrk', title: 'Cartes Risque dans le deck (pioche, main, défausse…)', text: `⚠ ${riskCount(cur)} Risque${riskCount(cur) > 1 ? 's' : ''}` }) : document.createTextNode(''),
-      cur && paMax(cur) !== null ? el('span', { class: 'trpa', title: 'Points d’action restants ce tour-ci' }, el('b', { text: `${paLeft(cur)} / ${paMax(cur)} PA` }),
-        ...(isGM || chars.some(x => x.id === cur && x.owner_id === me.id) ? [el('button', { type: 'button', text: '↺', title: 'Remettre les PA au maximum', 'aria-label': 'Remettre les PA au maximum', onclick: () => setPA(cur, null) })] : [])) : document.createTextNode(''));
+      el('b', { text: 'Main de' }), sel);
     if(cur){
-      head.append(
-        el('button', { type: 'button', class: 'primary', text: opp ? `Piocher ${opp}` : 'Piocher', title: opp ? 'Piocher autant que l’Opportunisme' : 'Piocher 1 carte', onclick: () => draw(cur, opp || 1) }),
-        el('button', { type: 'button', text: '+1', title: 'Piocher 1 carte', onclick: () => draw(cur, 1) }),
-        el('button', { type: 'button', text: 'Mélanger', title: 'Mélanger la pioche', onclick: () => shuffleDraw(cur) }));
+      const ctl = isGM || ownsChar(cur);             // prendre / finir le tour, convertir : le joueur du personnage ou le MJ
+      const locked = isLocked(cur), ex = excessOf(cur);
+      if(ctl) head.append(el('button', { type: 'button', class: 'primary', text: '▶ Prendre le tour', title: 'Pioche autant de cartes que l’Opportunisme et remet tous les PA', disabled: blockedForMe(cur),
+        onclick: () => typeof TO !== 'undefined' && TO.takeTurn(cur) }));
+      if(ctl && hasMagic(cur)) head.append(el('button', { type: 'button', text: '✦ Convertir du mana', title: 'Bannir un sort de la main pour gagner 2 × son coût en mana', disabled: blockedForMe(cur), onclick: () => openConvert(cur) }));
+      head.append(el('button', { type: 'button', text: 'Piocher une carte', disabled: blockedForMe(cur), onclick: () => draw(cur, 1) }));
+      if(ctl) head.append(el('button', { type: 'button', class: locked ? 'danger' : '', text: locked ? `Fin de tour : défausser ${ex}` : 'Fin de tour',
+        title: 'Défausser jusqu’à garder autant de cartes que l’Anticipation, puis terminer le tour', onclick: () => typeof TO !== 'undefined' && TO.endTurn(cur) }));
       const more = el('button', { type: 'button', text: '⋯', title: 'Autres actions', 'aria-label': 'Autres actions' });
       more.addEventListener('click', e => menu(e.clientX, e.clientY, [
+        ['Mélanger la pioche', () => shuffleDraw(cur)],
+        ['Remettre les PA au maximum', () => setPA(cur, null)],
+        '-',
         ['Préparer le deck (repartir de zéro)', () => confirmThen('Préparer le deck : toutes les piles de ' + nameOf(cur) + ' sont remises à zéro.', () => prepare(cur))],
         ['Repos (tout remélanger, retirer les Risques)', () => confirmThen('Repos : toutes les cartes reviennent dans la pioche et les Risques sont retirés.', () => rest(cur))],
         ['⚠ Risques… (ajouter, fatigue, retirer)', () => openRisks(cur)],
+        '-',
         ['Fouiller la pioche', () => openPile(cur, 'draw')], ['Voir la défausse', () => openPile(cur, 'discard')],
         ['Voir les cartes bannies', () => openPile(cur, 'banished')], ['Voir les cartes en jeu', () => openPile(cur, 'play')]]));
       head.append(more);
@@ -494,8 +596,10 @@ const PC = (() => {
     let names = [];
     const ok = await mutate(ch, d => { names = []; us.forEach(u => { const i = d.hand.findIndex(c => c.u === u); if(i >= 0){ const c = d.hand.splice(i, 1)[0]; d.discard.push(c); names.push(cardName(c)); } }); if(!names.length) return false; });
     if(ok) log(`${nameOf(ch)} défausse ${names.map(n => '« ' + n + ' »').join(', ')} (limite de main)`);
+    if(ok) await checkEndLock(ch);
     return !!ok;
   }
   const stateOf = ch => states.get(ch) || null;
-  return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, resetPA, openRisks, states, get cards(){ return cards; } };
+  return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, resetPA, openRisks, states,
+    isLocked, blockedForMe, setEndLock, excessOf, get cards(){ return cards; } };
 })();
