@@ -564,7 +564,11 @@ function abilityBlock(ab, title, mainCost, onRemove, rerender, isSpecial){
   }
   return el('div', { class:'ab' },
     el('div', { class:'ab-top' }, el('h3', { text: title }), onRemove ? el('button', { type:'button', class:'ghost', text:'Supprimer', onclick: onRemove }) : document.createTextNode('')),
-    el('div', { class:'grid3' },
+    el('div', { class:'grid3', style: isSpecial ? 'grid-template-columns:repeat(4,minmax(0,1fr))' : '' },
+      // Spécial : coût en points d'action EN PLUS du coût en mana (le plateau retire ces PA quand on résout le spécial)
+      ...(isSpecial ? [(() => { const pa = el('input', { type:'number', min:0, max:30, value: ab.pa ?? '', placeholder:'aucun' });
+        pa.addEventListener('input', () => { ab.pa = num(pa.value); changed(); });
+        return el('label', { class:'f' }, document.createTextNode("Coût en points d'action"), pa); })()] : []),
       el('label', { class:'f' }, document.createTextNode(mainCost.label), costIn),
       el('label', { class:'f' }, document.createTextNode('Autre coût'), other),
       el('label', { class:'chk', style:'align-self:end;padding-bottom:6px' }, reac, document.createTextNode('Réaction'))),

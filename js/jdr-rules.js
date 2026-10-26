@@ -208,7 +208,7 @@ function jdrNormalizePact(p){
 }
 function jdrBlankArt(){ return { ox: 0, oy: 0, scale: 100, rot: 0, fx: false, fy: false }; }
 function jdrBlankAbility(){ return { pa: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
-function jdrBlankSpecial(){ return { enabled: false, name: '', rule: false, mana: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
+function jdrBlankSpecial(){ return { enabled: false, name: '', rule: false, pa: null, mana: null, cost: '', reaction: false, mode: 'text', text: '', effects: [] }; }
 // Remet une capacité au format actuel (les anciennes cartes avaient un « moment » : triggers)
 //  - « Réaction » → case reaction cochée ; les autres moments (Action, Action libre…) disparaissent
 //  - tout passe en texte libre (les phrases des anciens effets sont mises bout à bout)
