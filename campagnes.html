@@ -139,11 +139,12 @@ async function loadCampaigns(){
     return `<section class="sheet">
       <div class="camp-head"><h2>${esc(c.name)}</h2>
         <div class="row" style="align-items:center"><span class="hint">Code d'invitation</span><span class="code">${esc(c.invite_code)}</span>
-        <button type="button" data-copy="${esc(c.invite_code)}">Copier</button></div></div>
+        <button type="button" data-copy="${esc(c.invite_code)}">Copier</button>
+        <a class="primary" href="plateau.html?campagne=${encodeURIComponent(c.id)}" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700">Ouvrir le plateau</a></div></div>
       ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Personnage</th><th>Peuple · classe · passé</th><th>Caractéristiques</th><th>Points de vie</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
                     : `<p class="empty">Aucun joueur n'a encore rejoint cette campagne.</p>`}
     </section>`;
-  }).join("") + (others.length ? `<section class="sheet"><h2>Campagnes où je joue</h2>${others.map(c=>`<p style="margin:0">${esc(c.name)}</p>`).join("")}</section>` : "");
+  }).join("") + (others.length ? `<section class="sheet"><h2>Campagnes où je joue</h2>${others.map(c=>`<p style="margin:0">${esc(c.name)} · <a href="plateau.html?campagne=${encodeURIComponent(c.id)}">Plateau</a></p>`).join("")}</section>` : "");
   box.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
     const v=b.dataset.copy;
     (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(()=>status("Code copié"),()=>status("Sélectionne le code et copie-le avec Ctrl+C"));

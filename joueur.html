@@ -13,6 +13,7 @@
 .pjw .del{position:absolute;top:6px;right:6px;padding:2px 8px;font-size:.8rem;color:var(--hurt);background:transparent;border:1px solid transparent;border-radius:8px}
 .pjw .del:hover,.pjw .del:focus-visible{border-color:var(--hurt);background:var(--sheet)}
 .pjw .pj{padding-right:84px}
+.pjw a.tbl{display:inline-block;margin-top:6px;padding:4px 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700;font-size:.9rem}
 dialog.cdel{border:1px solid var(--line);border-radius:14px;padding:18px;max-width:min(440px, calc(100vw - 32px));background:var(--sheet);color:var(--ink)}
 dialog.cdel::backdrop{background:rgba(0,0,0,.45)}
 dialog.cdel h2{margin:0 0 6px;font-size:1.25rem}
@@ -89,6 +90,7 @@ function renderChars(){
     return `<div class="pjw"><a class="pj" href="fiche-personnage.html?id=${encodeURIComponent(c.id)}">
       <span class="av"${pic}>${d.portrait ? '' : jdrEsc((c.name || '?')[0].toUpperCase())}</span>
       <span class="tx"><b>${jdrEsc(c.name || 'Sans nom')}</b><small>${jdrEsc(who)}</small><small>${jdrEsc(camp)}</small></span></a>
+      ${c.campaign_id ? `<a class="tbl" href="plateau.html?campagne=${encodeURIComponent(c.campaign_id)}">Rejoindre la table →</a>` : ''}
       <button type="button" class="del" data-del="${jdrEsc(c.id)}" aria-label="Supprimer la fiche de ${jdrEsc(c.name || 'Sans nom')}">Supprimer</button></div>`;
   });
   items.push(`<a class="pj new" href="creation-personnage.html">+ Créer un personnage</a>`);
@@ -135,7 +137,7 @@ $id('j-go').addEventListener('click', async () => {
   $id('j-code').value = '';
   await load();
   const c = chars.find(x => x.id === ch);
-  status('j-status', `${c ? c.name : 'Ton personnage'} a rejoint la partie${camps[data] ? ' « ' + camps[data] + ' »' : ''}.`);
+  status('j-status', `${c ? c.name : 'Ton personnage'} a rejoint la partie${camps[data] ? ' « ' + camps[data] + ' »' : ''}. Clique sur « Rejoindre la table » sous son nom pour ouvrir le plateau.`);
 });
 
 async function load(){

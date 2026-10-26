@@ -21,7 +21,8 @@ const JDR_SECTIONS = [
     pages: ['mj.html', 'campagnes.html', 'editeur-cartes.html', 'editeur-groupes.html', 'equipement.html', 'origines.html', 'mots-cles.html', 'bibliotheque.html'],
     groups: [
       { label: 'Parties', tabs: [
-        { label: 'Héberger et gérer', href: 'campagnes.html', pages: ['campagnes.html'] }
+        { label: 'Héberger et gérer', href: 'campagnes.html', pages: ['campagnes.html'] },
+        { label: 'Plateau', href: 'plateau.html', pages: ['plateau.html'] }
       ] },
       { label: 'Éditeur', editorOnly: true, tabs: [
         { label: 'Cartes',            href: 'editeur-cartes.html',               pages: ['editeur-cartes.html'], match: q => q.get('type') !== 'Créature' },
@@ -90,7 +91,7 @@ async function jdrPage(current, opts = {}){
   if(me && jdrSb){
     try{ const { data } = await jdrSb.rpc('is_editor'); JDR_IS_EDITOR = data === true; }catch(e){}
   }
-  await jdrRenderNav(current, me);
+  if(!opts.noNav) await jdrRenderNav(current, me);   // noNav : page plein écran (plateau) avec sa propre barre
   if(opts.requireLogin && !me){
     location.href = 'connexion.html?next=' + encodeURIComponent(location.pathname.split('/').pop() + location.search);
     return null;

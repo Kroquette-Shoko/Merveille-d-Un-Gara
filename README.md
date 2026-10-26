@@ -42,6 +42,7 @@ Le menu n'a que 2 entrées, avec des onglets secondaires selon l'espace (réglé
 | `js/jdr-items.js` | Modèle et affichage de l'équipement (table `jdr.items`) |
 | `origines.html` | Origines du personnage, avec image : peuples (famille, taille, bonus de caractéristiques et d'armure, capacités), classes (couleur, accès à la magie, caractéristiques, capacités, spécialisations cochées, évolution sur 15 niveaux), spécialisations (carte de voie, magie, passif de base, améliorations), passés (caractéristiques, carte de passé, événements possibles) |
 | `js/jdr-origins.js` | Modèle et affichage des origines (table `jdr.origins`) |
+| `plateau.html` | **Plateau de jeu** (étape 1) : `plateau.html?campagne=…`. 3 couches (carte, pions, MJ cachée — jamais envoyée aux joueurs), scènes (le MJ choisit celle montrée aux joueurs), images envoyées (bucket `jdr-plateau`) ou par lien, pions liés aux fiches, déplacements en temps réel (MJ : tout ; joueur : ses pions), zoom / déplacement de la vue, règle en mètres avec nom de la portée, échelle étalonnable (sans grille), ping (Alt + clic ; Maj + Alt pour le MJ = centrer la vue des joueurs), cercles de portée au survol de ses pions |
 | `campagnes.html` | Espace MJ : créer une campagne, code d'invitation, fiches et decks des joueurs (lecture seule) |
 | `js/jdr-supabase.js` | Connexion à Supabase (schéma `jdr`) |
 | `js/jdr-rules.js` | Règles : modèle de carte, déclencheurs, effets, formules avec les caractéristiques, effets des cartes sur les caractéristiques, règles de deck |
