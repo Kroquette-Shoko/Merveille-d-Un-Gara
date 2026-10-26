@@ -207,7 +207,7 @@ summary{cursor:pointer;font-weight:700}
 .inv{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px}
 @media (max-width:1000px){.inv{grid-template-columns:1fr}}
 .cont-title{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),var(--rh,clamp(40px,6.4vw,92px)));gap:6px;padding:8px;border-radius:12px;background:var(--cell);position:relative}
+.slots{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),var(--rh,clamp(40px,6.4vw,92px)));grid-auto-rows:var(--rh,clamp(40px,6.4vw,92px));gap:6px;padding:8px;border-radius:12px;background:var(--cell);position:relative}
 .free{border-radius:9px;border:2px dashed var(--line)}
 /* Objets placés librement : on les déplace en les faisant glisser, on les pivote avec ⟳ (ou la touche R) */
 .item{position:relative;z-index:1;border:0;border-radius:9px;color:#fff;padding:6px 8px;text-align:left;display:flex;flex-direction:column;justify-content:flex-start;gap:2px;overflow:hidden;font-weight:700;font-size:.92rem;line-height:1.1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -220,6 +220,7 @@ summary{cursor:pointer;font-weight:700}
 .outside{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
 .outside button{border:0;border-radius:999px;padding:3px 10px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer}
 .purse{background:var(--cell);border-radius:12px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+.coin{z-index:1;border-radius:9px;background:linear-gradient(135deg,#E2B54A,#B8862A);color:#3A2A08;font-weight:800;font-size:.78rem;display:grid;place-items:center;text-align:center;line-height:1.05}
 .purse input{font-family:var(--f-display);font-weight:800;font-size:2.4rem;color:var(--accent);text-align:center;border:0;width:5ch;padding:0;-moz-appearance:textfield;appearance:textfield}
 .purse input::-webkit-outer-spin-button,.purse input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .side2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -230,10 +231,18 @@ summary{cursor:pointer;font-weight:700}
 .memo div{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:center;background:var(--cell);border-radius:8px;padding:6px 10px;font-size:.9rem;line-height:1.2}
 .memo div>span:first-child{height:30px;border-radius:6px;color:#fff;font-weight:800;display:grid;place-items:center}
 .objs{display:flex;flex-direction:column;gap:6px}
-.obj{display:grid;grid-template-columns:14px minmax(0,1fr) 6.5rem 8.5rem 32px;gap:8px;align-items:center;background:var(--cell);border-radius:8px;padding:4px 8px}
+.obj{display:grid;grid-template-columns:14px minmax(0,1fr) 6.5rem 8.5rem 34px 32px;gap:8px;align-items:center;background:var(--cell);border-radius:8px;padding:4px 8px}
+.obj .bagbtn{padding:2px 0;font-size:1rem;background:transparent;border:1px solid var(--line);border-radius:7px}
+.obj .bagbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* Réglages d'un sac (sous la ligne de l'objet) */
+.bagcfg{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:-2px 0 2px 22px;padding:6px 10px;border-left:3px solid var(--accent);background:var(--cell);border-radius:0 8px 8px 0;font-size:.9rem}
+.bagcfg input[type=number]{width:3.6em;text-align:center}
+.bagcfg label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+.bagtag{font-family:var(--f-body,inherit);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:1px 7px;border-radius:999px;background:var(--chip);margin-left:6px;vertical-align:2px}
+.bags{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .obj .sw{width:14px;height:14px;border-radius:4px}
 .obj.focus{outline:2px solid var(--accent2)}
-@media (max-width:560px){.obj{grid-template-columns:14px minmax(0,1fr) 32px}.obj select{grid-column:2}}
+@media (max-width:560px){.obj{grid-template-columns:14px minmax(0,1fr) 34px 32px}.obj select{grid-column:2/-1}.bagcfg{margin-left:0}}
 
 /* Divers */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:999px;font-size:.9rem}
@@ -415,18 +424,21 @@ summary{cursor:pointer;font-weight:700}
         <div class="cont-title">Sac à dos <span class="status" id="st-sac"></span></div>
         <div class="slots" id="sl-sac" data-cont="sac" style="--cols:7;--rows:6"></div>
         <div class="outside" id="out-sac"></div>
-        <div class="hint" style="margin-top:4px">Glisser-déposer pour déplacer un objet (aussi vers la ceinture) · clic droit pour le pivoter, même pendant qu'on le déplace.</div>
+        <div class="hint" style="margin-top:4px">Glisser-déposer pour déplacer un objet (aussi vers la ceinture ou un autre sac) · clic droit pour le pivoter, même pendant qu'on le déplace · 🎒 dans la liste des objets pour faire d'un objet un sac.</div>
         <div class="tiny" id="tiny"></div>
+        <div class="bags" id="bags"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
         <div class="side2">
           <div>
-            <div class="cont-title">Bourse</div>
+            <div class="cont-title">Bourse <span class="status" id="st-bourse"></span></div>
             <div class="purse">
               <input type="number" id="coins" min="0" aria-label="Nombre de pièces">
               <div>pièces</div>
               <div class="hint" id="coin-cases"></div>
             </div>
+            <div class="slots" id="sl-bourse" data-cont="bourse" style="--cols:3;--rows:3;--rh:52px;margin-top:6px"></div>
+            <div class="outside" id="out-bourse"></div>
             <div class="tiny" id="purse-items"></div>
           </div>
           <div>
@@ -506,7 +518,38 @@ function sizeShape(n){
 // Forme réelle : pivoté = largeur et hauteur échangées
 function itemShape(it){ const [w,h]=sizeShape(Math.max(0,num(it.cases))); return it.rot ? [h,w] : [w,h]; }
 // Contenants en grille : colonnes × lignes
-const CONT = { sac:{cols:7,rows:6,box:"sl-sac",out:"out-sac"}, ceinture:{cols:3,rows:2,box:"sl-ceinture",out:"out-ceinture"} };
+// Bourse : sac de 9 cases (3 × 3) ; seulement des objets petits (1 case) ou minuscules (0 case) ; c'est le seul contenant des pièces
+//   (100 pièces = 1 case, rangées en premier dans la bourse).
+const CONT = { sac:{cols:7,rows:6,box:"sl-sac",out:"out-sac"}, ceinture:{cols:3,rows:2,box:"sl-ceinture",out:"out-ceinture"},
+               bourse:{cols:3,rows:3,box:"sl-bourse",out:"out-bourse",maxItem:1,coins:true} };
+const coinCasesOf = () => Math.ceil(num(S.coins)/100);
+// Sacs en plus : un objet de l'inventaire peut être un sac (it.bag). Ce qu'il contient a where = "bag:" + it.bag.id.
+//   it.bag = { id, cols, rows, bottomless, feather }
+//   bottomless (sans fond) : la grille s'agrandit sans limite ; le contenu compte quand même dans la charge.
+//   feather (plume)        : rien de ce qu'il contient ne compte dans la charge (le sac lui-même compte, là où il est rangé).
+const BOTTOMLESS_ROWS = 200;   // « à l'infini » : limite technique jamais atteinte en pratique
+function bagItem(where){ if(!String(where||"").startsWith("bag:")) return null; const id=where.slice(4); return S.items.find(it=>it.bag && it.bag.id===id) || null; }
+function contOf(where){
+  if(CONT[where]) return CONT[where];
+  const b=bagItem(where); if(!b) return null;
+  const g=b.bag, id=g.id;
+  return { cols:g.cols, rows:g.bottomless?BOTTOMLESS_ROWS:g.rows, base:g.rows, bottomless:!!g.bottomless, feather:!!g.feather, box:"sl-"+id, out:"out-"+id };
+}
+// Vrai si le contenant « where » est le sac bagId ou se trouve (directement ou non) dans ce sac
+function isInsideBag(where,bagId){
+  const seen=new Set();
+  for(let b=bagItem(where); b && !seen.has(b); b=bagItem(b.where)){ seen.add(b); if(b.bag.id===bagId) return true; }
+  return false;
+}
+// Un objet compte dans la charge sauf s'il est (directement ou non) dans un sac plume
+function countsInLoad(it){
+  const seen=new Set();
+  for(let b=bagItem(it.where); b && !seen.has(b); b=bagItem(b.where)){ seen.add(b); if(b.bag.feather) return false; }
+  return true;
+}
+function newBagId(){ return "b"+Math.random().toString(36).slice(2,9); }
+// Vide un sac (avant de le supprimer ou de le transformer en objet normal) : son contenu retourne dans le sac à dos
+function emptyBag(it){ if(!it.bag) return; const w="bag:"+it.bag.id; S.items.forEach(o=>{ if(o.where===w){ o.where="sac"; delete o.pos; } }); }
 const BAG_SLOTS = 42;      // 7 × 6 cases, comme la fiche papier
 const BELT_SLOTS = 6;      // 3 × 2 cases
 const BASE = {P:20,M:25,G:30};
@@ -718,9 +761,13 @@ function fits(grid,c,x,y,w,h,self){
 function mark(grid,x,y,w,h,idx){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++) grid[j][i]=idx; }
 // Calcule la place de chaque objet d'un contenant. Renvoie { grid, placed:[{idx,x,y,w,h}], outside:[idx] }
 function layout(where){
-  const c=CONT[where], grid=emptyGrid(c), placed=[], outside=[], waiting=[];
+  const c=contOf(where), grid=emptyGrid(c), placed=[], outside=[], waiting=[];
+  // bourse : les pièces prennent les premières cases (-3 = case de pièces)
+  let coinCells=0;
+  if(c.coins){ coinCells=Math.min(coinCasesOf(),c.cols*c.rows); for(let k=0;k<coinCells;k++) grid[Math.floor(k/c.cols)][k%c.cols]=-3; }
   S.items.forEach((it,idx)=>{
     if((it.where||"sac")!==where || num(it.cases)<=0) return;
+    if(c.maxItem && num(it.cases)>c.maxItem){ delete it.pos; outside.push(idx); return; }   // trop gros pour la bourse
     const [w,h]=itemShape(it), p=it.pos;
     if(p && fits(grid,c,p.x,p.y,w,h,-2)){ mark(grid,p.x,p.y,w,h,idx); placed.push({idx,x:p.x,y:p.y,w,h}); }
     else waiting.push(idx);
@@ -736,12 +783,20 @@ function layout(where){
     }
     if(!done){ delete it.pos; outside.push(idx); }
   });
-  return { grid, placed, outside };
+  // lignes affichées : un sac sans fond montre son contenu + 3 lignes libres (de quoi y déposer n'importe quel objet)
+  const bottom=placed.reduce((m,q)=>Math.max(m,q.y+q.h),0);
+  const shown=c.bottomless ? Math.max(c.base,bottom+3) : c.rows;
+  return { grid, placed, outside, shown, coinCells };
 }
 function renderGrid(where){
-  const c=CONT[where], box=$(c.box), L=layout(where);
-  box.replaceChildren();
-  for(let y=0;y<c.rows;y++) for(let x=0;x<c.cols;x++) box.append(el("div",{class:"free",style:`grid-column:${x+1};grid-row:${y+1}`}));
+  const c=contOf(where), box=$(c.box), L=layout(where);
+  box.replaceChildren(); box.style.setProperty("--rows",L.shown); box.dataset.rows=L.shown;
+  for(let y=0;y<L.shown;y++) for(let x=0;x<c.cols;x++) box.append(el("div",{class:"free",style:`grid-column:${x+1};grid-row:${y+1}`}));
+  // cases de pièces (bourse)
+  for(let k=0;k<L.coinCells;k++){
+    const left=num(S.coins)-k*100, n=Math.min(100,left);
+    box.append(el("div",{class:"coin",title:"Pièces (100 pièces = 1 case)",style:`grid-column:${k%c.cols+1};grid-row:${Math.floor(k/c.cols)+1}`,text:`🪙 ${n}`}));
+  }
   L.placed.forEach(({idx,x,y,w,h})=>{
     const it=S.items[idx], n=num(it.cases);
     const d=el("div",{class:"item",tabindex:"0",role:"button","data-i":idx,
@@ -765,7 +820,7 @@ function refocus(idx){ const d=document.querySelector(`.item[data-i="${idx}"]`);
 // Pivoter sur place (même coin en haut à gauche) ; refusé s'il n'y a pas la place
 function rotateItem(idx){
   if(readOnly) return;
-  const it=S.items[idx], where=it.where||"sac", c=CONT[where], L=layout(where), p=it.pos; if(!p) return;
+  const it=S.items[idx], where=it.where||"sac", c=contOf(where), L=layout(where), p=it.pos; if(!p) return;
   const [w,h]=itemShape(it);
   if(w===h) return;
   // même coin en haut à gauche si possible, sinon la place libre la plus proche (l'objet pivote « autour » de lui-même)
@@ -785,7 +840,7 @@ function keyItem(e,idx){
   if(k==="r"||k==="R"){ e.preventDefault(); rotateItem(idx); return; }
   const dir={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[k]; if(!dir) return;
   e.preventDefault();
-  const it=S.items[idx], where=it.where||"sac", c=CONT[where], L=layout(where), p=it.pos; if(!p) return;
+  const it=S.items[idx], where=it.where||"sac", c=contOf(where), L=layout(where), p=it.pos; if(!p) return;
   const [w,h]=itemShape(it), x=p.x+dir[0], y=p.y+dir[1];
   if(!fits(L.grid,c,x,y,w,h,idx)) return;
   it.pos={x,y}; save(); renderInventory(); refocus(idx);
@@ -805,7 +860,8 @@ function startDrag(e,idx,d){
 }
 function cellAt(box,c,cx,cy){
   const r=box.getBoundingClientRect(), cs=getComputedStyle(box), pad=parseFloat(cs.paddingLeft)||0, gap=parseFloat(cs.columnGap)||0;
-  const cw=(r.width-2*pad-gap*(c.cols-1))/c.cols, ch=(r.height-2*pad-gap*(c.rows-1))/c.rows;
+  const rows=Number(box.dataset.rows)||c.rows;
+  const cw=(r.width-2*pad-gap*(c.cols-1))/c.cols, ch=(r.height-2*pad-gap*(rows-1))/rows;
   return { x:Math.floor((cx-r.left-pad+gap/2)/(cw+gap)), y:Math.floor((cy-r.top-pad+gap/2)/(ch+gap)) };
 }
 function dragShape(){ const [w0,h0]=sizeShape(num(S.items[drag.idx].cases)); return drag.rot?[h0,w0]:[w0,h0]; }
@@ -814,10 +870,15 @@ function updateDrag(cx,cy){
   drag.target=null;
   // l'objet glissé est sous le pointeur : on l'ignore pour trouver la grille visée
   const box=document.elementsFromPoint(cx,cy).filter(n=>!drag.d.contains(n)).map(n=>n.closest&&n.closest(".slots[data-cont]")).find(Boolean); if(!box) return;
-  const where=box.dataset.cont, c=CONT[where], cell=cellAt(box,c,cx,cy), [w,h]=dragShape();
-  const x=Math.max(0,Math.min(c.cols-w,cell.x-drag.gx)), y=Math.max(0,Math.min(c.rows-h,cell.y-drag.gy));
-  const ok=w<=c.cols && h<=c.rows && fits(layout(where).grid,c,x,y,w,h,drag.idx);
-  box.append(el("div",{class:"ghost-cell"+(ok?"":" bad"),style:`grid-column:${x+1}/span ${Math.min(w,c.cols)};grid-row:${y+1}/span ${Math.min(h,c.rows)}`}));
+  const where=box.dataset.cont, c=contOf(where); if(!c) return;
+  const shown=Number(box.dataset.rows)||c.rows, cell=cellAt(box,c,cx,cy), [w,h]=dragShape();
+  const x=Math.max(0,Math.min(c.cols-w,cell.x-drag.gx)), y=Math.max(0,Math.min(shown-h,cell.y-drag.gy));
+  // un sac ne peut pas être rangé dans lui-même (ni dans un sac qu'il contient)
+  const dragged=S.items[drag.idx], loop=dragged.bag && (where==="bag:"+dragged.bag.id || isInsideBag(where,dragged.bag.id));
+  drag.overSelf=!!loop;
+  drag.tooBig=!!(c.maxItem && num(dragged.cases)>c.maxItem);
+  const ok=!loop && !drag.tooBig && w<=c.cols && h<=c.rows && fits(layout(where).grid,c,x,y,w,h,drag.idx);
+  box.append(el("div",{class:"ghost-cell"+(ok?"":" bad"),style:`grid-column:${x+1}/span ${Math.min(w,c.cols)};grid-row:${y+1}/span ${Math.min(h,shown)}`}));
   drag.target=ok?{where,x,y}:null;
 }
 function moveDrag(e){
@@ -861,21 +922,49 @@ function stopDrag(){
 function endDrag(){
   const g=stopDrag(); if(!g) return;
   if(!g.moved){ focusItem(g.idx); return; }          // simple clic : aller à la ligne de l'objet
-  if(!g.target){ toast("Pas la place ici"); renderInventory(); return; }
+  if(!g.target){ toast(g.tooBig ? "La bourse n'accepte que les petits objets (1 case) et les objets minuscules"
+      : S.items[g.idx].bag && g.overSelf ? "Un sac ne peut pas aller dans lui-même" : "Pas la place ici"); renderInventory(); return; }
   const it=S.items[g.idx]; it.where=g.target.where; it.pos={x:g.target.x,y:g.target.y}; it.rot=g.rot;
   save(); renderInventory(); applyReadOnly();
 }
 function cancelDrag(){ if(stopDrag()) renderInventory(); }
+// Une grille par sac en plus (sous le sac à dos)
+function renderBags(){
+  const zone=$("bags"); zone.replaceChildren();
+  S.items.forEach((it,idx)=>{
+    if(!it.bag) return;
+    const g=it.bag, id=g.id;
+    const title=el("div",{class:"cont-title"},
+      el("span",{},document.createTextNode("🎒 "+(it.name||"Sac")),
+        ...(g.bottomless?[el("span",{class:"bagtag",title:"S'agrandit à l'infini ; le contenu compte dans la charge",text:"sans fond"})]:[]),
+        ...(g.feather?[el("span",{class:"bagtag",title:"Le contenu ne compte pas dans la charge",text:"plume"})]:[])),
+      el("span",{class:"status",id:"st-"+id}));
+    // mêmes cases que le sac à dos (7 colonnes) : un sac de 3 colonnes prend 3/7 de la largeur
+    const box=el("div",{class:"slots",id:"sl-"+id,"data-cont":"bag:"+id,style:`--cols:${g.cols};--rows:${g.rows};width:calc(${g.cols} * (100% - 16px + 6px) / 7 + 10px);max-width:100%`});
+    zone.append(el("div",{},title,box,el("div",{class:"outside",id:"out-"+id})));
+    const used=renderGrid("bag:"+id), cap=g.cols*g.rows;
+    const st=$("st-"+id);
+    st.textContent = g.bottomless ? `${used} case${used>1?"s":""} · sans limite` : `${used} / ${cap}`;
+    st.className="status"+(!g.bottomless && used>cap?" bad":"");
+    if(g.feather) st.textContent+=" · hors charge";
+    void idx;
+  });
+}
 function renderInventory(){
   renderSizes();
   $("coins").value=S.coins;
   const corps=num(S.stats.corps)+deckMod("corps");
   const cap=BASE[S.taille]+corps;
+  // un objet rangé dans un sac qui n'existe plus revient dans le sac à dos
+  S.items.forEach(it=>{ if(String(it.where||"").startsWith("bag:") && !bagItem(it.where)){ it.where="sac"; delete it.pos; } });
   const by={sac:[],bourse:[],ceinture:[]};
   S.items.forEach((it,idx)=>{ (by[it.where]||by.sac).push({it,idx}); });
   // Sac à dos et ceinture : grilles de cases
   const usedSac=renderGrid("sac");
   const usedBelt=renderGrid("ceinture");
+  const usedPurseGrid=renderGrid("bourse")+coinCasesOf();
+  $("st-bourse").textContent=usedPurseGrid+" / 9"; $("st-bourse").className="status"+(usedPurseGrid>9?" bad":"");
+  renderBags();
   $("st-sac").textContent=usedSac+" / "+BAG_SLOTS; $("st-sac").className="status"+(usedSac>BAG_SLOTS?" bad":"");
   $("st-ceinture").textContent=usedBelt+" / "+BELT_SLOTS; $("st-ceinture").className="status"+(usedBelt>BELT_SLOTS?" bad":"");
   // Objets sans poids (0 case)
@@ -883,11 +972,14 @@ function renderInventory(){
   $("tiny").replaceChildren(...(tiny.length?[el("span",{class:"hint",style:"background:none;padding:0",text:"Sans poids :"}),...tiny.map(it=>el("span",{text:it.name||"Objet"}))]:[]));
   // Bourse : pièces (100 = 1 case) + petits objets
   const coinCases=Math.ceil(num(S.coins)/100);
-  $("coin-cases").textContent=`= ${coinCases} case${coinCases>1?"s":""} (100 pièces = 1 case)`;
-  $("purse-items").replaceChildren(...by.bourse.map(({it})=>el("span",{text:(it.name||"Objet")+(num(it.cases)?` · ${num(it.cases)}`:"")})));
+  $("coin-cases").textContent=`= ${coinCases} case${coinCases>1?"s":""} (100 pièces = 1 case)`+(coinCases>9?" · la bourse est pleine !":"");
+  $("coin-cases").style.color=coinCases>9?"var(--hurt)":"";
+  // objets minuscules (0 case) rangés dans la bourse : listés sous la grille
+  const purseTiny=by.bourse.filter(({it})=>num(it.cases)===0);
+  $("purse-items").replaceChildren(...(purseTiny.length?[el("span",{class:"hint",style:"background:none;padding:0",text:"Minuscules :"}),...purseTiny.map(({it})=>el("span",{text:it.name||"Objet"}))]:[]));
   const usedPurse=by.bourse.reduce((a,{it})=>a+Math.max(0,num(it.cases)),0);
-  // Charge totale = toutes les cases + pièces, comparée à la taille + Corps
-  const total=S.items.reduce((a,it)=>a+Math.max(0,num(it.cases)),0)+coinCases;
+  // Charge totale = toutes les cases + pièces, comparée à la taille + Corps (sauf le contenu des sacs plume)
+  const total=S.items.reduce((a,it)=>a+(countsInLoad(it)?Math.max(0,num(it.cases)):0),0)+coinCases;
   const over=total>cap;
   $("ch-base").textContent=`Taille ${S.taille} : ${BASE[S.taille]} cases + Corps (${corps})`;
   $("ch-bar").className="bar"+(over?" over":""); $("ch-bar").firstElementChild.style.width=Math.min(100,cap?Math.round(total/cap*100):100)+"%";
@@ -906,16 +998,38 @@ function renderItems(){
     const size=el("select",{"aria-label":"Taille (cases)"},...SIZES.map(s=>el("option",{value:s.n,text:`${s.n} case${s.n>1?"s":""}`})));
     if(!SIZES.some(s=>s.n===num(it.cases))) size.append(el("option",{value:num(it.cases),text:`${num(it.cases)} cases`}));
     size.value=num(it.cases); size.addEventListener("change",()=>{it.cases=Number(size.value);delete it.pos;save();renderInventory();});
-    const where=el("select",{"aria-label":"Rangé dans"},...[["sac","Sac à dos"],["ceinture","Ceinture"],["bourse","Bourse"]].map(([v,t])=>el("option",{value:v,text:t})));
+    // Rangé dans : sac à dos, ceinture, bourse, ou un des sacs (sauf lui-même et les sacs qu'il contient)
+    const places=[["sac","Sac à dos"],["ceinture","Ceinture"]];
+    if(num(it.cases)<=1 || it.where==="bourse") places.push(["bourse",num(it.cases)<=1?"Bourse":"Bourse (trop gros)"]);
+    S.items.forEach(o=>{ if(!o.bag || o===it) return; const w="bag:"+o.bag.id; if(it.bag && isInsideBag(w,it.bag.id)) return; places.push([w,"🎒 "+(o.name||"Sac")]); });
+    const where=el("select",{"aria-label":"Rangé dans"},...places.map(([v,t])=>el("option",{value:v,text:t})));
     where.value=it.where||"sac"; where.addEventListener("change",()=>{it.where=where.value;delete it.pos;save();renderInventory();});
-    L.append(el("div",{class:"obj","data-i":idx},el("span",{class:"sw",style:"background:"+sizeColor(num(it.cases))}),name,size,where,
-      el("button",{type:"button",class:"ghost","aria-label":"Supprimer l'objet",text:"✕",onclick:()=>{S.items.splice(idx,1);save();renderInventory();applyReadOnly();}})));
+    const bagBtn=el("button",{type:"button",class:"bagbtn","aria-pressed":it.bag?"true":"false",
+      title:it.bag?"C'est un sac : cliquer pour en refaire un objet normal (son contenu retourne dans le sac à dos)":"Faire de cet objet un sac (il pourra contenir d'autres objets)",
+      "aria-label":"Sac",text:"🎒",onclick:()=>{
+        if(it.bag){ emptyBag(it); delete it.bag; }
+        else it.bag={id:newBagId(),cols:3,rows:3,bottomless:false,feather:false};
+        save(); renderInventory(); applyReadOnly();
+      }});
+    L.append(el("div",{class:"obj","data-i":idx},el("span",{class:"sw",style:"background:"+sizeColor(num(it.cases))}),name,size,where,bagBtn,
+      el("button",{type:"button",class:"ghost","aria-label":"Supprimer l'objet",text:"✕",onclick:()=>{emptyBag(it);S.items.splice(idx,1);save();renderInventory();applyReadOnly();}})));
+    if(it.bag){
+      const g=it.bag;
+      const dim=(k,lab)=>{ const i=el("input",{type:"number",min:"1",max:"12",value:g[k],"aria-label":lab});
+        i.addEventListener("change",()=>{ g[k]=Math.max(1,Math.min(12,Math.round(num(i.value))||1)); i.value=g[k]; save(); renderInventory(); }); return i; };
+      const chk=(k,lab,help)=>{ const c=el("input",{type:"checkbox"}); c.checked=!!g[k];
+        c.addEventListener("change",()=>{ g[k]=c.checked; save(); renderInventory(); }); return el("label",{title:help},c,document.createTextNode(lab)); };
+      L.append(el("div",{class:"bagcfg"},
+        el("span",{},document.createTextNode("Contenance : "),dim("cols","Colonnes du sac"),document.createTextNode(" × "),dim("rows","Lignes du sac"),document.createTextNode(" cases")),
+        chk("bottomless","Sans fond","S'agrandit à l'infini ; tout ce qu'il contient compte quand même dans la charge"),
+        chk("feather","Plume","Rien de ce qu'il contient ne compte dans la charge")));
+    }
   });
 }
 $("coins").addEventListener("input",e=>{S.coins=num(e.target.value);save();renderInventory();});
 $("i-add").addEventListener("click",()=>{S.items.push({name:"",cases:1,where:"sac"});save();renderInventory();focusItem(S.items.length-1);});
 $("memo").replaceChildren(...SIZES.map(s=>el("div",{},el("span",{style:"background:"+s.col,text:s.n}),el("span",{},el("b",{text:s.t}),document.createTextNode(" · "+s.d)))),
-  el("div",{},el("span",{style:"background:var(--accent)",text:"€"}),el("span",{},el("b",{text:"100 pièces = 1 case"}),document.createTextNode(" · comptées dans la charge"))));
+  el("div",{},el("span",{style:"background:var(--accent)",text:"€"}),el("span",{},el("b",{text:"100 pièces = 1 case"}),document.createTextNode(" · seulement dans la bourse, comptées dans la charge"))));
 
 // ---------- Assistant manuel ----------
 function fillSelect(id,obj){ const s=$(id); s.replaceChildren(el("option",{value:"",text:"—"}),...Object.keys(obj).map(k=>el("option",{value:k,text:k}))); }
