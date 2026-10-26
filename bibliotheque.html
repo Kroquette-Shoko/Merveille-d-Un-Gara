@@ -78,7 +78,7 @@ function render(){
   const g = $id('grid');
   if(!all.length){ g.innerHTML = `<p class="empty">Aucune carte n'a encore été créée.${JDR_IS_EDITOR ? ' <a href="editeur-cartes.html">Créer la première</a>' : ''}</p>`; return; }
   if(!list.length){ g.innerHTML = '<p class="empty">Aucune carte ne correspond aux filtres.</p>'; return; }
-  g.innerHTML = list.map(c => `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" aria-label="${jdrEsc(c.name)}">${jdrCardHTML(c, { sheet, locked: !allowed(c), groups, width: 'min(434px, calc(100vw - 48px))' })}</button>`).join('');
+  g.innerHTML = list.map(c => `<button type="button" class="cardbtn" data-id="${jdrEsc(c.id)}" aria-label="${jdrEsc(c.name)}">${jdrCardHTML(c, Object.assign({ sheet, locked: !allowed(c), groups }, c.type === 'Créature' ? { width: 'min(434px, calc(100vw - 48px))' } : {}))}</button>`).join('');
 }
 $id('grid').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if(b) openDetail(b.dataset.id); });
 
