@@ -440,7 +440,7 @@ async function createCharacter(){
     stats: Object.fromEntries(JDR_STATS.map(x => [x.key, t[x.key]])),
     woundsMax: Math.max(1, t.wounds), wounds: Array(Math.max(1, t.wounds)).fill(false), armor: armors.reduce((a, x) => a + (Number(x.pa) || 0), 0), armag: armors.reduce((a, x) => a + (Number(x.pam) || 0), 0),
     resources: s.magic ? [{ name: 'Mana', max: 10, val: 0 }] : [],
-    weapons, armors, items: [...carried, ...others], coins: 0, taille: p.size || 'M', notes: C.history
+    weapons, armors, items: [...carried, ...others], coins: { au: 0, ag: 0, cu: 0 }, taille: p.size || 'M', notes: C.history
   };
   data.armor = Math.min(18, data.armor); data.armag = Math.min(18, data.armag);
   status('Création…');

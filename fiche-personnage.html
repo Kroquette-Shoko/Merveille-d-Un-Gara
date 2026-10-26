@@ -219,9 +219,16 @@ summary{cursor:pointer;font-weight:700}
 .ghost-cell.bad{border-color:var(--hurt);background:rgba(200,60,50,.22)}
 .outside{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
 .outside button{border:0;border-radius:999px;padding:3px 10px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer}
-.purse{background:var(--cell);border-radius:12px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
-.coin{z-index:1;border-radius:9px;background:linear-gradient(135deg,#E2B54A,#B8862A);color:#3A2A08;font-weight:800;font-size:.78rem;display:grid;place-items:center;text-align:center;line-height:1.05}
-.purse input{font-family:var(--f-display);font-weight:800;font-size:2.4rem;color:var(--accent);text-align:center;border:0;width:5ch;padding:0;-moz-appearance:textfield;appearance:textfield}
+.purse{background:var(--cell);border-radius:12px;padding:8px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.purse .cointypes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+.purse .ct{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:.72rem;line-height:1.1}
+.purse .ct i{width:14px;height:14px;border-radius:50%;display:inline-block}
+/* Pièces : or, argent, cuivre */
+.coin{z-index:1;border-radius:9px;font-weight:800;white-space:pre-line;font-size:.78rem;display:grid;place-items:center;text-align:center;line-height:1.05}
+.coin.au,.ct i.au{background:linear-gradient(135deg,#E2B54A,#B8862A);color:#3A2A08}
+.coin.ag,.ct i.ag{background:linear-gradient(135deg,#E3E6EA,#9DA3AB);color:#2B2F35}
+.coin.cu,.ct i.cu{background:linear-gradient(135deg,#D58A5A,#9A5530);color:#2E1608}
+.purse input{font-family:var(--f-display);font-weight:800;font-size:1.5rem;color:var(--accent);text-align:center;border:0;width:100%;max-width:5ch;padding:0;-moz-appearance:textfield;appearance:textfield}
 .purse input::-webkit-outer-spin-button,.purse input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .side2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:520px){.side2{grid-template-columns:1fr}}
@@ -433,8 +440,11 @@ summary{cursor:pointer;font-weight:700}
           <div>
             <div class="cont-title">Bourse <span class="status" id="st-bourse"></span></div>
             <div class="purse">
-              <input type="number" id="coins" min="0" aria-label="Nombre de pièces">
-              <div>pièces</div>
+              <div class="cointypes">
+                <label class="ct"><input type="number" id="coins-au" min="0" aria-label="Pièces d'or"><span><i class="au"></i> or</span></label>
+                <label class="ct"><input type="number" id="coins-ag" min="0" aria-label="Pièces d'argent"><span><i class="ag"></i> argent</span></label>
+                <label class="ct"><input type="number" id="coins-cu" min="0" aria-label="Pièces de cuivre"><span><i class="cu"></i> cuivre</span></label>
+              </div>
               <div class="hint" id="coin-cases"></div>
             </div>
             <div class="slots" id="sl-bourse" data-cont="bourse" style="--cols:3;--rows:3;--rh:52px;margin-top:6px"></div>
@@ -522,7 +532,21 @@ function itemShape(it){ const [w,h]=sizeShape(Math.max(0,num(it.cases))); return
 //   (100 pièces = 1 case, rangées en premier dans la bourse).
 const CONT = { sac:{cols:7,rows:6,box:"sl-sac",out:"out-sac"}, ceinture:{cols:3,rows:2,box:"sl-ceinture",out:"out-ceinture"},
                bourse:{cols:3,rows:3,box:"sl-bourse",out:"out-bourse",maxItem:1,coins:true} };
-const coinCasesOf = () => Math.ceil(num(S.coins)/100);
+// Pièces : S.coins = { au: or, ag: argent, cu: cuivre }. Chaque sorte se range à part : 100 pièces d'une même sorte = 1 case.
+// (Les anciennes fiches avaient un seul nombre de pièces : il devient des pièces de cuivre.)
+const COIN_TYPES = [ {k:"au",n:"or"}, {k:"ag",n:"argent"}, {k:"cu",n:"cuivre"} ];
+function coinsOf(){
+  if(!S.coins || typeof S.coins!=="object") S.coins={au:0,ag:0,cu:0,...(num(S.coins)?{cu:num(S.coins)}:{})};
+  COIN_TYPES.forEach(t=>{ S.coins[t.k]=Math.max(0,num(S.coins[t.k])); });
+  return S.coins;
+}
+// Cases de pièces, dans l'ordre or → argent → cuivre : [{k, n}] (n = nombre de pièces dans la case, 100 au plus)
+function coinCells(){
+  const c=coinsOf(), out=[];
+  COIN_TYPES.forEach(t=>{ for(let left=c[t.k]; left>0; left-=100) out.push({k:t.k, n:Math.min(100,left)}); });
+  return out;
+}
+const coinCasesOf = () => coinCells().length;
 // Sacs en plus : un objet de l'inventaire peut être un sac (it.bag). Ce qu'il contient a where = "bag:" + it.bag.id.
 //   it.bag = { id, cols, rows, bottomless, feather }
 //   bottomless (sans fond) : la grille s'agrandit sans limite ; le contenu compte quand même dans la charge.
@@ -564,9 +588,9 @@ const SAMPLE = {
   weapons:[{name:"Pistolet à silex",a1:"1 blessure",a2:"1 blessure légère et désarme",a3:"",type:"Perforant",prop:"Portée : distance moyenne / Munition"}],
   armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""},{kind:"Bouclier",name:"",att:"",pa:"",pam:"",res:"",prop:""}],
   items:[{name:"Munitions",cases:1,where:"ceinture"},{name:"Corde (15 m)",cases:2,where:"sac"}],
-  coins:150,taille:"M",notes:""
+  coins:{au:1,ag:20,cu:150},taille:"M",notes:""
 };
-const BLANK = ()=>({player:"",name:"",level:1,genre:"",peuple:"",classe:"",specialisation:"",passe:"",taillepoids:"",portrait:"",stats:{corps:0,esprit:0,charme:0,opp:0,ant:0,res:0,pa:0},wounds:Array(30).fill(false),woundsMax:30,armor:0,armag:0,resources:[{name:"Mana",max:10,val:0}],weapons:[{name:"",a1:"",a2:"",a3:"",type:"",prop:""}],armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""}],items:[],coins:0,taille:"M",notes:""});
+const BLANK = ()=>({player:"",name:"",level:1,genre:"",peuple:"",classe:"",specialisation:"",passe:"",taillepoids:"",portrait:"",stats:{corps:0,esprit:0,charme:0,opp:0,ant:0,res:0,pa:0},wounds:Array(30).fill(false),woundsMax:30,armor:0,armag:0,resources:[{name:"Mana",max:10,val:0}],weapons:[{name:"",a1:"",a2:"",a3:"",type:"",prop:""}],armors:[{kind:"Armure",name:"",att:"",pa:"",pam:"",res:"",prop:""}],items:[],coins:{au:0,ag:0,cu:0},taille:"M",notes:""});
 
 let S;
 try{ const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : structuredClone(SAMPLE); }catch(e){ S = structuredClone(SAMPLE); }
@@ -793,9 +817,11 @@ function renderGrid(where){
   box.replaceChildren(); box.style.setProperty("--rows",L.shown); box.dataset.rows=L.shown;
   for(let y=0;y<L.shown;y++) for(let x=0;x<c.cols;x++) box.append(el("div",{class:"free",style:`grid-column:${x+1};grid-row:${y+1}`}));
   // cases de pièces (bourse)
+  const cells=coinCells();
   for(let k=0;k<L.coinCells;k++){
-    const left=num(S.coins)-k*100, n=Math.min(100,left);
-    box.append(el("div",{class:"coin",title:"Pièces (100 pièces = 1 case)",style:`grid-column:${k%c.cols+1};grid-row:${Math.floor(k/c.cols)+1}`,text:`🪙 ${n}`}));
+    const {k:t,n}=cells[k], name=COIN_TYPES.find(x=>x.k===t).n;
+    box.append(el("div",{class:"coin "+t,title:`${n} pièce${n>1?"s":""} ${name==="or"?"d'or":name==="argent"?"d'argent":"de cuivre"} (100 = 1 case)`,
+      style:`grid-column:${k%c.cols+1};grid-row:${Math.floor(k/c.cols)+1}`,text:`${n}\n${name}`}));
   }
   L.placed.forEach(({idx,x,y,w,h})=>{
     const it=S.items[idx], n=num(it.cases);
@@ -952,7 +978,7 @@ function renderBags(){
 }
 function renderInventory(){
   renderSizes();
-  $("coins").value=S.coins;
+  const co=coinsOf(); COIN_TYPES.forEach(t=>{ const i=$("coins-"+t.k); if(document.activeElement!==i) i.value=co[t.k]; });
   const corps=num(S.stats.corps)+deckMod("corps");
   const cap=BASE[S.taille]+corps;
   // un objet rangé dans un sac qui n'existe plus revient dans le sac à dos
@@ -971,8 +997,8 @@ function renderInventory(){
   const tiny=S.items.filter(it=>num(it.cases)===0 && it.where!=="bourse");
   $("tiny").replaceChildren(...(tiny.length?[el("span",{class:"hint",style:"background:none;padding:0",text:"Sans poids :"}),...tiny.map(it=>el("span",{text:it.name||"Objet"}))]:[]));
   // Bourse : pièces (100 = 1 case) + petits objets
-  const coinCases=Math.ceil(num(S.coins)/100);
-  $("coin-cases").textContent=`= ${coinCases} case${coinCases>1?"s":""} (100 pièces = 1 case)`+(coinCases>9?" · la bourse est pleine !":"");
+  const coinCases=coinCasesOf();
+  $("coin-cases").textContent=`= ${coinCases} case${coinCases>1?"s":""} (100 pièces d'une sorte = 1 case)`+(coinCases>9?" · la bourse est pleine !":"");
   $("coin-cases").style.color=coinCases>9?"var(--hurt)":"";
   // objets minuscules (0 case) rangés dans la bourse : listés sous la grille
   const purseTiny=by.bourse.filter(({it})=>num(it.cases)===0);
@@ -1026,10 +1052,10 @@ function renderItems(){
     }
   });
 }
-$("coins").addEventListener("input",e=>{S.coins=num(e.target.value);save();renderInventory();});
+COIN_TYPES.forEach(t=>$("coins-"+t.k).addEventListener("input",e=>{ coinsOf()[t.k]=Math.max(0,num(e.target.value)); save(); renderInventory(); }));
 $("i-add").addEventListener("click",()=>{S.items.push({name:"",cases:1,where:"sac"});save();renderInventory();focusItem(S.items.length-1);});
 $("memo").replaceChildren(...SIZES.map(s=>el("div",{},el("span",{style:"background:"+s.col,text:s.n}),el("span",{},el("b",{text:s.t}),document.createTextNode(" · "+s.d)))),
-  el("div",{},el("span",{style:"background:var(--accent)",text:"€"}),el("span",{},el("b",{text:"100 pièces = 1 case"}),document.createTextNode(" · seulement dans la bourse, comptées dans la charge"))));
+  el("div",{},el("span",{style:"background:var(--accent)",text:"€"}),el("span",{},el("b",{text:"100 pièces d'une sorte = 1 case"}),document.createTextNode(" · seulement dans la bourse, comptées dans la charge"))));
 
 // ---------- Assistant manuel ----------
 function fillSelect(id,obj){ const s=$(id); s.replaceChildren(el("option",{value:"",text:"—"}),...Object.keys(obj).map(k=>el("option",{value:k,text:k}))); }
