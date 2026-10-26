@@ -611,6 +611,10 @@ function jdrDeckLimits(sheet){
   return { min: JDR_DECK_MIN, max: JDR_DECK_MAX_BY_LEVEL[lvl], level: lvl };
 }
 
+// Carte « hors deck » : elle ne compte pas dans la taille du deck et n'est jamais piochée.
+// Les cartes de voie (Passif / Voie) le sont toujours, même si la case « Hors deck » n'est pas cochée.
+function jdrIsHorsDeck(card){ return !!(card && (card.horsDeck || (card.type === 'Passif' && card.subtype === 'Voie'))); }
+
 // Vérifie un deck complet. Renvoie { count, horsDeck, limits, errors[], warnings[] }
 function jdrValidateDeck(deck, cardsById, sheet){
   const limits = jdrDeckLimits(sheet);
@@ -620,7 +624,7 @@ function jdrValidateDeck(deck, cardsById, sheet){
     const card = cardsById[entry.card];
     const qty = Number(entry.qty) || 0;
     if(!card){ warnings.push(`Carte introuvable (${entry.card}) : elle a peut-être été supprimée.`); return; }
-    if(card.horsDeck){ horsDeck += qty; if(qty > 1) errors.push(`${card.name} : une carte hors deck ne peut être prise qu'une fois.`); }
+    if(jdrIsHorsDeck(card)){ horsDeck += qty; if(qty > 1) errors.push(`${card.name} : une carte hors deck ne peut être prise qu'une fois.`); }
     else count += qty;
     if(card.maxCopies && qty > card.maxCopies) errors.push(`${card.name} : ${card.maxCopies} exemplaire(s) maximum.`);
     const a = jdrCardAllowed(card, sheet, eff);

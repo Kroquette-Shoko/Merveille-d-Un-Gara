@@ -89,7 +89,7 @@ function jdrFilters(container, onChange, opts = {}){
     if(n(S.mMin) !== null && (c.mana === null || Number(c.mana) < n(S.mMin))) return false;
     if(n(S.mMax) !== null && (c.mana === null || Number(c.mana) > n(S.mMax))) return false;
     if(S.persistent && !c.persistent) return false;
-    if(S.horsDeck && !c.horsDeck) return false;
+    if(S.horsDeck && !(typeof jdrIsHorsDeck === 'function' ? jdrIsHorsDeck(c) : c.horsDeck)) return false;
     if(S.playable && ctx && ctx.allowed && !ctx.allowed(c)) return false;
     return true;
   }

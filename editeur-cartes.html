@@ -403,8 +403,11 @@ function renderSubtypes(){
 $id('f-type').replaceChildren(...JDR_CARD_TYPES.map(t => el('option', { value: t, text: t })));
 $id('f-name').addEventListener('input', e => { cur.name = e.target.value; if(!savedId){ cur.id = jdrSlug(cur.name); $id('f-id').value = cur.id; } changed(); });
 $id('f-id').addEventListener('input', e => { cur.id = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''); e.target.value = cur.id; changed(); });
-$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); renderCreature(); renderPact(); changed(); artLayout(); });
-$id('f-subtype').addEventListener('change', e => { cur.subtype = e.target.value; changed(); });
+$id('f-type').addEventListener('change', e => { cur.type = e.target.value; renderSubtypes(); renderCreature(); renderPact(); syncHorsDeck(); changed(); artLayout(); });
+$id('f-subtype').addEventListener('change', e => { cur.subtype = e.target.value; syncHorsDeck(); changed(); });
+// Case « Hors deck » : toujours cochée (et bloquée) pour une carte de voie
+function syncHorsDeck(){ const voie = cur.type === 'Passif' && cur.subtype === 'Voie'; const b = $id('f-horsdeck');
+  b.checked = jdrIsHorsDeck(cur); b.disabled = voie; b.parentElement.title = voie ? 'Une carte de voie est toujours hors deck' : ''; }
 $id('f-value').addEventListener('input', e => { cur.value = num(e.target.value); changed(); });
 $id('f-mana').addEventListener('input', e => { cur.mana = num(e.target.value); changed(); });
 $id('f-rank').replaceChildren(new Option('Sans rang', ''), ...JDR_CARD_RANKS.map(r => new Option('Rang ' + r, String(r))));
@@ -722,7 +725,7 @@ function renderForm(){
   chipGroup($id('f-classes'), existing('classe', cur.classes), cur.classes, (v, on) => toggleIn(cur.classes, v, on)); markMissing($id('f-classes'), 'classe');
   renderSupertypes(); renderRestrict();
   $id('f-image').value = cur.image_url;
-  $id('f-persistent').checked = !!cur.persistent; $id('f-horsdeck').checked = !!cur.horsDeck;
+  $id('f-persistent').checked = !!cur.persistent; syncHorsDeck();
   $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';
   renderReqs(); renderKeywords(); renderAbilities(); renderSpecial(); renderCreature(); renderPact(); renderPreview(); artLayout(); applyRights();
 }

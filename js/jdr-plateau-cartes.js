@@ -98,9 +98,11 @@ const PC = (() => {
     let deck = c && Array.isArray(c.deck) ? c.deck : null;
     if(!deck){ const { data } = await jdrSb.from('characters').select('deck').eq('id', ch).maybeSingle(); deck = data && Array.isArray(data.deck) ? data.deck : null; }
     if(!deck){ toast('Deck introuvable : seul le joueur ou le MJ peut préparer ce deck.'); return; }
-    const list = []; deck.forEach(e => { for(let i = 0; i < (Number(e.qty) || 0); i++) list.push({ u: uid(), c: e.card }); });
-    if(!list.length){ toast('Le deck de ' + nameOf(ch) + ' est vide : construis-le depuis sa fiche.'); return; }
-    if(await mutate(ch, d => { Object.assign(d, blank(), { draw: shuffle(list), pending: null }); })) log(`${nameOf(ch)} prépare son deck (${list.length} cartes mélangées)`);
+    // les cartes hors deck (dont les voies) ne sont jamais piochées : elles sont posées directement « En jeu »
+    const list = [], out = []; deck.forEach(e => { for(let i = 0; i < (Number(e.qty) || 0); i++) (jdrIsHorsDeck(cards[e.card]) ? out : list).push({ u: uid(), c: e.card }); });
+    if(!list.length && !out.length){ toast('Le deck de ' + nameOf(ch) + ' est vide : construis-le depuis sa fiche.'); return; }
+    if(await mutate(ch, d => { Object.assign(d, blank(), { draw: shuffle(list), play: out, pending: null }); }))
+      log(`${nameOf(ch)} prépare son deck (${list.length} cartes mélangées${out.length ? `, ${out.map(c => '« ' + cardName(c) + ' »').join(', ')} en jeu` : ''})`);
   }
   async function draw(ch, n){
     if(!guard(ch)) return;
@@ -126,8 +128,10 @@ const PC = (() => {
   async function shuffleDraw(ch){ if(!guard(ch)) return; if(await mutate(ch, d => { shuffle(d.draw); })) log(`${nameOf(ch)} mélange sa pioche`); }
   async function rest(ch){
     let removed = 0, total = 0;
-    const ok = await mutate(ch, d => { const all = Object.keys(ZONES).flatMap(z => d[z] || []);
-      const keep = all.filter(c => !isRisk(c)); removed = all.length - keep.length; total = keep.length; if(d.pending){ all.push(d.pending.card); d.pending = null; } Object.assign(d, blank(), { draw: shuffle(keep) }); });
+    const ok = await mutate(ch, d => { const all = Object.keys(ZONES).flatMap(z => d[z] || []); if(d.pending){ all.push(d.pending.card); d.pending = null; }
+      const keep = all.filter(c => !isRisk(c)); removed = all.length - keep.length;
+      const out = keep.filter(c => jdrIsHorsDeck(cards[c.c])), inDeck = keep.filter(c => !jdrIsHorsDeck(cards[c.c])); total = inDeck.length;
+      Object.assign(d, blank(), { draw: shuffle(inDeck), play: out }); });
     if(ok) log(`${nameOf(ch)} se repose : toutes ses cartes reviennent dans la pioche (${total})${removed ? `, ${removed} Risque${removed > 1 ? 's' : ''} retiré${removed > 1 ? 's' : ''}` : ''}`);
   }
   // Déplacer un exemplaire d'une pile à une autre (éventuellement d'un personnage à un autre)

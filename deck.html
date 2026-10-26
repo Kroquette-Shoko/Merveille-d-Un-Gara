@@ -212,7 +212,7 @@ function setQty(id, q){
   if(readOnly) return;
   const card = byId[id]; if(!card) return;
   q = Math.max(0, q);
-  if(card.horsDeck) q = Math.min(q, 1);
+  if(jdrIsHorsDeck(card)) q = Math.min(q, 1);
   if(card.maxCopies) q = Math.min(q, card.maxCopies);
   const e = deck.find(x => x.card === id);
   if(e){ if(q) e.qty = q; else deck = deck.filter(x => x !== e); }
@@ -363,14 +363,14 @@ function renderDeck(){
   $id('meter').style.width = Math.min(100, v.count / v.limits.max * 100) + '%';
   // Courbe de mana : nombre de cartes par coût
   const buckets = ['—','0','1','2','3','4','5','6+'].map(k => ({ k, n: 0 }));
-  deck.forEach(e => { const c = byId[e.card]; if(!c || c.horsDeck) return; const m = manaKey(c);
+  deck.forEach(e => { const c = byId[e.card]; if(!c || jdrIsHorsDeck(c)) return; const m = manaKey(c);
     const i = m === null ? 0 : Math.min(7, m + 1); buckets[i].n += e.qty; });
   const mx = Math.max(1, ...buckets.map(b => b.n));
   $id('curve').innerHTML = buckets.map(b => `<div title="${b.k === '—' ? 'Sans mana' : 'Mana ' + b.k} : ${b.n}"><span>${b.n || ''}</span><i style="height:${Math.round(b.n / mx * 34)}px"></i><span>${b.k}</span></div>`).join('');
   // Liste par type
   const bad = new Set(v.errors.map(e => e.split(' : ')[0]));
   const grp = {};
-  deck.forEach(e => { const c = byId[e.card]; const g = c ? (c.horsDeck ? 'Hors deck' : c.type) : 'Introuvables'; (grp[g] = grp[g] || []).push({ e, c }); });
+  deck.forEach(e => { const c = byId[e.card]; const g = c ? (jdrIsHorsDeck(c) ? 'Hors deck' : c.type) : 'Introuvables'; (grp[g] = grp[g] || []).push({ e, c }); });
   const order = [...JDR_CARD_TYPES, 'Hors deck', 'Introuvables'];
   $id('d-list').innerHTML = order.filter(g => grp[g]).map(g => {
     const items = grp[g].sort((a, b) => (manaKey(a.c || {}) ?? -1) - (manaKey(b.c || {}) ?? -1) || (a.c ? a.c.name : a.e.card).localeCompare(b.c ? b.c.name : b.e.card, 'fr'));
