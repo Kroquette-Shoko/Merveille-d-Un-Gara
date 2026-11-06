@@ -994,12 +994,13 @@ function placeHud(){
   const it = sel && items.get(sel); if(!it) return;
   const b = boardRect(); const cx = b.left + view.x + (it.data.x + it.data.w / 2) * view.z, top = b.top + view.y + it.data.y * view.z, rad = it.data.w * view.z / 2;
   const B2 = $id('tbub');
-  if(!B2.hidden){ // bulles en arc au-dessus du pion
-    const R = Math.max(46, rad + 26), cy = top + rad, n = BUBBLES.length;
-    [...B2.children].forEach((bb, i) => { const a = Math.PI * (1.1 + 0.8 * i / (n - 1)); bb.style.left = (cx + R * Math.cos(a)) + 'px'; bb.style.top = (cy + R * Math.sin(a)) + 'px'; });
+  // bulles réparties tout autour du pion (cercle complet, la première en haut), assez loin pour ne pas cacher son nom
+  const R = Math.max(70, rad + 46), cy = top + rad;
+  if(!B2.hidden){ const n = B2.children.length;
+    [...B2.children].forEach((bb, i) => { const a = -Math.PI / 2 + 2 * Math.PI * i / n; bb.style.left = (cx + R * Math.cos(a)) + 'px'; bb.style.top = (cy + R * Math.sin(a)) + 'px'; });
   }
   const H = $id('thud'); if(H.hidden) return;
-  const w = H.offsetWidth || 280, h = H.offsetHeight || 150, y = top - Math.max(46, rad + 26) - 30;
+  const w = H.offsetWidth || 280, h = H.offsetHeight || 150, y = cy - R - 30;   // le menu s'ouvre au-dessus de la bulle du haut
   H.style.left = Math.max(w / 2 + 8, Math.min(b.right - w / 2 - 8, cx)) + 'px';
   H.style.top = Math.max(h + 8, y) + 'px';
 }
