@@ -77,6 +77,8 @@ a{color:var(--acc2)}
 .thud .on{border-color:var(--acc2);background:rgba(217,76,156,.22)}
 .thud .sr{grid-template-columns:96px 1fr}
 .tme-st.mod b{color:#7ed957}
+.thud .hpline{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.88rem;padding:2px 0 4px;border-bottom:1px solid var(--uil)}
+.thud .w{min-width:34px;font-weight:800}
 .thud .dmgrow{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .thud .val.mod{color:#7ed957}
 .thud .draft{color:var(--acc2);font-size:.8rem}
@@ -732,8 +734,8 @@ function statsOf(it){
     const mana = (d.resources || []).find(r => /mana/i.test(r.name || ''));
     return { src: 'pj', hp: { cur: Math.max(0, max - lost), max }, armor: { cur: Number(d.armor) || 0, max: sum('pa') }, armag: { cur: Number(d.armag) || 0, max: sum('pam') },
       mana: mana ? { cur: Number(mana.val) || 0, max: Number(mana.max) || 0 } : null }; }
-  if(it.data.sheet){ const sh = it.data.sheet, g = k => sh[k] && Number(sh[k].max) ? { cur: numOr(sh[k].cur, Number(sh[k].max)), max: Number(sh[k].max) } : { cur: 0, max: 0 };
-    const m = g('mana'); return { src: 'copy', hp: g('hp'), armor: g('armor'), armag: g('armag'), mana: m.max ? m : null }; }
+  if(it.data.sheet){ const sh = it.data.sheet, g = k => sh[k] ? { cur: numOr(sh[k].cur, Number(sh[k].max) || 0), max: Number(sh[k].max) || 0 } : { cur: 0, max: 0 };
+    const m = g('mana'); return { src: 'copy', hp: g('hp'), armor: g('armor'), armag: g('armag'), mana: m.max || m.cur ? m : null }; }
   const e = entryOf(it);
   if(e){ const cr = creaOf(e); const crn = cr ? jdrNormalizeCreature(cr.creature) : null; const ed = e.data;
     const hmax = crn ? crn.hearts * 6 : numOr(ed.hp && ed.hp.max, 0);
@@ -756,9 +758,9 @@ function logHp(it, delta, after, max){
     postMsg('action', `${it.data.name || 'Un pion'} ${p.d < 0 ? 'perd' : 'récupère'} ${Math.abs(p.d)} PV — ${after}/${max}`); }, 1500);
   hpLog.set(k, p);
 }
-async function setStat(it, key, val, silent){
+async function setStat(it, key, val, silent, noCap){
   const st = statsOf(it); const cur = st[key] || (st.src === 'copy' ? { cur: 0, max: 0 } : null); if(!cur) return;
-  const v = Math.max(0, cur.max ? Math.min(cur.max, Math.round(val)) : Math.round(val));
+  const v = Math.max(0, cur.max && !noCap ? Math.min(cur.max, Math.round(val)) : Math.round(val));   // noCap : bonus d'armure au-delà du maximum
   if(v === cur.cur) return;
   const delta = v - cur.cur;
   if(st.src === 'pj'){
@@ -839,26 +841,37 @@ async function applyDamage(it, n, kind){
   const hp = statsOf(it).hp, after = Math.max(0, hp.cur - left);
   if(left) await setStat(it, 'hp', after, true);
   const lab = { phys: 'physiques', mag: 'magiques', vrai: 'vrais' }[kind];
-  postMsg('action', `${it.data.name || 'Un pion'} subit ${n} dégâts ${lab}${absorbed ? ` (${absorbed} absorbé${absorbed > 1 ? 's' : ''} par l’armure${kind === 'mag' ? ' magique' : ''})` : ''} — PV ${after}${hp.max ? ' / ' + hp.max : ''}`);
+  postMsg('action', `${it.data.name || 'Un pion'} subit ${n} ${n > 1 ? 'dégâts ' + lab : 'dégât ' + lab.replace(/s$/, '')}${absorbed ? ` (${absorbed} absorbé${absorbed > 1 ? 's' : ''} par l’armure${kind === 'mag' ? ' magique' : ''})` : ''} — PV ${after}${hp.max ? ' / ' + hp.max : ''}`);
 }
 async function applyHeal(it, n){
   n = Math.max(0, Math.round(n)); if(!n) return; const hp = statsOf(it).hp; const after = hp.max ? Math.min(hp.max, hp.cur + n) : hp.cur + n;
   await setStat(it, 'hp', after, true); postMsg('action', `${it.data.name || 'Un pion'} est soigné de ${after - hp.cur} PV — PV ${after}${hp.max ? ' / ' + hp.max : ''}`);
 }
+// Tailles de blessure : Grave = 6, Normale = 3, Légère = 1
+const WOUND = { G: 6, N: 3, L: 1 };
+const WOUND_T = { G: 'Grave (6)', N: 'Normale (3)', L: 'Légère (1)' };
 function hudHealth(it, rows){
-  const st = statsOf(it), canMax = isGM && st.src === 'tok';
-  rows.push(hrow('Points de vie', el('b', { class: 'val', text: fmtV(st.hp) })),
-    hrow('Armure', el('span', { class: 'val', text: fmtV(st.armor) }), hbtn('+1', () => setStat(it, 'armor', statsOf(it).armor.cur + 1)), hbtn('Max', () => setStat(it, 'armor', statsOf(it).armor.max), '', 'Réparer entièrement')),
-    hrow('Armure mag.', el('span', { class: 'val', text: fmtV(st.armag) }), hbtn('+1', () => setStat(it, 'armag', statsOf(it).armag.cur + 1)), hbtn('Max', () => setStat(it, 'armag', statsOf(it).armag.max), '', 'Réparer entièrement')));
-  const n = el('input', { type: 'number', min: '0', max: '999', value: '1', style: 'width:4.5rem', 'aria-label': 'Montant' });
-  const amt = () => Number(n.value) || 0;
-  rows.push(hrow('Montant', n, hbtn('Soigner', () => applyHeal(it, amt()), 'heal', 'Rend des PV')));
-  rows.push(el('div', { class: 'dmgrow' },
-    hbtn('Physique', () => applyDamage(it, amt(), 'phys'), 'dmg', 'Enlève d’abord l’armure, puis les PV'),
-    hbtn('Magique', () => applyDamage(it, amt(), 'mag'), 'dmg', 'Enlève d’abord l’armure magique, puis les PV'),
-    hbtn('Vrai', () => applyDamage(it, amt(), 'vrai'), 'dmg', 'Directement sur les PV')));
-  rows.push(el('div', { class: 'sv' }, hbtn('PV au max', () => setStat(it, 'hp', statsOf(it).hp.max), 'heal'),
-    ...(canMax ? [hbtn('Régler les maximums…', () => { bubble = 'res'; renderHud(); })] : [])));
+  const st = statsOf(it);
+  const cm = v => v ? `${v.cur} / ${v.max}` : '0 / 0';
+  rows.push(el('div', { class: 'hpline' },
+    el('span', {}, document.createTextNode('Santé : '), el('b', { text: cm(st.hp) })),
+    el('span', {}, document.createTextNode('Armure : '), el('b', { text: cm(st.armor) })),
+    el('span', {}, document.createTextNode('Armure M : '), el('b', { text: cm(st.armag) }))));
+  const wrow = (label, kind, title) => rows.push(hrow(label, ...['G', 'N', 'L'].map(k => hbtn(k, () => applyDamage(it, WOUND[k], kind), 'dmg w', `${WOUND_T[k]} — ${title}`))));
+  wrow('Dégât physique', 'phys', 'enlève d’abord l’armure, puis les PV');
+  wrow('Dégât magique', 'mag', 'enlève d’abord l’armure magique, puis les PV');
+  wrow('Dégât vrai', 'vrai', 'directement sur les PV');
+  rows.push(hrow('Soin', ...['L', 'N', 'G'].map(k => hbtn('+' + WOUND[k], () => applyHeal(it, WOUND[k]), 'heal w', 'Soigner ' + WOUND[k] + ' PV')),
+    hbtn('Tout', () => applyHeal(it, Math.max(0, statsOf(it).hp.max - statsOf(it).hp.cur)), 'heal', 'PV au maximum')));
+  // Bonus d'armure : + X (peut dépasser le maximum de la fiche)
+  const x = el('input', { type: 'number', min: '1', max: '99', value: String(hudHealth.bonus || 1), style: 'width:3.6rem', 'aria-label': 'Bonus d’armure' });
+  x.addEventListener('input', () => { hudHealth.bonus = Number(x.value) || 1; });   // la valeur reste après chaque clic
+  const bonus = async key => { const n = Math.max(0, Math.round(Number(x.value) || 0)); if(!n) return; const v = statsOf(it)[key] || { cur: 0 };
+    await setStat(it, key, v.cur + n, true, true);
+    postMsg('action', `${it.data.name || 'Un pion'} gagne +${n} en ${key === 'armor' ? 'armure' : 'armure magique'} — ${(statsOf(it)[key] || {}).cur}`); };
+  rows.push(hrow('Bonus armure', document.createTextNode('+'), x, hbtn('Armure', () => bonus('armor')), hbtn('Armure M', () => bonus('armag'))));
+  rows.push(el('div', { class: 'sv' }, hbtn('Réparer l’armure', () => setStat(it, 'armor', statsOf(it).armor.max), '', 'Armure au maximum'),
+    hbtn('Réparer l’armure M', () => setStat(it, 'armag', statsOf(it).armag.max), '', 'Armure magique au maximum')));
 }
 
 /* ---- ✦ États ---- */
