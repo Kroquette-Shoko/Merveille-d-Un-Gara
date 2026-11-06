@@ -68,6 +68,33 @@ a{color:var(--acc2)}
 .thud .val{min-width:52px;text-align:center;font-weight:700;cursor:default}
 .thud .val.ed{cursor:pointer;text-decoration:underline dotted}
 .thud .dmg{background:#5a2626;border-color:#7a3333}
+/* bulles autour du pion sélectionné */
+.tbub .bub{position:fixed;z-index:31;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;padding:0;display:grid;place-items:center;font-size:1.05rem;
+  background:var(--ui);border:2px solid var(--uil);box-shadow:0 4px 12px rgba(0,0,0,.5);transition:transform .12s}
+.tbub .bub:hover{transform:translate(-50%,-50%) scale(1.12);border-color:var(--acc2)}
+.tbub .bub.on{border-color:var(--acc2);background:var(--acc)}
+.thud{min-width:290px;max-width:min(420px,calc(100vw - 16px));max-height:60vh;overflow-y:auto}
+.thud .on{border-color:var(--acc2);background:rgba(217,76,156,.22)}
+.thud .sr{grid-template-columns:96px 1fr}
+.tme-st.mod b{color:#7ed957}
+.thud .dmgrow{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.thud .val.mod{color:#7ed957}
+.thud .draft{color:var(--acc2);font-size:.8rem}
+.thud .stconf{display:flex;flex-wrap:wrap;gap:4px;align-items:center;border-top:1px solid var(--uil);padding-top:5px}
+.thud .stconf span{width:100%;color:var(--uim);font-size:.78rem}
+.stgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px}
+.stb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px !important;line-height:1.05}
+.stb span,.stb img{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--ui3);font-weight:800;font-size:.75rem;object-fit:cover}
+.stb small{font-size:.66rem;text-align:center;overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
+.stlist{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--uil);padding-top:5px}
+.sti{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;font-size:.8rem}
+.sti b{display:flex;align-items:center;gap:3px}.sti b span,.sti b img{width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;background:var(--ui3);font-size:.6rem}
+.sti>span{color:var(--uim);font-size:.75rem}
+.vars{display:flex;flex-wrap:wrap;gap:4px}.vars:empty{display:none}
+.var{width:38px;height:38px;padding:0 !important;border-radius:8px;overflow:hidden}.var img{width:100%;height:100%;object-fit:cover}
+/* aura et états sur le pion */
+.it .aura{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;border:2px solid var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);pointer-events:none;z-index:-1}
+.it .sts b{display:inline-grid;place-items:center;overflow:hidden}.it .sts b img{width:100%;height:100%;object-fit:cover}
 .thud .heal{background:#24503a;border-color:#2f6b4c}
 .thud .chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .thud .chip{background:#7a2d8c;border:0;color:#fff;border-radius:999px;padding:1px 8px;font-size:.78rem}
@@ -529,7 +556,8 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <div class="tray" id="tray" aria-label="Main et piles de cartes"></div>
 <div class="zoomw"><button type="button" id="z-out" aria-label="Dézoomer">−</button><span id="z-val" title="Tout voir">100 %</span><button type="button" id="z-in" aria-label="Zoomer">+</button><span class="scl" id="scale-info"></span></div>
 <div class="ctx" id="ctx" hidden role="menu"></div>
-<div class="thud" id="thud" hidden role="dialog" aria-label="Raccourcis du pion"></div>
+<div class="tbub" id="tbub" hidden></div>
+<div class="thud" id="thud" hidden role="dialog" aria-label="Menu du pion"></div>
 <div class="ttip" id="ttip" hidden></div>
 <div class="msg" id="msg" hidden><div id="msg-in"></div></div>
 <div class="toastp" id="toastp" hidden role="status"></div>
@@ -596,7 +624,7 @@ function saveOpt(){ try{ localStorage.setItem('jdr-plateau-opt', JSON.stringify(
 
 /* ======================= Droits ======================= */
 // joueur : ses pions + ceux des PNJ du journal qu'il contrôle
-const mine = it => it.layer === 'tokens' && (it.owner_id === me.id || controlsEntry(it.data.journal));
+const mine = it => it.layer === 'tokens' && (it.owner_id === me.id || controlsEntry(it.data.journal) || (Array.isArray(it.data.owners) && it.data.owners.includes(me.id)));
 // un joueur bloqué en fin de tour (cartes à défausser) ne peut plus déplacer le pion de son personnage
 const canMove = it => isGM ? (it.layer === layer && !it.data.locked) : (mine(it) && !it.data.locked && !(it.character_id && typeof PC !== 'undefined' && PC.blockedForMe(it.character_id)));
 const controls = it => isGM || mine(it);
@@ -663,8 +691,10 @@ function renderItem(it){
     bar(st.armor, '#8ea3b8'); bar(st.armag, '#c9a227'); bar(st.mana, '#3f7fe0');
     if(bars.length) kids.push(el('div', { class: 'bars' }, ...bars));
   }
+  if(d.aura && Number(d.aura.r) > 0 && it.layer !== 'map'){ const dia = 2 * Number(d.aura.r) * scale() + Math.max(d.w, d.h);
+    kids.push(el('div', { class: 'aura', style: `width:${dia}px;height:${dia}px;--ac:${d.aura.c || '#d94c9c'}`, title: `Aura : ${d.aura.r} m` })); }
   const sts = Array.isArray(d.status) ? d.status : [];
-  if(sts.length && it.layer !== 'map') kids.push(el('div', { class: 'sts' }, ...sts.slice(0, 6).map(n => el('b', { text: String(n).slice(0, 3), title: n }))));
+  if(sts.length && it.layer !== 'map') kids.push(el('div', { class: 'sts' }, ...sts.slice(0, 6).map(n => { const b = el('b', { title: n }); b.append(stateIcon(n)); return b; })));
   if(sel === it.id && isGM && it.layer === layer && !d.locked){
     const k = 1 / view.z;
     kids.push(el('div', { class: 'hdl rs', 'data-handle': 'resize', title: 'Redimensionner', style: `transform:scale(${k});transform-origin:0 0` }));
@@ -674,7 +704,7 @@ function renderItem(it){
 }
 function removeItemEl(id){ const e = document.getElementById('it-' + id); if(e) e.remove(); }
 function renderAll(){ ['map','tokens','gm'].forEach(l => $id('L-' + l).replaceChildren()); [...items.values()].forEach(renderItem); $id('L-gm').hidden = !isGM; }
-function select(id){ clearMulti(); const old = sel; sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); renderHud(); }
+function select(id){ clearMulti(); const old = sel; if(old !== id){ bubble = null; statDraft = {}; } sel = id; [old, id].forEach(x => { const it = x && items.get(x); if(it) renderItem(it); }); renderHud(); }
 function clearMulti(){ if(!multi.size) return; const ids = [...multi]; multi.clear(); ids.forEach(x => { const it = items.get(x); if(it) renderItem(it); }); }
 // objets qu'on peut sélectionner à plusieurs : MJ = ceux du calque actif ; joueur = ses pions
 const multiOk = it => !it.data.locked && (isGM ? it.layer === layer : canMove(it));
@@ -702,6 +732,8 @@ function statsOf(it){
     const mana = (d.resources || []).find(r => /mana/i.test(r.name || ''));
     return { src: 'pj', hp: { cur: Math.max(0, max - lost), max }, armor: { cur: Number(d.armor) || 0, max: sum('pa') }, armag: { cur: Number(d.armag) || 0, max: sum('pam') },
       mana: mana ? { cur: Number(mana.val) || 0, max: Number(mana.max) || 0 } : null }; }
+  if(it.data.sheet){ const sh = it.data.sheet, g = k => sh[k] && Number(sh[k].max) ? { cur: numOr(sh[k].cur, Number(sh[k].max)), max: Number(sh[k].max) } : { cur: 0, max: 0 };
+    const m = g('mana'); return { src: 'copy', hp: g('hp'), armor: g('armor'), armag: g('armag'), mana: m.max ? m : null }; }
   const e = entryOf(it);
   if(e){ const cr = creaOf(e); const crn = cr ? jdrNormalizeCreature(cr.creature) : null; const ed = e.data;
     const hmax = crn ? crn.hearts * 6 : numOr(ed.hp && ed.hp.max, 0);
@@ -724,8 +756,8 @@ function logHp(it, delta, after, max){
     postMsg('action', `${it.data.name || 'Un pion'} ${p.d < 0 ? 'perd' : 'récupère'} ${Math.abs(p.d)} PV — ${after}/${max}`); }, 1500);
   hpLog.set(k, p);
 }
-async function setStat(it, key, val){
-  const st = statsOf(it); const cur = st[key]; if(!cur) return;
+async function setStat(it, key, val, silent){
+  const st = statsOf(it); const cur = st[key] || (st.src === 'copy' ? { cur: 0, max: 0 } : null); if(!cur) return;
   const v = Math.max(0, cur.max ? Math.min(cur.max, Math.round(val)) : Math.round(val));
   if(v === cur.cur) return;
   const delta = v - cur.cur;
@@ -736,6 +768,8 @@ async function setStat(it, key, val){
     else if(key === 'mana'){ const r = (d.resources || []).find(x => /mana/i.test(x.name || '')); if(r) r.val = v; }
     c.data = d; refreshTokensOf(it);
     const { error } = await jdrSb.from('characters').update({ data: d }).eq('id', c.id); if(error) toast(jdrErrorText(error));
+  } else if(st.src === 'copy'){
+    const sh = structuredClone(it.data.sheet); sh[key] = Object.assign({ max: cur.max }, sh[key], { cur: v }); await save(it, { sheet: sh }); renderHud();
   } else if(st.src === 'pnj'){
     const e = entryOf(it); const d = structuredClone(e.data);
     if(key === 'hp') d.hp = Object.assign({}, d.hp, { cur: v }); else if(key === 'armor') d.armorCur = v; else if(key === 'armag') d.armagCur = v;
@@ -744,10 +778,12 @@ async function setStat(it, key, val){
   } else {
     const bars = structuredClone(it.data.bars || {}); bars[key] = Object.assign({}, bars[key], { cur: v }); await save(it, { bars }); renderHud();
   }
-  if(key === 'hp') logHp(it, delta, v, cur.max);
+  if(key === 'hp' && !silent) logHp(it, delta, v, cur.max);
 }
-async function setMax(it, key, max){   // pion non lié (MJ) : maximum d'une barre
-  const bars = structuredClone(it.data.bars || {}); const m = Math.max(0, Math.round(Number(max) || 0));
+async function setMax(it, key, max){   // pion non lié ou copie de monstre (MJ) : maximum d'une barre
+  const m = Math.max(0, Math.round(Number(max) || 0));
+  if(it.data.sheet){ const sh = structuredClone(it.data.sheet); sh[key] = { max: m, cur: Math.min(m, numOr(sh[key] && sh[key].cur, m)) }; await save(it, { sheet: sh }); renderHud(); return; }
+  const bars = structuredClone(it.data.bars || {});
   bars[key] = { max: m, cur: Math.min(m, numOr(bars[key] && bars[key].cur, m)) }; await save(it, { bars }); renderHud();
 }
 function afflictions(){ return Object.values(typeof JDR_KW === 'object' && JDR_KW ? JDR_KW : {}).filter(k => k.category === 'Affliction').map(k => k.name).sort((a, b) => a.localeCompare(b, 'fr')); }
@@ -757,47 +793,213 @@ function openSheet(it){
   if(it.character_id) window.open('fiche-personnage.html?id=' + encodeURIComponent(it.character_id), '_blank', 'noopener');
   else if(e) openWin(e.id); else if(isGM) openTok(it);
 }
-// Panneau de raccourcis du pion sélectionné (seulement si on le contrôle)
+/* ======================= Bulles du pion =======================
+   Un clic sur un pion qu'on contrôle fait apparaître des bulles autour de lui ; chaque bulle ouvre son menu :
+     ❤ Santé (soins, blessures physiques / magiques / vraies) · ✦ États · 💧 Ressources · 📊 Stats · ⚙ Options du pion
+   Blessure physique : enlève d'abord l'armure, puis les PV ; magique : l'armure magique, puis les PV ; vraie : les PV directement. */
+let bubble = null;                                   // menu de bulle ouvert ('hp' | 'st' | 'res' | 'stats' | 'opt' | null)
+const BUBBLES = [
+  { k: 'hp', ic: '❤', t: 'Santé' }, { k: 'st', ic: '✦', t: 'États' }, { k: 'res', ic: '💧', t: 'Ressources' },
+  { k: 'stats', ic: '📊', t: 'Stats' }, { k: 'opt', ic: '⚙', t: 'Options du pion' }];
+const STAT_LABELS = { corps: 'Corps', esprit: 'Esprit', charme: 'Charme', res: 'Résistance', opp: 'Opportunisme', ant: 'Anticipation', pa: "Points d'action" };
+// États proposés : mots-clés de catégorie « Affliction » ou « État » (icône : champ icon du mot-clé quand il existera, sinon initiales)
+function stateDefs(){ return Object.values(typeof JDR_KW === 'object' && JDR_KW ? JDR_KW : {}).filter(k => k.category === 'Affliction' || k.category === 'État')
+  .sort((a, b) => a.name.localeCompare(b.name, 'fr')); }
+const stateDef = n => stateDefs().find(k => jdrNorm(k.name) === jdrNorm(n)) || null;
+function stateIcon(n){ const k = stateDef(n); const ic = k && k.icon;
+  if(ic && /^(https?:|data:)/.test(ic)) return el('img', { src: ic, alt: '' });
+  return el('span', { text: ic || String(n).slice(0, 2) }); }
+
 function renderHud(){
   const H = $id('thud'); const it = sel && items.get(sel);
-  if(!it || it.layer === 'map' || !controls(it)){ H.hidden = true; return; }
-  if(H.contains(document.activeElement) && document.activeElement.matches('input')) return;
-  const st = statsOf(it), canMax = isGM && st.src === 'tok';
-  const btn = (t, fn, cls, title) => el('button', { type: 'button', class: cls || '', text: t, title: title || '', onclick: fn });
-  const val = (key, v) => { const sp = el('span', { class: 'val' + (canMax ? ' ed' : ''), text: v.max ? `${v.cur} / ${v.max}` : '—', title: canMax ? 'Clique pour régler le maximum' : '' });
-    if(canMax) sp.addEventListener('click', () => { const i = el('input', { type: 'number', min: '0', value: v.max || '', style: 'width:4.5rem', 'aria-label': 'Maximum' });
-      sp.replaceWith(i); i.focus(); i.select(); const go = () => setMax(it, key, i.value);
-      i.addEventListener('keydown', e => { if(e.key === 'Enter') go(); if(e.key === 'Escape') renderHud(); }); i.addEventListener('blur', go); });
-    return sp; };
-  const rows = [];
-  rows.push(el('div', { class: 'th1' }, el('b', { text: it.data.name || 'Pion' }),
-    btn('Fiche', () => openSheet(it), '', 'Ouvrir la fiche'), btn('Centrer', () => centerOn(it.data.x + it.data.w / 2, it.data.y + it.data.h / 2)), btn('✕', () => select(null), '', 'Fermer')));
-  const hp = st.hp;
-  rows.push(el('div', { class: 'sr' }, el('span', { text: 'Points de vie' }), el('div', { class: 'sv' },
-    btn('−6', () => setStat(it, 'hp', statsOf(it).hp.cur - 6), 'dmg', 'Blessure grave'), btn('−3', () => setStat(it, 'hp', statsOf(it).hp.cur - 3), 'dmg', 'Blessure'), btn('−1', () => setStat(it, 'hp', statsOf(it).hp.cur - 1), 'dmg', 'Blessure légère'),
-    val('hp', hp), btn('+1', () => setStat(it, 'hp', statsOf(it).hp.cur + 1), 'heal', 'Soigner 1'), btn('Tout', () => setStat(it, 'hp', statsOf(it).hp.max), 'heal', 'Soigner entièrement'))));
-  const simple = (key, label, show) => { if(!show) return; rows.push(el('div', { class: 'sr' }, el('span', { text: label }), el('div', { class: 'sv' },
-    btn('−1', () => setStat(it, key, statsOf(it)[key].cur - 1)), val(key, st[key]), btn('+1', () => setStat(it, key, statsOf(it)[key].cur + 1)),
-    btn('Max', () => setStat(it, key, statsOf(it)[key].max), '', 'Remettre au maximum')))); };
-  simple('armor', 'Armure', st.armor.max > 0 || canMax);
-  simple('armag', 'Armure magique', st.armag.max > 0 || canMax);
-  if(st.mana) simple('mana', 'Mana', true); else if(canMax) rows.push(el('div', { class: 'sr' }, el('span', { text: 'Mana' }), el('div', { class: 'sv' }, val('mana', { cur: 0, max: 0 }))));
-  // états (afflictions)
-  const sts = Array.isArray(it.data.status) ? it.data.status : [];
-  const pick = el('select', { 'aria-label': 'Ajouter un état' }, el('option', { value: '', text: '+ état…' }), ...afflictions().filter(a => !sts.includes(a)).map(a => el('option', { value: a, text: a })), el('option', { value: '__autre', text: 'Autre (écrire)…' }));
-  pick.addEventListener('change', () => { if(pick.value === '__autre'){ const i = el('input', { placeholder: 'Nom de l’état', maxlength: 30, style: 'width:8rem' }); pick.replaceWith(i); i.focus();
-      i.addEventListener('keydown', e => { if(e.key === 'Enter' && i.value.trim()) setStatus(it, [...sts, i.value]); if(e.key === 'Escape') renderHud(); }); }
-    else if(pick.value) setStatus(it, [...sts, pick.value]); });
-  rows.push(el('div', { class: 'sr' }, el('span', { text: 'États' }), el('div', { class: 'chips' },
-    ...sts.map(n => el('button', { type: 'button', class: 'chip', text: n + ' ✕', title: 'Retirer cet état', onclick: () => setStatus(it, sts.filter(x => x !== n)) })), pick)));
-  if(st.src === 'pj' && !charOf(it)) rows.push(el('p', { class: 'hint', style: 'margin:0;font-size:.75rem', text: 'Fiche non chargée.' }));
+  if(!it || it.layer === 'map' || !controls(it)){ H.hidden = true; bubble = null; $id('tbub').hidden = true; return; }
+  if(H.contains(document.activeElement) && document.activeElement.matches('input, select')) return;
+  // bulles
+  const B2 = $id('tbub');
+  B2.replaceChildren(...BUBBLES.map(b => el('button', { type: 'button', class: 'bub' + (bubble === b.k ? ' on' : ''), title: b.t, 'aria-label': b.t, 'aria-pressed': bubble === b.k ? 'true' : 'false',
+    onclick: () => { bubble = bubble === b.k ? null : b.k; renderHud(); } }, el('span', { text: b.ic }))));
+  B2.hidden = false;
+  if(!bubble){ H.hidden = true; placeHud(); return; }
+  const rows = [el('div', { class: 'th1' }, el('b', { text: `${BUBBLES.find(b => b.k === bubble).t} — ${it.data.name || 'Pion'}` }),
+    el('button', { type: 'button', text: '✕', title: 'Fermer', onclick: () => { bubble = null; renderHud(); } }))];
+  ({ hp: hudHealth, st: hudStates, res: hudRes, stats: hudStats, opt: hudOptions })[bubble](it, rows);
   H.replaceChildren(...rows); H.hidden = false; placeHud();
 }
+const hbtn = (t, fn, cls, title) => el('button', { type: 'button', class: cls || '', text: t, title: title || '', onclick: fn });
+const hrow = (label, ...kids) => el('div', { class: 'sr' }, el('span', { text: label }), el('div', { class: 'sv' }, ...kids));
+const fmtV = v => v && v.max ? `${v.cur} / ${v.max}` : (v ? String(v.cur) : '—');
+
+/* ---- ❤ Santé ---- */
+async function applyDamage(it, n, kind){
+  n = Math.max(0, Math.round(n)); if(!n) return;
+  const st = statsOf(it); let left = n, absorbed = 0;
+  const armKey = kind === 'phys' ? 'armor' : kind === 'mag' ? 'armag' : null;
+  if(armKey && st[armKey] && st[armKey].cur > 0){ absorbed = Math.min(st[armKey].cur, left); left -= absorbed; await setStat(it, armKey, st[armKey].cur - absorbed, true); }
+  const hp = statsOf(it).hp, after = Math.max(0, hp.cur - left);
+  if(left) await setStat(it, 'hp', after, true);
+  const lab = { phys: 'physiques', mag: 'magiques', vrai: 'vrais' }[kind];
+  postMsg('action', `${it.data.name || 'Un pion'} subit ${n} dégâts ${lab}${absorbed ? ` (${absorbed} absorbé${absorbed > 1 ? 's' : ''} par l’armure${kind === 'mag' ? ' magique' : ''})` : ''} — PV ${after}${hp.max ? ' / ' + hp.max : ''}`);
+}
+async function applyHeal(it, n){
+  n = Math.max(0, Math.round(n)); if(!n) return; const hp = statsOf(it).hp; const after = hp.max ? Math.min(hp.max, hp.cur + n) : hp.cur + n;
+  await setStat(it, 'hp', after, true); postMsg('action', `${it.data.name || 'Un pion'} est soigné de ${after - hp.cur} PV — PV ${after}${hp.max ? ' / ' + hp.max : ''}`);
+}
+function hudHealth(it, rows){
+  const st = statsOf(it), canMax = isGM && st.src === 'tok';
+  rows.push(hrow('Points de vie', el('b', { class: 'val', text: fmtV(st.hp) })),
+    hrow('Armure', el('span', { class: 'val', text: fmtV(st.armor) }), hbtn('+1', () => setStat(it, 'armor', statsOf(it).armor.cur + 1)), hbtn('Max', () => setStat(it, 'armor', statsOf(it).armor.max), '', 'Réparer entièrement')),
+    hrow('Armure mag.', el('span', { class: 'val', text: fmtV(st.armag) }), hbtn('+1', () => setStat(it, 'armag', statsOf(it).armag.cur + 1)), hbtn('Max', () => setStat(it, 'armag', statsOf(it).armag.max), '', 'Réparer entièrement')));
+  const n = el('input', { type: 'number', min: '0', max: '999', value: '1', style: 'width:4.5rem', 'aria-label': 'Montant' });
+  const amt = () => Number(n.value) || 0;
+  rows.push(hrow('Montant', n, hbtn('Soigner', () => applyHeal(it, amt()), 'heal', 'Rend des PV')));
+  rows.push(el('div', { class: 'dmgrow' },
+    hbtn('Physique', () => applyDamage(it, amt(), 'phys'), 'dmg', 'Enlève d’abord l’armure, puis les PV'),
+    hbtn('Magique', () => applyDamage(it, amt(), 'mag'), 'dmg', 'Enlève d’abord l’armure magique, puis les PV'),
+    hbtn('Vrai', () => applyDamage(it, amt(), 'vrai'), 'dmg', 'Directement sur les PV')));
+  rows.push(el('div', { class: 'sv' }, hbtn('PV au max', () => setStat(it, 'hp', statsOf(it).hp.max), 'heal'),
+    ...(canMax ? [hbtn('Régler les maximums…', () => { bubble = 'res'; renderHud(); })] : [])));
+}
+
+/* ---- ✦ États ---- */
+function hudStates(it, rows){
+  const sts = Array.isArray(it.data.status) ? it.data.status : [];
+  const defs = stateDefs();
+  const grid = el('div', { class: 'stgrid' }, ...defs.map(k => { const on = sts.some(x => jdrNorm(x) === jdrNorm(k.name));
+    return el('button', { type: 'button', class: 'stb' + (on ? ' on' : ''), title: `${k.name}${k.text ? ' — ' + k.text : ''}`, 'aria-pressed': on ? 'true' : 'false',
+      onclick: () => setStatus(it, on ? sts.filter(x => jdrNorm(x) !== jdrNorm(k.name)) : [...sts, k.name]) }, stateIcon(k.name), el('small', { text: k.name })); }));
+  if(!defs.length) grid.append(el('p', { class: 'hint', style: 'margin:0', text: 'Aucun état défini (mots-clés « Affliction »).' }));
+  rows.push(grid);
+  const other = el('input', { placeholder: 'Autre état…', maxlength: 30, style: 'flex:1' });
+  other.addEventListener('keydown', e => { if(e.key === 'Enter' && other.value.trim()) setStatus(it, [...sts, other.value]); });
+  rows.push(el('div', { class: 'sv' }, other, hbtn('Ajouter', () => other.value.trim() && setStatus(it, [...sts, other.value]))));
+  if(sts.length) rows.push(el('div', { class: 'stlist' }, ...sts.map(n => { const k = stateDef(n);
+    return el('div', { class: 'sti' }, el('b', {}, stateIcon(n), document.createTextNode(' ' + n)), el('span', { text: k && k.text ? k.text : '' }),
+      hbtn('Retirer', () => setStatus(it, sts.filter(x => x !== n)))); })));
+}
+
+/* ---- 💧 Ressources ---- */
+function hudRes(it, rows){
+  const st = statsOf(it), c = charOf(it);
+  if(st.src === 'pj' && c){
+    const list = Array.isArray(c.data.resources) ? c.data.resources : [];
+    if(!list.length) rows.push(el('p', { class: 'hint', style: 'margin:0', text: 'Aucune ressource sur la fiche.' }));
+    list.forEach((r, i) => rows.push(hrow(r.name || 'Ressource', hbtn('−1', () => setRes(it, i, -1)), el('span', { class: 'val', text: `${Number(r.val) || 0}${Number(r.max) ? ' / ' + r.max : ''}` }),
+      hbtn('+1', () => setRes(it, i, +1)), hbtn('Max', () => setRes(it, i, 'max')))));
+    return;
+  }
+  const canMax = isGM && (st.src === 'tok' || st.src === 'copy');
+  const line = (key, label) => { const v = st[key] || { cur: 0, max: 0 };
+    const mx = el('input', { type: 'number', min: '0', value: v.max || '', placeholder: 'max', style: 'width:3.8rem', 'aria-label': 'Maximum ' + label });
+    mx.addEventListener('change', () => setMax(it, key, mx.value));
+    rows.push(hrow(label, hbtn('−1', () => setStat(it, key, (statsOf(it)[key] || { cur: 0 }).cur - 1)), el('span', { class: 'val', text: fmtV(v) }),
+      hbtn('+1', () => setStat(it, key, (statsOf(it)[key] || { cur: 0 }).cur + 1)), ...(canMax ? [mx] : []))); };
+  if(canMax){ line('hp', 'PV max'); line('armor', 'Armure'); line('armag', 'Armure mag.'); }
+  if(st.mana || canMax) line('mana', 'Mana');
+  if(rows.length === 1) rows.push(el('p', { class: 'hint', style: 'margin:0', text: 'Pas de ressource pour ce pion.' }));
+}
+async function setRes(it, i, delta){
+  const c = charOf(it); if(!c) return; const d = structuredClone(c.data || {}); const r = d.resources[i]; if(!r) return;
+  const max = Number(r.max) || 0; const before = Number(r.val) || 0;
+  r.val = delta === 'max' ? max : Math.max(0, max ? Math.min(max, before + delta) : before + delta);
+  if(r.val === before) return;
+  c.data = d; refreshTokensOf(it); if(typeof PC !== 'undefined') PC.render();
+  const { error } = await jdrSb.from('characters').update({ data: d }).eq('id', c.id); if(error) toast(jdrErrorText(error));
+}
+
+/* ---- 📊 Stats : valeurs en direct + modifications temporaires ou permanentes ---- */
+// Base : la fiche (personnage), la fiche propre du pion (copie de monstre) ou la créature du bestiaire (PNJ lié)
+function baseStats(it){
+  const c = charOf(it); if(c) return { keys: ['corps','esprit','charme','res','opp','ant','pa'], v: (c.data && c.data.stats) || {}, perm: true };
+  if(it.data.sheet) return { keys: ['corps','esprit','charme','res'], v: it.data.sheet.stats || {}, perm: true };
+  const e = entryOf(it), cr = creaOf(e), crn = cr ? jdrNormalizeCreature(cr.creature) : null;
+  return { keys: ['corps','esprit','charme','res'], v: crn ? { corps: crn.corps, esprit: crn.esprit, charme: crn.charme, res: crn.res } : (it.data.stats || {}), perm: !crn && !e };
+}
+const tokMods = it => Array.isArray(it.data.mods) ? it.data.mods : [];
+const modsFor = it => it.character_id && typeof PC !== 'undefined' ? PC.modsOf(it.character_id) : tokMods(it);
+async function writeMods(it, fn){
+  if(it.character_id && typeof PC !== 'undefined') return PC.setMods(it.character_id, fn);
+  await save(it, { mods: fn(tokMods(it).slice()) }); renderHud();
+}
+const UNTIL = { scene: 'jusqu’à la fin de la scène', rest: 'jusqu’au prochain repos' };
+let statDraft = {};                                   // changements en attente de confirmation (stat → delta)
+function hudStats(it, rows){
+  const b = baseStats(it), mods = modsFor(it);
+  b.keys.forEach(k => { const base = Number(b.v[k]) || 0, m = mods.filter(x => x.k === k).reduce((a, x) => a + (Number(x.v) || 0), 0), dr = statDraft[k] || 0;
+    rows.push(hrow(STAT_LABELS[k], hbtn('−', () => { statDraft[k] = dr - 1; renderHud(); }),
+      el('span', { class: 'val' + (m ? ' mod' : ''), title: m ? `Fiche : ${base} · modificateurs : ${m > 0 ? '+' : ''}${m}` : 'Valeur de la fiche', text: `${base + m}${m ? ` (${m > 0 ? '+' : ''}${m})` : ''}` }),
+      hbtn('+', () => { statDraft[k] = dr + 1; renderHud(); }),
+      ...(dr ? [el('b', { class: 'draft', text: (dr > 0 ? '+' : '') + dr })] : []))); });
+  const pending = Object.entries(statDraft).filter(([, v]) => v);
+  if(pending.length){
+    const apply = async until => { const list = pending.map(([k, v]) => ({ k, v, until, at: Date.now() })); statDraft = {};
+      if(until === 'perm') await permStats(it, list); else await writeMods(it, l => l.concat(list));
+      postMsg('action', `${it.data.name || 'Un pion'} : ${list.map(m => `${STAT_LABELS[m.k]} ${m.v > 0 ? '+' : ''}${m.v}`).join(', ')} — ${until === 'perm' ? 'permanent (fiche)' : UNTIL[until]}`); renderHud(); };
+    rows.push(el('div', { class: 'stconf' }, el('span', { text: 'Appliquer ces changements :' }),
+      hbtn('Jusqu’à la fin de la scène', () => apply('scene')), hbtn('Jusqu’au prochain repos', () => apply('rest')),
+      ...(b.perm ? [hbtn('Permanent (écrit sur la fiche)', () => apply('perm'), 'dmg')] : []), hbtn('Annuler', () => { statDraft = {}; renderHud(); })));
+  }
+  if(mods.length) rows.push(el('div', { class: 'stlist' }, el('small', { class: 'hint', text: 'Modificateurs en cours' }),
+    ...mods.map((m, i) => el('div', { class: 'sti' }, el('b', { text: `${STAT_LABELS[m.k] || m.k} ${m.v > 0 ? '+' : ''}${m.v}` }), el('span', { text: UNTIL[m.until] || '' }),
+      hbtn('Retirer', () => writeMods(it, l => l.filter((_, j) => j !== i)))))));
+}
+async function permStats(it, list){
+  const c = charOf(it);
+  if(c){ const d = structuredClone(c.data || {}); d.stats = Object.assign({}, d.stats); list.forEach(m => { d.stats[m.k] = (Number(d.stats[m.k]) || 0) + m.v; });
+    c.data = d; refreshTokensOf(it); if(typeof PC !== 'undefined') PC.render();
+    const { error } = await jdrSb.from('characters').update({ data: d }).eq('id', c.id); if(error) toast(jdrErrorText(error)); return; }
+  if(it.data.sheet){ const sh = structuredClone(it.data.sheet); sh.stats = Object.assign({}, sh.stats); list.forEach(m => { sh.stats[m.k] = (Number(sh.stats[m.k]) || 0) + m.v; }); await save(it, { sheet: sh }); return; }
+  const stt = Object.assign({}, it.data.stats); list.forEach(m => { stt[m.k] = (Number(stt[m.k]) || 0) + m.v; }); await save(it, { stats: stt });
+}
+// fin de scène (appelé par l'ordre du tour) : retire les modificateurs « fin de scène » des pions de la scène affichée
+async function clearTokenSceneMods(){
+  if(!isGM) return;
+  for(const it of items.values()) if(tokMods(it).some(m => m.until === 'scene')) await save(it, { mods: tokMods(it).filter(m => m.until !== 'scene') });
+}
+
+/* ---- ⚙ Options du pion ---- */
+function hudOptions(it, rows){
+  const d = it.data, s = scale();
+  if(isGM) rows.push(hrow('Couche', ...['map','tokens','gm'].map(l => hbtn({ map: 'Carte', tokens: 'Pions', gm: 'MJ' }[l], () => { saveRow(it, { layer: l }); if(l !== layer) select(null); }, it.layer === l ? 'on' : '', LAYER_NAME[l]))));
+  rows.push(hrow('Taille', el('span', { class: 'val', text: `${Math.round(d.w / s * 10) / 10} m` }),
+    hbtn('Taille initiale', () => { const w = Number(d.w0) || 1.5 * s, h = Number(d.h0) || (d.round ? w : 1.5 * s); save(it, { w, h }).then(renderHud); }, '', 'Remettre la taille de départ du pion')));
+  // aura : cercle autour du pion, portée en mètres
+  const au = d.aura || {};
+  const ar = el('input', { type: 'number', min: '0', max: '200', step: '0.5', value: au.r || '', placeholder: 'm', style: 'width:4rem', 'aria-label': 'Portée de l’aura en mètres' });
+  const ac = el('input', { type: 'color', value: au.c || '#d94c9c', 'aria-label': 'Couleur de l’aura', style: 'width:2.2rem;padding:0;height:26px' });
+  const saveAura = () => save(it, { aura: Number(ar.value) > 0 ? { r: Number(ar.value), c: ac.value } : null });
+  ar.addEventListener('change', saveAura); ac.addEventListener('change', saveAura);
+  rows.push(hrow('Aura', ar, document.createTextNode('m'), ac, ...(au.r ? [hbtn('Retirer', () => save(it, { aura: null }).then(renderHud))] : [])));
+  // variantes : plusieurs images pour le même pion (formes, déguisements…)
+  const vars = Array.isArray(d.variants) ? d.variants : [];
+  const vr = el('div', { class: 'vars' }, ...vars.map((v, i) => { const b = el('button', { type: 'button', class: 'var' + (v === d.img ? ' on' : ''), title: 'Utiliser cette image (clic droit : retirer)',
+      onclick: () => save(it, { img: v }).then(renderHud) }, el('img', { src: v, alt: '' }));
+    b.addEventListener('contextmenu', e => { e.preventDefault(); save(it, { variants: vars.filter((_, j) => j !== i) }).then(renderHud); }); return b; }));
+  const vu = el('input', { placeholder: 'Lien d’une image…', style: 'flex:1;min-width:0' });
+  rows.push(el('div', { class: 'sr' }, el('span', { text: 'Variantes' }), el('div', { class: 'sv', style: 'flex-direction:column;align-items:stretch' }, vr,
+    el('div', { class: 'sv' }, vu, hbtn('Ajouter', () => { const u = vu.value.trim(); if(u) save(it, { variants: [...new Set([...vars, u])] }).then(renderHud); }),
+      ...(d.img && !vars.includes(d.img) ? [hbtn('+ image actuelle', () => save(it, { variants: [...vars, d.img] }).then(renderHud))] : [])))));
+  // appartenance : quels joueurs contrôlent ce pion (en plus du joueur du personnage)
+  if(isGM && !it.character_id && chars.length){
+    const own = Array.isArray(d.owners) ? d.owners : [];
+    const players = [...new Map(chars.filter(c => c.owner_id).map(c => [c.owner_id, (c.data && c.data.player) || ('Joueur de ' + (c.name || '?'))])).entries()];
+    rows.push(hrow('Contrôlé par', ...players.map(([uid, nm]) => { const on = own.includes(uid);
+      return hbtn(nm, () => save(it, { owners: on ? own.filter(x => x !== uid) : [...own, uid] }).then(renderHud), on ? 'on' : '', on ? 'Retirer le contrôle' : 'Donner le contrôle'); })));
+  }
+  const foot = [hbtn('Fiche', () => openSheet(it)), hbtn('Centrer', () => centerOn(d.x + d.w / 2, d.y + d.h / 2))];
+  if(isGM) foot.push(hbtn(d.locked ? 'Déverrouiller' : 'Verrouiller', () => save(it, { locked: !d.locked }).then(renderHud)), hbtn('Réglages…', () => openTok(it)), hbtn('Supprimer', () => delItem(it), 'dmg'));
+  rows.push(el('div', { class: 'sv', style: 'margin-top:4px' }, ...foot));
+}
 function placeHud(){
-  const H = $id('thud'); if(!H || H.hidden) return; const it = sel && items.get(sel); if(!it) return;
-  const b = boardRect(); const x = b.left + view.x + (it.data.x + it.data.w / 2) * view.z, y = b.top + view.y + it.data.y * view.z - 30;
-  const w = H.offsetWidth || 260, h = H.offsetHeight || 150;
-  H.style.left = Math.max(w / 2 + 8, Math.min(b.right - w / 2 - 8, x)) + 'px';
+  const it = sel && items.get(sel); if(!it) return;
+  const b = boardRect(); const cx = b.left + view.x + (it.data.x + it.data.w / 2) * view.z, top = b.top + view.y + it.data.y * view.z, rad = it.data.w * view.z / 2;
+  const B2 = $id('tbub');
+  if(!B2.hidden){ // bulles en arc au-dessus du pion
+    const R = Math.max(46, rad + 26), cy = top + rad, n = BUBBLES.length;
+    [...B2.children].forEach((bb, i) => { const a = Math.PI * (1.1 + 0.8 * i / (n - 1)); bb.style.left = (cx + R * Math.cos(a)) + 'px'; bb.style.top = (cy + R * Math.sin(a)) + 'px'; });
+  }
+  const H = $id('thud'); if(H.hidden) return;
+  const w = H.offsetWidth || 280, h = H.offsetHeight || 150, y = top - Math.max(46, rad + 26) - 30;
+  H.style.left = Math.max(w / 2 + 8, Math.min(b.right - w / 2 - 8, cx)) + 'px';
   H.style.top = Math.max(h + 8, y) + 'px';
 }
 // Infobulle au survol : valeurs pour qui contrôle le pion, sinon nom et états
@@ -838,7 +1040,9 @@ async function delItem(it){
   items.delete(it.id); removeItemEl(it.id); if(sel === it.id){ sel = null; renderHud(); }
 }
 async function duplicate(it){
-  const n = await insertItem({ layer: it.layer, owner_id: it.owner_id, character_id: it.character_id, data: Object.assign({}, it.data, { x: it.data.x + 30, y: it.data.y + 30 }) });
+  const extra = {}; const e = entryOf(it);
+  if(it.data.sheet && e){ extra.name = await nextCopyName(e); extra.sheet = monsterSheet(e) || structuredClone(it.data.sheet); extra.status = []; extra.mods = []; }
+  const n = await insertItem({ layer: it.layer, owner_id: it.owner_id, character_id: it.character_id, data: Object.assign({}, structuredClone(it.data), { x: it.data.x + 30, y: it.data.y + 30 }, extra) });
   if(n) select(n.id);
 }
 const zsOf = l => [...items.values()].filter(x => x.layer === l).map(x => x.data.z);
@@ -1505,15 +1709,33 @@ async function placeEntry(id, cx, cy){
   const zs = zsOf('tokens');
   let w = d, h = d, round = true;
   if(e.kind === 'doc'){ const sz = e.data.img ? await imgSize(e.data.img) : null; round = false; if(sz){ const f = (3 * s) / Math.max(sz.w, sz.h); w = sz.w * f; h = sz.h * f; } }
-  const it = await insertItem({ layer: 'tokens', data: { name: e.name, img: e.data.img || '', journal: e.id, x: p.x - w / 2, y: p.y - h / 2, w, h, round, z: zs.length ? Math.max(...zs) + 1 : 0 } });
+  // Monstre (PNJ lié à une créature du bestiaire) : chaque pion a SA fiche (PV, armure, stats…) et un numéro
+  const sheet = e.kind === 'pnj' ? monsterSheet(e) : null;
+  const name = sheet ? await nextCopyName(e) : e.name;
+  const it = await insertItem({ layer: 'tokens', data: Object.assign({ name, img: e.data.img || '', journal: e.id, x: p.x - w / 2, y: p.y - h / 2, w, h, w0: w, h0: h, round, z: zs.length ? Math.max(...zs) + 1 : 0 }, sheet ? { sheet } : {}) });
   if(it){ if(layer !== 'tokens') setLayer('tokens'); select(it.id); renderJournal(); }
+}
+// Fiche propre d'une copie de monstre, d'après sa créature du bestiaire (null si le PNJ n'est pas lié à une créature)
+function monsterSheet(e){
+  const cr = creaOf(e); if(!cr) return null; const c = jdrNormalizeCreature(cr.creature), hp = c.hearts * 6;
+  return { hp: { cur: hp, max: hp }, armor: { cur: Number(c.armor) || 0, max: Number(c.armor) || 0 }, armag: { cur: Number(c.armorMagic) || 0, max: Number(c.armorMagic) || 0 },
+    mana: e.data.mana && Number(e.data.mana.max) ? { cur: Number(e.data.mana.max), max: Number(e.data.mana.max) } : null,
+    stats: { corps: c.corps, esprit: c.esprit, charme: c.charme, res: c.res } };
+}
+// « Araignée loup 1 », « Araignée loup 2 »… (le premier pion reçoit le numéro 1 quand un deuxième arrive)
+async function nextCopyName(e){
+  const same = [...items.values()].filter(x => x.data.journal === e.id && x.data.sheet);
+  const re = new RegExp('^' + e.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' (\\d+)$');
+  const nums = same.map(x => { const m = re.exec(x.data.name || ''); return m ? Number(m[1]) : 0; });
+  for(const x of same) if(x.data.name === e.name){ await save(x, { name: e.name + ' 1' }); nums.push(1); }
+  return same.length ? `${e.name} ${Math.max(1, ...nums) + 1}` : e.name;
 }
 async function placeChars(list){
   if(!scene){ toast('Crée d’abord une scène.'); return; }
   const s = scale(), d = 1.5 * s; const b = boardRect(); const c = toWorld(b.left + b.width / 2, b.top + b.height / 2);
   for(const [i, ch] of list.entries()){
     await insertItem({ layer: 'tokens', owner_id: ch.owner_id, character_id: ch.id,
-      data: { name: ch.name || 'Sans nom', img: (ch.data && ch.data.portrait) || '', x: c.x + (i - (list.length - 1) / 2) * d * 1.4 - d / 2, y: c.y - d / 2, w: d, h: d, round: true, z: 10 + i } });
+      data: { name: ch.name || 'Sans nom', img: (ch.data && ch.data.portrait) || '', x: c.x + (i - (list.length - 1) / 2) * d * 1.4 - d / 2, y: c.y - d / 2, w: d, h: d, w0: d, h0: d, round: true, z: 10 + i } });
   }
   renderJournal();
 }

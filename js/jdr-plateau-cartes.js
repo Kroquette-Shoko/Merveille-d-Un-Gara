@@ -78,7 +78,14 @@ const PC = (() => {
      Pendant ce temps, LE JOUEUR DE CE PERSONNAGE ne peut plus rien faire avec lui (jouer, piocher, déplacer son pion…).
      Le MJ et les autres joueurs ne sont pas bloqués. Dès que la main est à la bonne taille, le tour se termine tout seul. */
   const ownsChar = ch => chars.some(x => x.id === ch && x.owner_id === me.id);
-  const antOf = ch => { const cd = charData(ch); const v = cd && cd.stats ? cd.stats.ant : undefined; return v === undefined || v === '' || v === null || isNaN(Number(v)) ? null : Math.max(0, Number(v)); };
+  /* ---------- Modificateurs temporaires de stats (bulle « Stats » du pion) ----------
+     data.mods = [{ k: 'corps', v: +1, until: 'scene' | 'rest', at }] dans la ligne play_states du personnage.
+     'scene' : retiré à la fin de la scène ; 'rest' : retiré au prochain repos. (« Permanent » écrit directement sur la fiche.) */
+  const modsOf = ch => { const st = states.get(ch); return st && Array.isArray(st.data.mods) ? st.data.mods : []; };
+  const modSum = (ch, k) => modsOf(ch).filter(m => m.k === k).reduce((a, m) => a + (Number(m.v) || 0), 0);
+  async function setMods(ch, fn){ return mutate(ch, d => { d.mods = fn(Array.isArray(d.mods) ? d.mods.slice() : []); }); }
+  async function clearMods(ch, kinds){ if(!modsOf(ch).some(m => kinds.includes(m.until))) return; await setMods(ch, l => l.filter(m => !kinds.includes(m.until))); }
+  const antOf = ch => { const cd = charData(ch); const v = cd && cd.stats ? cd.stats.ant : undefined; return v === undefined || v === '' || v === null || isNaN(Number(v)) ? null : Math.max(0, Number(v) + modSum(ch, 'ant')); };
   const excessOf = ch => { const st = states.get(ch), a = antOf(ch); return !st || a === null ? 0 : Math.max(0, st.data.hand.length - a); };
   const isLocked = ch => { const st = states.get(ch); return !!(st && st.data.endLock); };
   const blockedForMe = ch => !isGM && ownsChar(ch) && isLocked(ch);
@@ -131,7 +138,8 @@ const PC = (() => {
     const ok = await mutate(ch, d => { const all = Object.keys(ZONES).flatMap(z => d[z] || []); if(d.pending){ all.push(d.pending.card); d.pending = null; }
       const keep = all.filter(c => !isRisk(c)); removed = all.length - keep.length;
       const out = keep.filter(c => jdrIsHorsDeck(cards[c.c])), inDeck = keep.filter(c => !jdrIsHorsDeck(cards[c.c])); total = inDeck.length;
-      Object.assign(d, blank(), { draw: shuffle(inDeck), play: out }); });
+      Object.assign(d, blank(), { draw: shuffle(inDeck), play: out });
+      if(Array.isArray(d.mods)) d.mods = d.mods.filter(m => m.until !== 'rest' && m.until !== 'scene'); });   // le repos retire les modificateurs « jusqu'au repos » et « fin de scène »
     if(ok) log(`${nameOf(ch)} se repose : toutes ses cartes reviennent dans la pioche (${total})${removed ? `, ${removed} Risque${removed > 1 ? 's' : ''} retiré${removed > 1 ? 's' : ''}` : ''}`);
   }
   // Déplacer un exemplaire d'une pile à une autre (éventuellement d'un personnage à un autre)
@@ -171,7 +179,7 @@ const PC = (() => {
      3. « Annuler » : la carte revient d'où elle vient, aucun PA dépensé.
      PA restants : data.pa (vide = maximum, la caractéristique « Point d'action » de la fiche). Remis au maximum
      au début du tour du joueur, à chaque nouveau round et à chaque nouvelle scène (voir js/jdr-plateau-tours.js). */
-  const paMax = ch => { const c = chars.find(x => x.id === ch); const v = c && c.data && c.data.stats ? Number(c.data.stats.pa) : NaN; return isNaN(v) ? null : Math.max(0, v); };
+  const paMax = ch => { const c = chars.find(x => x.id === ch); const v = c && c.data && c.data.stats ? Number(c.data.stats.pa) : NaN; return isNaN(v) ? null : Math.max(0, v + modSum(ch, 'pa')); };
   const paLeft = ch => { const st = states.get(ch); const m = paMax(ch); const v = st && st.data.pa !== undefined && st.data.pa !== null ? Number(st.data.pa) : m; return v === null ? null : v; };
   function effectsOf(card){
     const out = [];
@@ -578,7 +586,8 @@ const PC = (() => {
     else {
       // ---- Bloc du personnage, avant la main : portrait (+ étoile des PA, triangle des actions spéciales) · Opp / Ant / En jeu · DECK
       const cd = charData(cur) || {}, stats = cd.stats || {};
-      const statN = k => (stats[k] === undefined || stats[k] === '' || isNaN(Number(stats[k]))) ? '—' : Number(stats[k]);
+      const statN = k => { if(stats[k] === undefined || stats[k] === '' || isNaN(Number(stats[k]))) return '—'; return Number(stats[k]) + modSum(cur, k); };
+      const modTag = (b, k) => { const m = modSum(cur, k); if(m){ b.classList.add('mod'); b.title += ` — modificateur en cours : ${m > 0 ? '+' : ''}${m} (fiche : ${Number(stats[k]) || 0})`; } return b; };
       const av = el('div', { class: 'tme-av', title: nameOf(cur) });
       if(cd.portrait) av.append(el('img', { src: cd.portrait, alt: '' })); else av.append(el('span', { class: 'tme-ini', text: (nameOf(cur) || '?').trim().charAt(0).toUpperCase() }));
       const left = paLeft(cur), max = paMax(cur);
@@ -594,8 +603,8 @@ const PC = (() => {
       playBox.title = 'Cartes persistantes (en jeu) — clic : voir ; glisse une carte ici pour la mettre en jeu';
       playBox.addEventListener('click', () => openPile(cur, 'play')); dropTarget(playBox, cur, 'play');
       const stack = el('div', { class: 'tme-stats' },
-        Object.assign(box('', 'Opp', statN('opp')), { title: 'Opportunisme : cartes piochées en prenant le tour' }),
-        Object.assign(box(over ? 'excess' : '', 'Ant', statN('ant')), { title: `Anticipation : cartes gardées en fin de tour — ${d.hand.length} en main${over ? ' (trop !)' : ''}` }),
+        modTag(Object.assign(box('', 'Opp', statN('opp')), { title: 'Opportunisme : cartes piochées en prenant le tour' }), 'opp'),
+        modTag(Object.assign(box(over ? 'excess' : '', 'Ant', statN('ant')), { title: `Anticipation : cartes gardées en fin de tour — ${d.hand.length} en main${over ? ' (trop !)' : ''}` }), 'ant'),
         playBox);
       const pd = el('div', { class: 'pile tme-deck', title: 'Deck (pioche) — clic : fouiller ; dépose une carte ici pour la remettre dessus (Maj = dessous)' }, back(d.draw.length), el('small', { text: 'Deck' }));
       pd.addEventListener('click', () => openPile(cur, 'draw')); dropTarget(pd, cur, 'draw', 'top');
@@ -700,5 +709,5 @@ const PC = (() => {
   }
   const stateOf = ch => states.get(ch) || null;
   return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, resetPA, openRisks, states,
-    isLocked, blockedForMe, setEndLock, excessOf, get cards(){ return cards; } };
+    isLocked, blockedForMe, setEndLock, excessOf, modsOf, modSum, setMods, clearMods, get cards(){ return cards; } };
 })();

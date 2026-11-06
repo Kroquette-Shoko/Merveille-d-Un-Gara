@@ -16,8 +16,14 @@ const TO = (() => {
   let turn = {};
   const T = () => Object.assign({ mode: null, round: 0, scene: 0, acted: [], foes: [], foesActed: [], current: null, last: null, strict: true, pcs: [] }, turn || {});
   const statsOf2 = id => { const c = chars.find(x => x.id === id); return (c && c.data && c.data.stats) || null; };
-  const opp = id => { const s = statsOf2(id); return s ? Math.max(0, Number(s.opp) || 0) : 0; };
-  const ant = id => { const s = statsOf2(id); return s && s.ant !== undefined && s.ant !== '' ? Math.max(0, Number(s.ant) || 0) : null; };
+  // valeurs de la fiche + modificateurs temporaires (bulle « Stats » du pion)
+  const opp = id => { const s = statsOf2(id); return s ? Math.max(0, (Number(s.opp) || 0) + PC.modSum(id, 'opp')) : 0; };
+  const ant = id => { const s = statsOf2(id); return s && s.ant !== undefined && s.ant !== '' ? Math.max(0, (Number(s.ant) || 0) + PC.modSum(id, 'ant')) : null; };
+  // fin de scène : les modificateurs « jusqu'à la fin de la scène » disparaissent (personnages et pions)
+  async function clearSceneMods(){
+    for(const p of pcList()) await PC.clearMods(p.id, ['scene']);
+    if(typeof clearTokenSceneMods === 'function') await clearTokenSceneMods();
+  }
   const mine = id => chars.some(c => c.id === id && c.owner_id === me.id);
   const pcList = () => { const t = T(); const m = new Map((t.pcs || []).map(p => [p.id, p.name])); chars.forEach(c => { if(!m.has(c.id) && isGM) m.set(c.id, c.name || 'Sans nom'); }); return [...m.entries()].map(([id, name]) => ({ id, name })); };
   function isCurrent(it){ const c = T().current; if(!c) return false; return c.kind === 'pc' ? it.character_id === c.id : it.id === c.id; }
@@ -49,12 +55,14 @@ const TO = (() => {
     await setTurn(Object.assign(t, { current: null, last: 'foe', foesActed: [...new Set([...(t.foesActed || []), c.id])] })); }
   async function newScene(){
     const t = T(); const n = (t.scene || 0) + 1; const pcs = pcsNow();
+    await clearSceneMods();
     await setTurn(Object.assign(t, { mode: 'scene', scene: n, acted: [], current: null, last: null, pcs }), `🎬 Scène ${n} : tout le monde pioche.`);
     await PC.resetPA(pcs.map(p => p.id));
     for(const p of pcs) await PC.draw(p.id, opp(p.id) || 1);
   }
   async function endScene(){
     postMsg('system', '🎬 Fin de scène : chacun défausse jusqu’à son Anticipation.'); send('discard-check', {}); checkMyHands();
+    await clearSceneMods();
   }
   async function forceDraw(ids, mode){
     for(const id of ids) await PC.draw(id, mode === 'opp' ? (opp(id) || 1) : 1);
