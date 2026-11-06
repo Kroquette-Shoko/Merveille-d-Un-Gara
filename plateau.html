@@ -800,7 +800,7 @@ function openSheet(it){
 let bubble = null;                                   // menu de bulle ouvert ('hp' | 'st' | 'res' | 'stats' | 'opt' | null)
 const BUBBLES = [
   { k: 'hp', ic: '❤', t: 'Santé' }, { k: 'st', ic: '✦', t: 'États' }, { k: 'res', ic: '💧', t: 'Ressources' },
-  { k: 'stats', ic: '📊', t: 'Stats' }, { k: 'opt', ic: '⚙', t: 'Options du pion' }];
+  { k: 'stats', ic: '📊', t: 'Stats' }, { k: 'opt', ic: '⚙', t: 'Options du pion' }, { k: 'sheet', ic: '📜', t: 'Ouvrir la fiche', act: true }];
 const STAT_LABELS = { corps: 'Corps', esprit: 'Esprit', charme: 'Charme', res: 'Résistance', opp: 'Opportunisme', ant: 'Anticipation', pa: "Points d'action" };
 // États proposés : mots-clés de catégorie « Affliction » ou « État » (icône : champ icon du mot-clé quand il existera, sinon initiales)
 function stateDefs(){ return Object.values(typeof JDR_KW === 'object' && JDR_KW ? JDR_KW : {}).filter(k => k.category === 'Affliction' || k.category === 'État')
@@ -817,7 +817,8 @@ function renderHud(){
   // bulles
   const B2 = $id('tbub');
   B2.replaceChildren(...BUBBLES.map(b => el('button', { type: 'button', class: 'bub' + (bubble === b.k ? ' on' : ''), title: b.t, 'aria-label': b.t, 'aria-pressed': bubble === b.k ? 'true' : 'false',
-    onclick: () => { bubble = bubble === b.k ? null : b.k; renderHud(); } }, el('span', { text: b.ic }))));
+    // la 6e bulle ouvre directement la fiche (personnage : fiche complète ; PNJ : sa fiche du journal ; pion seul : ses réglages)
+    onclick: () => { if(b.act){ openSheet(it); return; } bubble = bubble === b.k ? null : b.k; renderHud(); } }, el('span', { text: b.ic }))));
   B2.hidden = false;
   if(!bubble){ H.hidden = true; placeHud(); return; }
   const rows = [el('div', { class: 'th1' }, el('b', { text: `${BUBBLES.find(b => b.k === bubble).t} — ${it.data.name || 'Pion'}` }),
