@@ -51,6 +51,23 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
 .capr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;background:var(--panel);border-radius:8px;padding:8px}
 /* Barre Enregistrer : reste visible en bas de l'écran pendant le défilement */
 .actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:8px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+/* Formulaire en accordéon : une partie ouverte à la fois, les autres résumées en une ligne */
+#form{display:flex;flex-direction:column;gap:10px}
+section.part>h2{cursor:pointer;user-select:none;margin:0}
+section.part>h2::after{content:'▾';margin-left:auto;color:var(--muted);font-size:.9rem;transition:transform .15s}
+section.part.closed>h2::after{transform:rotate(-90deg)}
+section.part.closed{gap:0;padding:10px 14px}
+section.part.closed>:not(h2){display:none !important}
+section.part>h2 .sum{font-family:var(--f-body);font-weight:400;font-size:.88rem;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+section.part:not(.closed)>h2 .sum{display:none}
+section.part.closed>h2 .hint{display:none}
+.stepnav{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+.subbox{border:1px dashed var(--line);border-radius:10px;padding:10px}
+.pick{display:flex;flex-direction:column;gap:5px}
+.pick .chips{gap:4px}.pick .chips:empty{display:none}
+.pick .chip{padding:2px 4px 2px 9px}
+.pick .chip button{border:0;background:transparent;padding:0 3px;color:inherit;cursor:pointer}
+.f>span:first-child{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .ro-banner{background:var(--panel);border-left:4px solid var(--brass);padding:10px 12px;border-radius:6px;margin:0}
 /* Studio d'illustration (cadrage libre, repris de Rimd'Orël) */
 .as-canvas{position:relative;height:300px;background:#0f1419;border-radius:10px;overflow:hidden;touch-action:none;cursor:grab;user-select:none}
@@ -99,35 +116,32 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
           <label class="f">Nom<input id="f-name" maxlength="80"></label>
           <label class="f">Identifiant<input id="f-id" maxlength="64" placeholder="rempli depuis le nom"></label>
         </div>
-        <div class="grid2">
+        <div class="grid3">
           <label class="f">Type de carte<select id="f-type"></select></label>
           <label class="f">Sous-type<select id="f-subtype"></select></label>
+          <div class="f" data-classic><span>Super-types</span><div id="f-supertypes"></div></div>
         </div>
         <div data-classic>
-          <p class="sub-h">Super-types (plusieurs possibles)</p>
-          <div class="chips" id="f-supertypes"></div>
-        </div>
-        <div data-classic>
-          <p class="sub-h">Qui peut jouer cette carte (vide partout = tout le monde)</p>
-          <p class="hint" style="margin:0 0 3px">Classes</p>
+          <p class="sub-h">Classes <span class="hint" style="text-transform:none;letter-spacing:0">— une seule = sa couleur ; aucune ou plusieurs = gris neutre</span></p>
           <div class="chips" id="f-classes"></div>
-          <p class="hint" style="margin-top:4px">Une seule classe = la couleur de cette classe. Aucune ou plusieurs = gris neutre.</p>
-          <div id="f-restrict" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
-          <p class="hint" style="margin-top:4px">Spécialisation, passé ou peuple coché : seuls les personnages qui en ont un peuvent jouer la carte. Les listes viennent de la page Origines.</p>
         </div>
-        <div class="grid2" data-classic>
+        <div class="grid4" data-classic>
+          <label class="f">Coût de mana<input id="f-mana" type="number" min="0" max="30" placeholder="aucun"></label>
           <label class="f">Valeur<input id="f-value" type="number" min="0" max="20"></label>
-          <label class="f">Coût de mana (vide = aucun)<input id="f-mana" type="number" min="0" max="30"></label>
           <label class="f">Rang<select id="f-rank"></select></label>
+          <div class="f"><span>Composantes</span><div class="row" style="gap:8px"><label class="chk"><input type="checkbox" id="f-c-sonore"> Sonore</label><label class="chk"><input type="checkbox" id="f-c-gestuelle"> Gestuelle</label><label class="chk"><input type="checkbox" id="f-c-materielle"> Matérielle</label></div></div>
         </div>
-        <div data-classic>
-          <p class="sub-h">Composantes (s'il y en a)</p>
-          <div class="row"><label class="chk"><input type="checkbox" id="f-c-sonore"> Sonore</label><label class="chk"><input type="checkbox" id="f-c-gestuelle"> Gestuelle</label><label class="chk"><input type="checkbox" id="f-c-materielle"> Matérielle</label></div>
+        <div data-classic class="subbox">
+          <p class="sub-h">Autorisation et conditions d'utilisation <span class="hint" style="text-transform:none;letter-spacing:0">— vide = tout le monde</span></p>
+          <div id="f-restrict" class="grid3"></div>
+          <p class="hint" style="margin:6px 0 2px">Prérequis de caractéristique</p>
+          <div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
+          <button type="button" id="req-add" style="align-self:start;margin-top:4px">Ajouter un prérequis</button>
         </div>
       </section>
 
       <!-- 2. ILLUSTRATION : même principe que Rimd'Orël -->
-      <section class="part">
+      <section class="part" id="illu" data-skip="Pas d'illustration pour l'instant">
         <h2><span class="num">2</span>Illustration</h2>
         <label class="f">Image (adresse web)<input id="f-image" type="url" placeholder="https://…"></label>
         <div id="studio" hidden style="display:flex;flex-direction:column;gap:8px">
@@ -190,7 +204,7 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
       </section>
 
       <!-- 3. CAPACITÉS -->
-      <section class="part" data-classic>
+      <section class="part" id="abil-sec" data-classic>
         <h2><span class="num">3</span><span id="ab-title">Capacités</span></h2>
         <p class="hint" id="ab-pact-hint" hidden>Pacte : ces capacités forment le <b>pouvoir du pacte</b> (partie gauche de la carte).</p>
         <p class="sub-h">Mots-clés <a href="mots-cles.html" target="_blank" rel="noopener" style="font-weight:400;font-size:.85rem">· voir / gérer la liste</a></p>
@@ -218,30 +232,28 @@ section.ident>h2 .num{background:var(--cc,#6B7280);color:var(--ci,#fff)}
       </section>
 
       <!-- 4. CAPACITÉ SPÉCIALE (facultative) -->
-      <section class="part" data-classic>
-        <h2><span class="num">4</span>Capacité spéciale <span class="hint" style="font-family:var(--f-body);font-weight:400">— facultative, encadré en bas de la carte</span></h2>
+      <section class="part" id="spec-sec" data-classic>
+        <h2><span class="num">3c</span>Capacité spéciale</h2>
+        <p class="hint" style="margin:0">Facultative : encadré en bas de la carte.</p>
         <label class="chk"><input type="checkbox" id="sp-on"> Cette carte a une capacité spéciale</label>
         <div id="special"></div>
       </section>
 
-      <details class="box" data-classic>
-        <summary style="cursor:pointer;font-weight:700">Options de deck</summary>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-          <div class="row">
-            <label class="chk"><input type="checkbox" id="f-persistent"> Persistante (reste en jeu)</label>
-            <label class="chk"><input type="checkbox" id="f-horsdeck"> Hors deck (bénédiction, grimoire, pacte)</label>
-          </div>
-          <div class="grid2">
-            <label class="f">Exemplaires max dans un deck<input id="f-max" type="number" min="1" placeholder="illimité"></label>
-            <label class="f">Mention en bas de carte<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
-          </div>
-          <div><p class="sub-h">Prérequis de caractéristique</p><div id="reqs" style="display:flex;flex-direction:column;gap:6px"></div>
-            <button type="button" id="req-add" style="margin-top:6px">Ajouter un prérequis</button></div>
+      <section class="part" id="opt-sec" data-classic>
+        <h2><span class="num">4</span>Options de deck</h2>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="f-persistent"> Persistante (reste en jeu)</label>
+          <label class="chk"><input type="checkbox" id="f-horsdeck"> Hors deck (bénédiction, grimoire, pacte)</label>
         </div>
-      </details>
+        <div class="grid2">
+          <label class="f">Exemplaires max dans un deck<input id="f-max" type="number" min="1" placeholder="illimité"></label>
+          <label class="f">Mention en bas de carte<input id="f-footer" placeholder="ex. Bannissez cette carte lors de votre prochain repos."></label>
+        </div>
+      </section>
 
       <div class="actions">
         <button class="primary" id="save" type="button">Enregistrer</button>
+        <button type="button" id="acc-all" class="ghost" title="Ouvrir ou refermer toutes les parties">Tout déplier</button>
         <button id="dup" type="button">Dupliquer</button>
         <button class="danger" id="del" type="button">Supprimer</button>
         <span class="status" id="status-bar" role="status" style="align-self:center;margin-left:4px"></span>
@@ -273,7 +285,7 @@ let dirty = false;
 
 function status(t, bad){ const s=$id('status'); s.textContent=t||''; s.className='status'+(bad?' bad':t?' good':''); jdrStatusBar(t, bad); }
 function el(tag, attrs = {}, ...kids){ const e=document.createElement(tag); for(const[a,v] of Object.entries(attrs)){ if(a==='class') e.className=v; else if(a.startsWith('on')) e.addEventListener(a.slice(2),v); else if(a==='text') e.textContent=v; else if(v!==false && v!=null) e.setAttribute(a, v===true?'':v); } kids.forEach(k=>e.append(k)); return e; }
-function changed(){ dirty = true; renderPreview(); }
+function changed(){ dirty = true; renderPreview(); if(typeof updateSums === 'function') updateSums(); }
 const num = v => v === '' ? null : Number(v);
 
 /* ================= Cartes / Bestiaire =================
@@ -379,17 +391,31 @@ function chipGroup(box, options, selected, onToggle){
 }
 function toggleIn(list, v, on){ const i = list.indexOf(v); if(on && i < 0) list.push(v); if(!on && i >= 0) list.splice(i, 1); }
 
+// Liste déroulante « + ajouter… » + étiquettes des choix (✕ pour retirer) : remplace les cases à cocher quand il y a beaucoup de variantes
+function pickList(box, options, selected, onChange, placeholder, missing){
+  box.replaceChildren(); box.classList.add('pick');
+  const chips = el('div', { class: 'chips' });
+  selected.filter(v => options.includes(v)).forEach(v => {
+    const miss = missing && missing(v);
+    chips.append(el('span', { class: 'chip on', style: miss ? 'font-style:italic;border-style:dashed' : '', title: miss ? 'N’existe pas dans la page Origines' : '' }, document.createTextNode(v),
+      el('button', { type: 'button', 'aria-label': 'Retirer ' + v, text: '✕', onclick: () => { onChange(v, false); changed(); } })));
+  });
+  const rest = options.filter(o => !selected.includes(o));
+  const sel = el('select', { 'aria-label': placeholder }, el('option', { value: '', text: rest.length ? placeholder : '(tout est choisi)' }), ...rest.map(o => el('option', { value: o, text: o })));
+  sel.addEventListener('change', () => { if(sel.value){ onChange(sel.value, true); changed(); } });
+  box.append(chips, sel);
+}
 function renderSupertypes(){
-  chipGroup($id('f-supertypes'), JDR_SUPERTYPES, cur.supertypes, (v, on) => { toggleIn(cur.supertypes, v, on); renderKeywords(); });
+  pickList($id('f-supertypes'), JDR_SUPERTYPES, cur.supertypes, (v, on) => { toggleIn(cur.supertypes, v, on); renderSupertypes(); renderKeywords(); }, '+ ajouter un super-type…');
 }
 function renderRestrict(){
   const box = $id('f-restrict'); box.replaceChildren();
   [['Spécialisations','specialisation'],['Passés','passe'],['Peuples','peuple']].map(([g, kind]) => [g, existing(kind, cur.restrict), kind]).forEach(([g, list, kind]) => {
     if(!list.length) return;
-    const chips = el('div', { class:'chips' });
-    chipGroup(chips, list, cur.restrict, (v, on) => toggleIn(cur.restrict, v, on));
-    markMissing(chips, kind);
-    box.append(el('div', {}, el('p', { class:'hint', style:'margin:0 0 3px', text: g }), chips));
+    const names = originList ? originList.filter(o => o.kind === kind).map(o => jdrNorm(o.name)) : null;
+    const pb = el('div');
+    pickList(pb, list, cur.restrict, (v, on) => { toggleIn(cur.restrict, v, on); renderRestrict(); }, '+ ' + g.toLowerCase().replace(/s$/, '') + '…', v => names && !names.includes(jdrNorm(v)));
+    box.append(el('div', { class: 'f' }, el('span', { text: g }), pb));
   });
 }
 // Sous-types : seulement ceux autorisés pour le type choisi
@@ -517,7 +543,9 @@ function abilityBlock(ab, title, mainCost, onRemove, rerender, isSpecial){
   if(ab.mode !== 'build') ab.mode = 'text';
   const costIn = el('input', { type:'number', min:0, max: 30, value: ab[mainCost.key] ?? '', placeholder: 'aucun' });
   costIn.addEventListener('input', () => { ab[mainCost.key] = num(costIn.value); changed(); });
-  const other = el('input', { value: ab.cost || '', placeholder: 'ex. Défaussez 1' });
+  const disc = el('input', { type:'number', min:0, max:20, value: ab.discard ?? '', placeholder: 'aucune' });
+  disc.addEventListener('input', () => { ab.discard = num(disc.value); changed(); });
+  const other = el('input', { value: ab.cost || '', placeholder: 'ex. 1 Risque' });
   other.addEventListener('input', () => { ab.cost = other.value; changed(); });
   const reac = el('input', { type:'checkbox' }); reac.checked = !!ab.reaction;
   reac.addEventListener('change', () => { ab.reaction = reac.checked; changed(); });
@@ -564,12 +592,13 @@ function abilityBlock(ab, title, mainCost, onRemove, rerender, isSpecial){
   }
   return el('div', { class:'ab' },
     el('div', { class:'ab-top' }, el('h3', { text: title }), onRemove ? el('button', { type:'button', class:'ghost', text:'Supprimer', onclick: onRemove }) : document.createTextNode('')),
-    el('div', { class:'grid3', style: isSpecial ? 'grid-template-columns:repeat(4,minmax(0,1fr))' : '' },
+    el('div', { class:'grid3', style: 'grid-template-columns:repeat(' + (isSpecial ? 5 : 4) + ',minmax(0,1fr))' },
       // Spécial : coût en points d'action EN PLUS du coût en mana (le plateau retire ces PA quand on résout le spécial)
       ...(isSpecial ? [(() => { const pa = el('input', { type:'number', min:0, max:30, value: ab.pa ?? '', placeholder:'aucun' });
         pa.addEventListener('input', () => { ab.pa = num(pa.value); changed(); });
         return el('label', { class:'f' }, document.createTextNode("Coût en points d'action"), pa); })()] : []),
       el('label', { class:'f' }, document.createTextNode(mainCost.label), costIn),
+      el('label', { class:'f' }, document.createTextNode('Défausse (cartes)'), disc),
       el('label', { class:'f' }, document.createTextNode('Autre coût'), other),
       el('label', { class:'chk', style:'align-self:end;padding-bottom:6px' }, reac, document.createTextNode('Réaction'))),
     rule, modes, body,
@@ -577,8 +606,10 @@ function abilityBlock(ab, title, mainCost, onRemove, rerender, isSpecial){
 }
 function renderAbilities(){
   const box = $id('abilities'); box.replaceChildren();
-  cur.abilities.forEach((ab, i) => box.append(abilityBlock(ab, 'Capacité ' + (i + 1), { key:'pa', label:"Coût en points d'action" },
+  cur.abilities.forEach((ab, i) => box.append(abilityBlock(ab, i === 0 ? 'Capacité principale' : i === 1 ? 'Capacité secondaire' : 'Capacité ' + (i + 1), { key:'pa', label:"Coût en points d'action" },
     () => { cur.abilities.splice(i, 1); renderAbilities(); changed(); }, renderAbilities, false)));
+  // le bouton dit ce qu'il ajoute : la capacité secondaire, puis d'autres
+  $id('ab-add').textContent = cur.abilities.length === 1 ? 'Ajouter une capacité secondaire' : 'Ajouter une capacité';
   applyRights(); renderGen();
 }
 $id('ab-add').addEventListener('click', () => { cur.abilities.push(jdrBlankAbility()); renderAbilities(); changed(); });
@@ -587,9 +618,18 @@ function renderSpecial(){
   const box = $id('special'); box.replaceChildren();
   $id('sp-on').checked = !!cur.special.enabled;
   if(!cur.special.enabled) return;
+  // Type de spécial : préréglages courants (les rappels n'ont pas de bouton quand on joue la carte) + nom libre
+  const TYPES = [['', 'Capacité jouable', false], ['Point de règle', 'Point de règle (rappel)', true], ['Condition', 'Condition (rappel)', true],
+    ['Retrait du deck', 'Retrait du deck (rappel)', true], ['Refrain', 'Refrain', false], ['Posture', 'Posture', false]];
+  const known = TYPES.some(t => t[0] === (cur.special.name || ''));
+  const ty = el('select', { 'aria-label': 'Type de capacité spéciale' }, ...TYPES.map(t => el('option', { value: t[0], text: t[1] })), el('option', { value: '__autre', text: 'Autre (écrire un nom)…' }));
+  ty.value = known ? (cur.special.name || '') : '__autre';
   const nm = el('input', { value: cur.special.name || '', placeholder: 'ex. Surcharge', maxlength: 40 });
+  const nmL = el('label', { class:'f' }, document.createTextNode('Nom affiché'), nm); nmL.hidden = known;
   nm.addEventListener('input', () => { cur.special.name = nm.value; changed(); });
-  box.append(el('label', { class:'f', style:'margin-bottom:8px' }, document.createTextNode('Nom du spécial (facultatif)'), nm),
+  ty.addEventListener('change', () => { if(ty.value === '__autre'){ nmL.hidden = false; nm.focus(); return; }
+    const t = TYPES.find(x => x[0] === ty.value); cur.special.name = t[0]; cur.special.rule = t[2]; renderSpecial(); changed(); });
+  box.append(el('div', { class:'grid2', style:'margin-bottom:8px' }, el('label', { class:'f' }, document.createTextNode('Type'), ty), nmL),
     abilityBlock(cur.special, 'Spécial', { key:'mana', label:'Coût en mana' }, null, renderSpecial, true));
   applyRights(); renderGen();
 }
@@ -732,7 +772,47 @@ function renderForm(){
   $id('f-persistent').checked = !!cur.persistent; syncHorsDeck();
   $id('f-max').value = cur.maxCopies ?? ''; $id('f-footer').value = cur.footer || '';
   renderReqs(); renderKeywords(); renderAbilities(); renderSpecial(); renderCreature(); renderPact(); renderPreview(); artLayout(); applyRights();
+  updateSums(); if(renderForm.lastId !== (savedId || '§new' + cur.id)){ renderForm.lastId = savedId || '§new' + cur.id; openStep(steps()[0], false); }   // autre carte : on repart de la partie 1
 }
+/* ================= Accordéon : une partie à la fois ================= */
+const STEP_SUM = {
+  ident: () => [cur.name || 'Sans nom', [cur.type, cur.subtype].filter(Boolean).join(' / '), cur.supertypes.join(', '), cur.classes.join(', '),
+    cur.mana !== null && cur.mana !== undefined && cur.mana !== '' ? cur.mana + ' mana' : '', cur.value !== null && cur.value !== undefined && cur.value !== '' ? 'valeur ' + cur.value : '', cur.rank ? 'rang ' + cur.rank : '',
+    cur.restrict.length ? 'réservée : ' + cur.restrict.join(', ') : ''].filter(Boolean).join(' · '),
+  illu: () => cur.image_url ? 'Image choisie' : 'Pas encore d’illustration',
+  crea: () => cur.creature ? [cur.creature.category, cur.creature.family, 'niveau ' + (cur.creature.level ?? 0), (cur.creature.hearts || 1) + ' cœur(s)'].filter(Boolean).join(' · ') : '',
+  'abil-sec': () => { const n = cur.abilities.length; return `${n} capacité${n > 1 ? 's' : ''}${cur.keywords.length ? ' · mots-clés : ' + cur.keywords.map(k => k.name || k.id).join(', ') : ''}`; },
+  'pact-sec': () => cur.pact ? [cur.pact.label, cur.pact.reward && cur.pact.reward.name ? 'récompense : ' + cur.pact.reward.name : ''].filter(Boolean).join(' · ') : '',
+  'spec-sec': () => cur.special && cur.special.enabled ? (cur.special.name || 'Capacité spéciale') + (cur.special.rule ? ' (rappel)' : '') : 'Aucune',
+  'opt-sec': () => [cur.persistent ? 'persistante' : '', jdrIsHorsDeck(cur) ? 'hors deck' : '', cur.maxCopies ? 'max ' + cur.maxCopies : ''].filter(Boolean).join(' · ') || 'Par défaut'
+};
+const steps = () => [...document.querySelectorAll('#form section.part')].filter(s => !s.hidden);
+function openStep(sec, scroll){
+  steps().forEach(s => s.classList.toggle('closed', s !== sec));
+  $id('acc-all').textContent = 'Tout déplier';
+  if(scroll && sec) setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+}
+function updateSums(){
+  steps().forEach(s => { const h = s.querySelector(':scope > h2'); let sp = h.querySelector('.sum'); if(!sp){ sp = el('span', { class: 'sum' }); h.append(sp); }
+    sp.textContent = STEP_SUM[s.id] ? STEP_SUM[s.id]() : ''; });
+}
+function setupAccordion(){
+  document.querySelectorAll('#form section.part').forEach(sec => {
+    const h = sec.querySelector(':scope > h2'); h.tabIndex = 0; h.setAttribute('role', 'button');
+    const toggle = () => { if(sec.classList.contains('closed')) openStep(sec, false); else sec.classList.add('closed'); };
+    h.addEventListener('click', toggle); h.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+    const go = d => { const list = steps(), i = list.indexOf(sec), n = list[i + d]; if(n) openStep(n, true); else sec.classList.add('closed'); };
+    const nav = el('div', { class: 'stepnav' },
+      el('button', { type: 'button', class: 'ghost', text: '← Précédent', onclick: () => go(-1) }),
+      el('div', { class: 'row', style: 'gap:6px' },
+        ...(sec.dataset.skip ? [el('button', { type: 'button', class: 'ghost', text: 'Passer', title: sec.dataset.skip, onclick: () => go(1) })] : []),
+        el('button', { type: 'button', class: 'primary', text: 'Suivant →', onclick: () => go(1) })));
+    sec.append(nav);
+  });
+  $id('acc-all').addEventListener('click', () => { const all = steps(), anyClosed = all.some(s => s.classList.contains('closed'));
+    all.forEach(s => s.classList.toggle('closed', !anyClosed)); $id('acc-all').textContent = anyClosed ? 'Tout replier' : 'Tout déplier'; });
+}
+setupAccordion();
 function renderGen(){
   document.querySelectorAll('#abilities [data-gen]').forEach((p, i) => { if(cur.abilities[i]) p.textContent = jdrAbilityText(cur.abilities[i]) || '(capacité vide)'; });
   const sp = document.querySelector('#special [data-gen]'); if(sp) sp.textContent = jdrAbilityText(cur.special) || '(capacité vide)';

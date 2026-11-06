@@ -130,8 +130,11 @@ function jdrSplitList(s){ return String(s || '').split(/[\/,;]+/).map(x => x.tri
   jdrRichText(texte) → HTML prêt à afficher (le texte est protégé : pas de HTML possible dedans).
 */
 const JDR_BULLET_RE = /^\s*[-•*]\s+(.*)$/;
-function jdrRichText(text){
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+function jdrRichText(text, opts){
+  const esc0 = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+  // opts.keywords : les noms des mots-clés (page Mots-clés) sont mis en gras dans le texte de règles
+  const kwRe = opts && opts.keywords ? jdrKeywordRegex() : null;
+  const esc = kwRe ? (s => esc0(s).replace(kwRe, '<b>$1</b>')) : esc0;
   const out = []; let list = null, para = [];
   const flushPara = () => { if(para.length){ out.push(para.join('<br>')); para = []; } };
   const flushList = () => { if(list){ out.push(`<ul class="pts">${list.join('')}</ul>`); list = null; } };
@@ -142,6 +145,17 @@ function jdrRichText(text){
   });
   flushPara(); flushList();
   return out.join('');
+}
+// Expression qui trouve les noms des mots-clés dans un texte DÉJÀ protégé (apostrophes en &#39;), du plus long au plus court
+let _kwReKey = '', _kwRe = null;
+function jdrKeywordRegex(){
+  const kw = typeof JDR_KW === 'object' && JDR_KW ? Object.values(JDR_KW) : [];
+  const names = [...new Set(kw.map(k => String(k.name || '').replace(/\s*\(.*\)\s*$/, '').trim()).filter(n => n.length >= 3))].sort((a, b) => b.length - a.length);
+  const key = names.join('|'); if(key === _kwReKey) return _kwRe;
+  _kwReKey = key;
+  const esc = s => s.replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch])).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  _kwRe = names.length ? new RegExp('(?<![\\p{L}\\p{N}])(' + names.map(esc).join('|') + ')(?![\\p{L}\\p{N}])', 'giu') : null;
+  return _kwRe;
 }
 // Bouton « • Liste » pour un champ de texte : ajoute (ou retire) « • » au début des lignes sélectionnées
 function jdrBulletButton(textarea, onChange){
@@ -457,7 +471,7 @@ function jdrEffectText(e){
 // Coûts d'une capacité : « 1 PA », « 2 mana », autre coût
 function jdrAbilityCosts(ab){
   const has = v => v !== null && v !== undefined && v !== '';
-  return [has(ab.pa) ? `${ab.pa} PA` : '', has(ab.mana) ? `${ab.mana} mana` : '', ab.cost || ''].filter(Boolean).join(', ');
+  return [has(ab.pa) ? `${ab.pa} PA` : '', has(ab.mana) ? `${ab.mana} mana` : '', has(ab.discard) && Number(ab.discard) ? `Défaussez ${ab.discard}` : '', ab.cost || ''].filter(Boolean).join(', ');
 }
 // Corps d'une capacité : le texte libre, ou les phrases des effets construits
 function jdrAbilityBody(ab){

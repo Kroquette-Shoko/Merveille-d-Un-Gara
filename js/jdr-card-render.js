@@ -75,7 +75,7 @@ function jdrCardHTML(card, opts = {}){
   const isPact = c.type === 'Pacte';
   const cls = ['jcard', isPact ? 'pact' : '', opts.size === 'small' ? 'small' : '', opts.locked ? 'locked' : ''].filter(Boolean).join(' ');
   const kwHTML = kws.length ? `<p class="kw">${kws.map(k => `<b title="${esc(k.text)}">${esc(k.label)}</b>`).join(' · ')}</p>` : '';
-  const mainHTML = main.map(l => `<div class="p${l.ab !== null ? ' abl" data-ab="' + l.ab : ''}">${jdrRichText(l.text)}</div>`).join('');
+  const mainHTML = main.map(l => `<div class="p${l.ab !== null ? ' abl" data-ab="' + l.ab : ''}">${jdrRichText(l.text, { keywords: true })}</div>`).join('');
   // Pacte : 3 parties — Pacte (le pouvoir) | Engagement ou Mission (la demande) + Récompense (une carte)
   let txtHTML = `<div class="txt">${kwHTML}${mainHTML}</div>`;
   if(isPact){
@@ -112,7 +112,7 @@ function jdrCardHTML(card, opts = {}){
       </div>
       ${art}
       ${txtHTML}
-      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<div class="p${l.rule ? ' rule"' : ' abl" data-ab="special"'}>${jdrRichText(l.text)}</div>`).join('')}</div>` : ''}
+      ${special.length ? `<div class="spec">${c.special.name ? `<div class="st">${esc(c.special.name)}</div>` : ''}${special.map(l => `<div class="p${l.rule ? ' rule"' : ' abl" data-ab="special"'}>${jdrRichText(l.text, { keywords: true })}</div>`).join('')}</div>` : ''}
       ${c.footer ? `<div class="foot">${esc(c.footer)}</div>` : ''}
     </div>
   </div>`;
