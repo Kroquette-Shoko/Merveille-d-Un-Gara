@@ -1242,6 +1242,7 @@ function renderStrip(){
       return d; })));
     card.append(el('div', { class: 'pa' },
       ...(s.id !== camp.active_scene ? [el('button', { type: 'button', text: 'Groupe ici', title: 'Y emmener tout le groupe (comme glisser le marqueur)', onclick: () => showToPlayers(s) })] : []),
+      el('button', { type: 'button', text: '✎', title: 'Renommer la scène', 'aria-label': 'Renommer la scène', onclick: e => { e.stopPropagation(); renameScene(s, card.querySelector('.pn')); } }),
       el('button', { type: 'button', text: '⧉', title: 'Dupliquer la scène (carte et pions)', 'aria-label': 'Dupliquer la scène', onclick: () => duplicateScene(s) }),
       el('button', { type: 'button', text: '⚙', title: 'Réglages de la scène', 'aria-label': 'Réglages de la scène', onclick: async () => { if(!scene || scene.id !== s.id) await loadScene(s.id); openPane('settings'); } })));
     // glisser-déposer : ranger, marqueur, joueur seul
@@ -1291,7 +1292,11 @@ async function moveScene(id, targetId, after){
   for(const x of changed){ const { error } = await jdrSb.from('scenes').update({ data: x.data }).eq('id', x.id); if(error){ toast(jdrErrorText(error)); break; } }
 }
 function renameScene(s, nmEl){
+  if(!nmEl) return;
   const inp = el('input', { value: s.name, maxlength: 80, class: 'pnin', 'aria-label': 'Nom de la scène' });
+  // une vignette « glissable » empêche d'écrire dans un champ (Firefox) : on la rend fixe le temps de renommer
+  const card = nmEl.closest('[draggable]'); if(card) card.draggable = false;
+  ['pointerdown', 'mousedown', 'dragstart'].forEach(ev => inp.addEventListener(ev, e => e.stopPropagation()));
   nmEl.replaceWith(inp); inp.focus(); inp.select();
   let done = false;
   const finish = async ok => { if(done) return; done = true; const v = inp.value.trim();
