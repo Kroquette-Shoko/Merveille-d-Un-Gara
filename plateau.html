@@ -401,8 +401,18 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 
 /* ---------- Joueurs connectés (bas gauche) ---------- */
 .plist{position:fixed;left:10px;bottom:calc(var(--trayh, 0px) + 10px);z-index:20;display:flex;gap:8px;align-items:flex-end}
-.pav{display:flex;flex-direction:column;align-items:center;gap:3px;width:62px}
-.pav .c{width:48px;height:48px;border-radius:50%;background:var(--pc);display:grid;place-items:center;font-weight:800;font-size:1.2rem;color:#fff;border:3px solid var(--ui);box-shadow:0 0 0 2px var(--pc),0 4px 12px rgba(0,0,0,.5);position:relative}
+/* portraits carrés à bords ronds ; 4 tailles (réglage « Portraits des joueurs ») : nom seul / petit 48 px / moyen ×2 / grand ×4 */
+.plist{--ps:48px}
+.plist.ps-m{--ps:96px}.plist.ps-l{--ps:192px}
+.pav{display:flex;flex-direction:column;align-items:center;gap:3px;width:calc(var(--ps) + 14px)}
+.pav .c{width:var(--ps);height:var(--ps);border-radius:calc(var(--ps) * .2);background:var(--pc);display:grid;place-items:center;font-weight:800;font-size:calc(var(--ps) * .42);color:#fff;border:3px solid var(--ui);box-shadow:0 0 0 2px var(--pc),0 4px 12px rgba(0,0,0,.5);position:relative}
+.pav .c img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.plist.ps-l .pav span,.plist.ps-m .pav span{font-size:.85rem;max-width:calc(var(--ps) + 14px)}
+.plist.ps-n .pav{width:auto}.plist.ps-n .pav .c{display:none}
+.plist.ps-n .pav span{font-size:.82rem;max-width:140px;padding:2px 10px;border:2px solid var(--pc)}
+.plist.ps-n .pav.gm span::after{content:' · MJ';color:var(--acc2);font-weight:800}
+.plist .psz{align-self:flex-end;width:26px;height:26px;padding:0;border-radius:8px;font-size:.8rem;opacity:.75}
+.plist .psz:hover{opacity:1}
 .pav .c i{position:absolute;top:-8px;right:-8px;font-style:normal;font-size:.62rem;font-weight:800;background:var(--acc);color:#fff;border-radius:999px;padding:1px 5px}
 .pav span{font-size:.75rem;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.6);border-radius:999px;padding:0 6px}
 
@@ -549,6 +559,7 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     <h2>Affichage</h2>
     <label class="chk"><input type="checkbox" id="o-names" checked> Afficher les noms sous les pions</label>
     <label class="chk"><input type="checkbox" id="o-rings" checked> Cercles de portée au survol de mes pions</label>
+    <label class="f">Portraits des joueurs (bas de l'écran)<select id="o-pav"><option value="n">Juste le nom</option><option value="s">Petit</option><option value="m">Moyen (×2)</option><option value="l">Grand (×4)</option></select></label>
     <label class="f">Barres de mes pions (PV, armure, mana)<select id="o-bars"><option value="always">Toujours affichées</option><option value="hover">Au survol / à la sélection</option><option value="never">Jamais</option></select></label>
   </section>
 </aside>
@@ -607,7 +618,7 @@ let sel = null;                                // élément sélectionné
 // Maj + clic = ajouter / retirer un objet. Glisser un des objets sélectionnés les déplace tous ; Suppr les supprime (MJ).
 const multi = new Set();
 let channel = null;
-let opt = { names: true, rings: true, bars: 'always' };
+let opt = { names: true, rings: true, bars: 'always', pav: 's' };
 const DEFAULT_SCALE = 50;                      // pixels par mètre
 const RANGES = [['Contact', 1.5], ['Allonge', 3], ['Proche', 9], ['Moyenne portée', 18], ['Grande portée', 36], ['Très grande portée', 72]];
 const RING_RANGES = RANGES.slice(0, 4);
@@ -1167,11 +1178,20 @@ function renderPlayers(){
     const sc = scenes.find(x => x.id === sceneOf(p.uid));
     const a = el('div', { class: 'pav', draggable: canDrag ? 'true' : 'false',
       title: (p.name || 'Joueur') + (p.gm ? ' (maître du jeu)' : sc ? ` — sur « ${sc.name} »` + (canDrag ? ' (glisse-le sur une scène du bandeau)' : '') : '') },
-      el('div', { class: 'c', style: `--pc:${userColor(p.uid)}` }, document.createTextNode((p.name || '?')[0].toUpperCase()), ...(p.gm ? [el('i', { text: 'MJ' })] : [])),
+      el('div', { class: 'c' }, ...(portraitOf(p.uid) ? [el('img', { src: portraitOf(p.uid), alt: '' })] : [document.createTextNode((p.name || '?')[0].toUpperCase())]), ...(p.gm ? [el('i', { text: 'MJ' })] : [])),
       el('span', { text: p.name || 'Joueur' }));
+    a.style.setProperty('--pc', userColor(p.uid)); if(p.gm) a.classList.add('gm');
     if(canDrag) a.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-player', p.uid); e.dataTransfer.effectAllowed = 'move'; if($id('pages').classList.contains('closed')){ $id('pages').classList.remove('closed'); renderStrip(); } });
-    return a; }));
+    return a; }),
+    // petit bouton : changer la taille des portraits (même réglage que dans Paramètres › Affichage)
+    el('button', { type: 'button', class: 'psz', text: '⤢', title: 'Taille des portraits : ' + PAV_NAMES[opt.pav] + ' (clic : taille suivante)', 'aria-label': 'Taille des portraits',
+      onclick: () => { const k = Object.keys(PAV_NAMES); setPav(k[(k.indexOf(opt.pav) + 1) % k.length]); } }));
+  $id('plist').className = 'plist ps-' + (opt.pav || 's');
 }
+const PAV_NAMES = { n: 'juste le nom', s: 'petit', m: 'moyen', l: 'grand' };
+function setPav(v){ opt.pav = PAV_NAMES[v] ? v : 's'; saveOpt(); $id('o-pav').value = opt.pav; renderPlayers(); }
+// portrait d'un joueur : celui de son premier personnage qui en a un (sinon son initiale)
+function portraitOf(uid){ const c = chars.find(x => x.owner_id === uid && x.data && x.data.portrait); return c ? c.data.portrait : ''; }
 
 /* ======================= Scènes (bandeau du MJ) =======================
    - glisser une scène sur une autre : la range avant / après (ordre = data.order)
@@ -1342,6 +1362,7 @@ $id('sidetog').addEventListener('click', () => setSide(document.body.classList.c
 $id('o-names').addEventListener('change', e => { opt.names = e.target.checked; saveOpt(); renderAll(); });
 $id('o-rings').addEventListener('change', e => { opt.rings = e.target.checked; saveOpt(); drawFx(); });
 $id('o-bars').addEventListener('change', e => { opt.bars = e.target.value; saveOpt(); renderAll(); });
+$id('o-pav').addEventListener('change', e => setPav(e.target.value));
 
 /* ---------- Discussion (et journal des actions) ---------- */
 function scrollChat(){ const m = $id('msgs'); m.scrollTop = m.scrollHeight; }
@@ -1962,7 +1983,7 @@ async function chooseCampaign(){
     : '<p style="margin:0">Tu n’es dans aucune partie. Le MJ crée une campagne et te donne son code (Joueur → Rejoindre une partie).</p>'));
 }
 (async () => {
-  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings; $id('o-bars').value = opt.bars;
+  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings; $id('o-bars').value = opt.bars; $id('o-pav').value = opt.pav || 's';
   if(!jdrSb){ showMsg('<p>Connexion au serveur impossible.</p>'); return; }
   me = await jdrPage('plateau', { requireLogin: true, noNav: true }); if(!me) return;
   myName = await jdrUsername(me) || 'Joueur';
