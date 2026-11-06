@@ -12,7 +12,10 @@
 .pjw{position:relative;min-width:0}
 .pjw .del{position:absolute;top:6px;right:6px;padding:2px 8px;font-size:.8rem;color:var(--hurt);background:transparent;border:1px solid transparent;border-radius:8px}
 .pjw .del:hover,.pjw .del:focus-visible{border-color:var(--hurt);background:var(--sheet)}
-.pjw .pj{padding-right:84px}
+.pjw .pj{padding-right:14px}
+.pjw .acts2{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.pjw .acts2 button{padding:3px 10px;font-size:.85rem;border-radius:999px}
+.pjw .acts2 .del{position:static;border:1px solid var(--line)}
 .pjw a.tbl{display:inline-block;margin-top:6px;padding:4px 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700;font-size:.9rem}
 dialog.cdel{border:1px solid var(--line);border-radius:14px;padding:18px;max-width:min(440px, calc(100vw - 32px));background:var(--sheet);color:var(--ink)}
 dialog.cdel::backdrop{background:rgba(0,0,0,.45)}
@@ -90,8 +93,12 @@ function renderChars(){
     return `<div class="pjw"><a class="pj" href="fiche-personnage.html?id=${encodeURIComponent(c.id)}">
       <span class="av"${pic}>${d.portrait ? '' : jdrEsc((c.name || '?')[0].toUpperCase())}</span>
       <span class="tx"><b>${jdrEsc(c.name || 'Sans nom')}</b><small>${jdrEsc(who)}</small><small>${jdrEsc(camp)}</small></span></a>
-      ${c.campaign_id ? `<a class="tbl" href="plateau.html?campagne=${encodeURIComponent(c.campaign_id)}">Rejoindre la table →</a>` : ''}
-      <button type="button" class="del" data-del="${jdrEsc(c.id)}" aria-label="Supprimer la fiche de ${jdrEsc(c.name || 'Sans nom')}">Supprimer</button></div>`;
+      <div class="acts2">
+        ${c.campaign_id ? `<a class="tbl" style="margin-top:0" href="plateau.html?campagne=${encodeURIComponent(c.campaign_id)}">Rejoindre la table →</a>` : ''}
+        <button type="button" data-dup="${jdrEsc(c.id)}" title="Créer une copie de cette fiche (avec son deck), hors de toute partie">Dupliquer</button>
+        ${c.campaign_id ? `<button type="button" data-quit="${jdrEsc(c.id)}" title="Le personnage quitte sa partie ; la fiche est gardée">Quitter la partie</button>` : ''}
+        <button type="button" class="del" data-del="${jdrEsc(c.id)}" aria-label="Supprimer la fiche de ${jdrEsc(c.name || 'Sans nom')}">Supprimer</button>
+      </div></div>`;
   });
   items.push(`<a class="pj new" href="creation-personnage.html">+ Créer un personnage</a>`);
   box.innerHTML = items.join('');
@@ -113,6 +120,29 @@ $id('chars').addEventListener('click', e => {
   dlg.showModal(); $id('del-in').focus();
 });
 $id('del-in').addEventListener('input', () => { $id('del-ok').disabled = !delOk(); });
+
+/* ---------- Dupliquer une fiche (copie complète + deck, hors de toute partie) ---------- */
+$id('chars').addEventListener('click', async e => {
+  const b = e.target.closest('[data-dup]'); if(!b) return;
+  b.disabled = true; status('status', 'Copie de la fiche…');
+  const { data: src, error } = await jdrSb.from('characters').select('name,data,deck').eq('id', b.dataset.dup).single();
+  if(error){ status('status', jdrErrorText(error), true); b.disabled = false; return; }
+  const me = await jdrCurrentUser();
+  const name = jdrCopyName(src.name || 'Sans nom', chars.map(c => c.name || ''));
+  const data = Object.assign({}, src.data || {}, { name });
+  const r = await jdrSb.from('characters').insert({ owner_id: me.id, name, data, deck: src.deck || [] }).select('id').single();
+  if(r.error){ status('status', jdrErrorText(r.error), true); b.disabled = false; return; }
+  await load(); status('status', `Fiche « ${name} » créée (copie de « ${src.name || 'Sans nom'} »).`);
+});
+/* ---------- Quitter la partie (la fiche reste) ---------- */
+$id('chars').addEventListener('click', async e => {
+  const b = e.target.closest('[data-quit]'); if(!b) return;
+  const c = chars.find(x => x.id === b.dataset.quit); if(!c) return;
+  if(!confirm(`« ${c.name || 'Sans nom'} » quitte la partie « ${camps[c.campaign_id] || ''} ». La fiche est gardée, et tu pourras rejoindre une autre partie avec. Continuer ?`)) return;
+  const { error } = await jdrSb.from('characters').update({ campaign_id: null }).eq('id', c.id);
+  if(error){ status('status', jdrErrorText(error), true); return; }
+  await load(); status('status', `« ${c.name || 'Sans nom'} » a quitté la partie.`);
+});
 $id('del-in').addEventListener('keydown', e => { if(e.key === 'Enter' && delOk()){ e.preventDefault(); $id('del-ok').click(); } });
 $id('del-cancel').addEventListener('click', () => dlg.close());
 $id('del-ok').addEventListener('click', async () => {

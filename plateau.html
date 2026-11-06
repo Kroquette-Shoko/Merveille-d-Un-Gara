@@ -1527,6 +1527,16 @@ function jFolder(key, label, rows, opts = {}){
   f.append(hd, el('div', { class: 'fbody' }, ...(rows.length ? rows : [el('div', { class: 'hint', style: 'padding:4px 6px;font-size:.85rem', text: opts.empty || 'Vide' })])));
   return f;
 }
+// MJ : retirer un personnage de la partie (deux clics : « ✕ » puis « Sûr ? »)
+async function removeChar(c, btn){
+  if(btn.dataset.arm !== '1'){ btn.dataset.arm = '1'; btn.textContent = 'Retirer ?'; setTimeout(() => { if(btn.isConnected){ btn.dataset.arm = ''; btn.textContent = '✕'; } }, 3000); return; }
+  const { error } = await jdrSb.rpc('gm_remove_character', { p_character: c.id });
+  if(error){ toast(jdrErrorText(error)); return; }
+  chars = chars.filter(x => x.id !== c.id);
+  [...items.values()].filter(i => i.character_id === c.id).forEach(i => { items.delete(i.id); removeItemEl(i.id); });
+  postMsg('system', `${c.name || 'Un personnage'} a été retiré de la partie par le MJ.`);
+  renderJournal(); if(typeof PC !== 'undefined') PC.render();
+}
 function renderJournal(){
   if(!me) return;
   const q = jdrNorm($id('j-q').value || ''); const match = n => !q || jdrNorm(n).includes(q);
@@ -1540,7 +1550,10 @@ function renderJournal(){
       el('span', { class: 'nm', text: c.name || 'Sans nom', title: [d.peuple, d.classe].filter(Boolean).join(' · ') }),
       el('a', { href: 'fiche-personnage.html?id=' + encodeURIComponent(c.id), target: '_blank', rel: 'noopener', text: 'Fiche', style: 'font-size:.85rem' }),
       tok ? el('button', { type: 'button', text: 'Voir', style: 'padding:2px 8px;font-size:.8rem', onclick: () => { centerOn(tok.data.x + tok.data.w / 2, tok.data.y + tok.data.h / 2); select(tok.id); } })
-          : (isGM ? el('button', { type: 'button', text: 'Poser', style: 'padding:2px 8px;font-size:.8rem', onclick: () => placeChars([c]) }) : document.createTextNode('')));
+          : (isGM ? el('button', { type: 'button', text: 'Poser', style: 'padding:2px 8px;font-size:.8rem', onclick: () => placeChars([c]) }) : document.createTextNode('')),
+      // MJ : retirer le personnage de la partie (la fiche reste au joueur) — fonction jdr.gm_remove_character (sql/jdr-020)
+      isGM ? el('button', { type: 'button', class: 'ghost', text: '✕', title: 'Retirer ce personnage de la partie (sa fiche reste au joueur)', 'aria-label': 'Retirer ' + (c.name || 'ce personnage') + ' de la partie',
+        style: 'padding:2px 6px;font-size:.8rem', onclick: ev => removeChar(c, ev.currentTarget) }) : document.createTextNode(''));
   });
   parts.push(jFolder('__pj', 'Personnages joueurs', pjRows, { empty: 'Aucun joueur dans la partie', forceOpen: !!q }));
   // 2. Dossiers puis entrées à la racine
