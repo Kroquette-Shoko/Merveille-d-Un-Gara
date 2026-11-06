@@ -146,9 +146,52 @@ const TO = (() => {
     if(t.last === 'foe' && pcsLeft) return 'À un joueur de jouer';
     return pcsLeft ? 'À un joueur ou un adversaire' : 'Aux adversaires';
   }
+
+  /* ---------- Ambiance : lueur des bords (combat seulement) + ruban du conteur ----------
+     Qui joue, vu par cet écran :
+       self = mon personnage (or) · ally = un autre joueur (bleu nuit) · foe = un adversaire (braise).
+     Pour le MJ : les personnages joueurs sont « ally », les adversaires « foe ».
+     Réglages (Paramètres › Affichage) : opt.glow = soft | strong | off ; opt.ribbon = true | false. */
+  const PHRASES = {
+    self: ['À toi d’agir, {n}.', 'Le moment est venu, {n}.', 'Tous les regards se tournent vers {n}.'],
+    ally: ['{n} s’avance…', '{n} prend la parole.', 'C’est à {n} d’agir.'],
+    foe:  ['{n} s’agite…', 'L’ombre de {n} se dresse…', '{n} passe à l’action…']
+  };
+  let ambKey = null, ambTimer = null, ambFirst = true;
+  function kindOf(c){ if(!c) return null; if(c.kind === 'foe') return 'foe'; return (!isGM && mine(c.id)) ? 'self' : 'ally'; }
+  function ambiance(){
+    const t = T(), c = t.mode ? t.current : null, k = kindOf(c);
+    const o = (typeof opt !== 'undefined' && opt) || {};
+    // 1. Lueur des bords : uniquement pendant un combat
+    let g = document.getElementById('tglow');
+    if(!g){ g = el('div', { id: 'tglow', class: 'tglow', 'aria-hidden': 'true' }); document.body.append(g); }
+    const glowOn = !!(k && t.mode === 'combat' && o.glow !== 'off');
+    g.className = 'tglow' + (glowOn ? ' on k-' + k : '') + (o.glow === 'strong' ? ' strong' : '');
+    // 2. Ruban du conteur (combat et scène, sans couleur de fond hors combat)
+    let r = document.getElementById('tribbon');
+    if(!r){ r = el('div', { id: 'tribbon', class: 'tribbon hide', role: 'status', 'aria-live': 'polite', title: 'Ouvrir l’ordre du tour' }); r.addEventListener('click', open); document.body.append(r); }
+    const key = c ? c.kind + ':' + c.id : null;
+    if(!c || o.ribbon === false){ r.className = 'tribbon hide'; ambKey = key; ambFirst = false; return; }
+    const changed = key !== ambKey; ambKey = key;
+    const mark = t.mode === 'combat' ? ' k-' + k : '';
+    if(changed){
+      const list = PHRASES[k]; const phrase = list[Math.floor(Math.random() * list.length)].replace('{n}', c.name || '…');
+      r.replaceChildren(el('span', { class: 'tk' }), document.createTextNode(phrase));
+      r.dataset.short = c.name || '';
+      clearTimeout(ambTimer);
+      if(ambFirst){ fold(r); }   // à l’ouverture du plateau : directement replié, pas d’annonce
+      else { r.className = 'tribbon big' + mark; ambTimer = setTimeout(() => fold(r), 4500); }
+    } else if(!r.classList.contains('big')) fold(r);
+    else { r.classList.remove('k-self', 'k-ally', 'k-foe'); if(mark) r.classList.add(mark.trim()); }   // passage combat ↔ scène pendant l’annonce
+    ambFirst = false;
+    function fold(n){ const t2 = T(), k2 = kindOf(t2.current); if(!t2.current) return;
+      const word = k2 === 'self' ? 'à toi' : k2 === 'foe' ? 'adversaire' : 'allié';
+      n.replaceChildren(el('span', { class: 'tk' }), document.createTextNode(`${t2.current.name || '…'} — ${word}`));
+      n.className = 'tribbon' + (t2.mode === 'combat' ? ' k-' + k2 : ''); }
+  }
   function open(){ const w = makeWin('__turn', 'Ordre du tour'); w.tabs.hidden = true; render(); }
   function render(){
-    badge();
+    badge(); ambiance();
     const w = wins.get('__turn'); if(!w) return;
     const t = T(); const body = [];
     const head = !t.mode ? 'Aucun combat ni scène en cours' : t.mode === 'combat' ? `⚔ Combat — round ${t.round}` : `🎬 Scène ${t.scene}`;

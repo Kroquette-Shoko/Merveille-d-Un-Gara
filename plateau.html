@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Plateau Un'Gara</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@1,500;1,700&family=Alegreya+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/jdr-ui.css">
 <style>
 /* ============================================================
@@ -385,6 +385,27 @@ svg.fx{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-ind
 .pending.risk{border-color:#e07a3c}
 .trrk{background:#4a2335;color:#ffb9a8;border-radius:999px;padding:1px 9px;font-size:.82rem;font-weight:700}
 
+/* ---------- Ambiance du tour : lueur des bords (combat seulement) + ruban du conteur ---------- */
+.tglow{position:fixed;left:0;top:0;bottom:0;right:var(--sbw);pointer-events:none;z-index:8;opacity:0;transition:opacity 1.6s ease,box-shadow 1.6s ease;
+  box-shadow:inset 0 0 var(--gb,110px) var(--gs,18px) var(--gc,transparent)}
+.tglow.on{opacity:var(--ga,.55)}
+.tglow.strong{--gb:150px;--gs:30px;--ga:.85}
+.tglow.k-self{--gc:rgba(232,182,80,.55)}
+.tglow.k-ally{--gc:rgba(70,110,190,.5)}
+.tglow.k-foe{--gc:rgba(185,48,28,.55);animation:tbraise 5s ease-in-out infinite}
+@keyframes tbraise{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+.tribbon{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:21;cursor:pointer;max-width:min(560px,70vw);
+  background:linear-gradient(#efe2c2,#e3d1a8);color:#3a2a17;border:1px solid #b89a63;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.45);
+  font-family:'Alegreya',Georgia,serif;font-style:italic;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:padding .7s ease,font-size .7s ease,opacity .8s ease;padding:3px 14px;font-size:.92rem;opacity:.92}
+.tribbon::before,.tribbon::after{content:'';position:absolute;top:50%;width:10px;height:10px;transform:translateY(-50%) rotate(45deg);background:#d8c294;border:1px solid #b89a63}
+.tribbon::before{left:-6px}.tribbon::after{right:-6px}
+.tribbon.big{padding:10px 30px;font-size:1.35rem;opacity:1}
+.tribbon.hide{opacity:0;pointer-events:none}
+.tribbon .tk{display:inline-block;width:.55em;height:.55em;border-radius:50%;margin-right:.5em;vertical-align:.08em;background:#8a7553}
+.tribbon.k-self .tk{background:#c9922a}.tribbon.k-ally .tk{background:#46619a}.tribbon.k-foe .tk{background:#a3301c}
+@media (prefers-reduced-motion:reduce){.tglow,.tribbon{transition:none}.tglow.k-foe{animation:none}}
+
 /* ---------- Tours et scènes ---------- */
 .turnb{position:fixed;top:12px;left:74px;z-index:21;background:var(--ui);border:1px solid var(--acc);color:var(--uit);border-radius:999px;padding:5px 14px;font-weight:700;font-size:.88rem;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .to-h{display:flex;flex-direction:column;gap:2px}
@@ -562,6 +583,8 @@ dialog.dlg .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     <label class="chk"><input type="checkbox" id="o-rings" checked> Cercles de portée au survol de mes pions</label>
     <label class="f">Portraits des joueurs (bas de l'écran)<select id="o-pav"><option value="n">Juste le nom</option><option value="s">Petit</option><option value="m">Moyen (×2)</option><option value="l">Grand (×4)</option></select></label>
     <label class="f">Barres de mes pions (PV, armure, mana)<select id="o-bars"><option value="always">Toujours affichées</option><option value="hover">Au survol / à la sélection</option><option value="never">Jamais</option></select></label>
+    <label class="f">Lueur des bords pendant un combat<select id="o-glow"><option value="soft">Discrète</option><option value="strong">Marquée</option><option value="off">Aucune</option></select></label>
+    <label class="chk"><input type="checkbox" id="o-ribbon"> Ruban du conteur (annonce à qui c'est le tour)</label>
   </section>
 </aside>
 <button type="button" class="sidetog" id="sidetog" aria-label="Replier la barre latérale" title="Replier / déplier">›</button>
@@ -619,7 +642,7 @@ let sel = null;                                // élément sélectionné
 // Maj + clic = ajouter / retirer un objet. Glisser un des objets sélectionnés les déplace tous ; Suppr les supprime (MJ).
 const multi = new Set();
 let channel = null;
-let opt = { names: true, rings: true, bars: 'always', pav: 's' };
+let opt = { names: true, rings: true, bars: 'always', pav: 's', glow: 'soft', ribbon: true };
 const DEFAULT_SCALE = 50;                      // pixels par mètre
 const RANGES = [['Contact', 1.5], ['Allonge', 3], ['Proche', 9], ['Moyenne portée', 18], ['Grande portée', 36], ['Très grande portée', 72]];
 const RING_RANGES = RANGES.slice(0, 4);
@@ -1379,6 +1402,8 @@ $id('o-names').addEventListener('change', e => { opt.names = e.target.checked; s
 $id('o-rings').addEventListener('change', e => { opt.rings = e.target.checked; saveOpt(); drawFx(); });
 $id('o-bars').addEventListener('change', e => { opt.bars = e.target.value; saveOpt(); renderAll(); });
 $id('o-pav').addEventListener('change', e => setPav(e.target.value));
+$id('o-glow').addEventListener('change', e => { opt.glow = e.target.value; saveOpt(); TO.render(); });
+$id('o-ribbon').addEventListener('change', e => { opt.ribbon = e.target.checked; saveOpt(); TO.render(); });
 
 /* ---------- Discussion (et journal des actions) ---------- */
 function scrollChat(){ const m = $id('msgs'); m.scrollTop = m.scrollHeight; }
@@ -2012,7 +2037,7 @@ async function chooseCampaign(){
     : '<p style="margin:0">Tu n’es dans aucune partie. Le MJ crée une campagne et te donne son code (Joueur → Rejoindre une partie).</p>'));
 }
 (async () => {
-  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings; $id('o-bars').value = opt.bars; $id('o-pav').value = opt.pav || 's';
+  $id('o-names').checked = opt.names; $id('o-rings').checked = opt.rings; $id('o-bars').value = opt.bars; $id('o-pav').value = opt.pav || 's'; $id('o-glow').value = opt.glow || 'soft'; $id('o-ribbon').checked = opt.ribbon !== false;
   if(!jdrSb){ showMsg('<p>Connexion au serveur impossible.</p>'); return; }
   me = await jdrPage('plateau', { requireLogin: true, noNav: true }); if(!me) return;
   myName = await jdrUsername(me) || 'Joueur';
