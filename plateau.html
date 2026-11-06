@@ -69,7 +69,8 @@ a{color:var(--acc2)}
 .thud .val.ed{cursor:pointer;text-decoration:underline dotted}
 .thud .dmg{background:#5a2626;border-color:#7a3333}
 /* bulles autour du pion sélectionné */
-.tbub .bub{position:fixed;z-index:31;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;padding:0;display:grid;place-items:center;font-size:1.05rem;
+.tbub .bub span{display:grid;place-items:center;line-height:0}
+.tbub .bub{position:fixed;z-index:31;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;padding:0;display:grid;place-items:center;font-size:1.05rem;color:#f3f6f8;
   background:var(--ui);border:2px solid var(--uil);box-shadow:0 4px 12px rgba(0,0,0,.5);transition:transform .12s}
 .tbub .bub:hover{transform:translate(-50%,-50%) scale(1.12);border-color:var(--acc2)}
 .tbub .bub.on{border-color:var(--acc2);background:var(--acc)}
@@ -811,6 +812,16 @@ function openSheet(it){
      ❤ Santé (soins, blessures physiques / magiques / vraies) · ✦ États · 💧 Ressources · 📊 Stats · ⚙ Options du pion
    Blessure physique : enlève d'abord l'armure, puis les PV ; magique : l'armure magique, puis les PV ; vraie : les PV directement. */
 let bubble = null;                                   // menu de bulle ouvert ('hp' | 'st' | 'res' | 'stats' | 'opt' | null)
+// Icônes des bulles (dessin au trait, couleur du texte) : bouclier-cœur, portrait, joyau, meeple, rouage, parchemin
+const BUB_ICON = {
+  hp: '<path d="M12 2.5 20 5.5v6c0 5-3.4 8.7-8 10.5-4.6-1.8-8-5.5-8-10.5v-6z"/><path d="M12 16.2c-3.6-2.6-4.6-4.4-4.3-6 .3-1.5 2.4-2.2 3.6-.9l.7.8.7-.8c1.2-1.3 3.3-.6 3.6.9.3 1.6-.7 3.4-4.3 6z"/>',
+  st: '<path d="M5 2.5h14a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2z"/><path d="M12 6.3a3.3 3.3 0 1 1 0 6.6 3.3 3.3 0 0 1 0-6.6z"/><path d="M6 21.5c.3-3.9 2.8-6.3 6-6.3s5.7 2.4 6 6.3"/>',
+  res: '<path d="M6.5 3.5h11l4 5.5L12 20.5 2.5 9z"/><path d="M2.5 9h19M9.5 3.5 7.5 9l4.5 11.5L16.5 9l-2-5.5"/>',
+  stats: '<path d="M12 2.6c-1.9 0-3.3 1.4-3.3 3.2 0 .9.3 1.6.8 2.2C6.3 8.4 3 9.2 3 11.2c0 1.3 1.6 1.9 3.4 2.1l-1.8 7c-.2.7.3 1.2 1 1.2h3.5c.4 0 .8-.3.9-.7L12 16.7l2 4.1c.1.4.5.7.9.7h3.5c.7 0 1.2-.5 1-1.2l-1.8-7c1.8-.2 3.4-.8 3.4-2.1 0-2-3.3-2.8-6.5-3.2.5-.6.8-1.3.8-2.2 0-1.8-1.4-3.2-3.3-3.2z"/>',
+  opt: '<path d="M20.00 10.21 L22.31 10.65 L22.31 13.35 L20.00 13.79 L18.92 16.39 L20.25 18.34 L18.34 20.25 L16.39 18.92 L13.79 20.00 L13.35 22.31 L10.65 22.31 L10.21 20.00 L7.61 18.92 L5.66 20.25 L3.75 18.34 L5.08 16.39 L4.00 13.79 L1.69 13.35 L1.69 10.65 L4.00 10.21 L5.08 7.61 L3.75 5.66 L5.66 3.75 L7.61 5.08 L10.21 4.00 L10.65 1.69 L13.35 1.69 L13.79 4.00 L16.39 5.08 L18.34 3.75 L20.25 5.66 L18.92 7.61 Z"/><circle cx="12" cy="12" r="3.2"/>',
+  sheet: '<path d="M8.5 21.5h10a2.5 2.5 0 0 0 2.5-2.5v-1.5H11V19a2.5 2.5 0 1 1-5 0V5.5a2.5 2.5 0 0 0-5 0V8h5"/><path d="M19 17.5V5a2.5 2.5 0 0 0-2.5-2.5H3.5"/><path d="M9.5 7.5h6M9.5 11h6M9.5 14.5h4"/>'
+};
+const bubSvg = k => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${BUB_ICON[k]}</svg>`;
 const BUBBLES = [
   { k: 'hp', ic: '❤', t: 'Santé' }, { k: 'st', ic: '✦', t: 'États' }, { k: 'res', ic: '💧', t: 'Ressources' },
   { k: 'stats', ic: '📊', t: 'Stats' }, { k: 'opt', ic: '⚙', t: 'Options du pion' }, { k: 'sheet', ic: '📜', t: 'Ouvrir la fiche', act: true }];
@@ -831,7 +842,7 @@ function renderHud(){
   const B2 = $id('tbub');
   B2.replaceChildren(...BUBBLES.map(b => el('button', { type: 'button', class: 'bub' + (bubble === b.k ? ' on' : ''), title: b.t, 'aria-label': b.t, 'aria-pressed': bubble === b.k ? 'true' : 'false',
     // la 6e bulle ouvre directement la fiche (personnage : fiche complète ; PNJ : sa fiche du journal ; pion seul : ses réglages)
-    onclick: () => { if(b.act){ openSheet(it); return; } bubble = bubble === b.k ? null : b.k; renderHud(); } }, el('span', { text: b.ic }))));
+    onclick: () => { if(b.act){ openSheet(it); return; } bubble = bubble === b.k ? null : b.k; renderHud(); } }, (() => { const sp = el('span'); sp.innerHTML = bubSvg(b.k); return sp; })())));
   B2.hidden = false;
   if(!bubble){ H.hidden = true; placeHud(); return; }
   const rows = [el('div', { class: 'th1' }, el('b', { text: `${BUBBLES.find(b => b.k === bubble).t} — ${it.data.name || 'Pion'}` }),
