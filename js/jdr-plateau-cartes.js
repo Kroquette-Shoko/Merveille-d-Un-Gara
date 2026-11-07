@@ -444,8 +444,9 @@ const PC = (() => {
       const left = paLeft(ch), max = paMax(ch);
       const cw = el('div', { class: 'pd-card', title: 'Agrandir' }); cw.innerHTML = card ? jdrCardHTML(card, { width: '200px' }) : `<div class="cmiss">${jdrEsc(p.card.c)}</div>`;
       cw.addEventListener('click', () => card && jdrZoomCard(card));
-      const effs = effectsOf(card).map(e => { const short = left !== null && e.pa > left;
+      const effs = effectsOf(card).map((e, i) => { const short = left !== null && e.pa > left;
         const b = el('button', { type: 'button', class: 'pd-eff' + (short ? ' short' : ''), disabled: !can, title: can ? (short ? 'Pas assez de PA' : 'Résoudre cet effet') : 'Seul le joueur qui a joué la carte (ou le MJ) choisit' });
+        if(can && i < 9) b.append(el('span', { class: 'pd-key', text: String(i + 1), 'aria-hidden': 'true' }));
         if(e.name) b.append(el('b', { text: e.name }));
         const t = el('div', { class: 'pd-t' }); t.innerHTML = jdrRichText(e.text); b.append(t);
         b.addEventListener('click', () => resolve(ch, e.key)); return b; });
@@ -453,7 +454,7 @@ const PC = (() => {
         el('div', { class: 'pd-h' }, el('b', { text: card && card.type === 'Risque' ? `⚠ ${nameOf(ch)} pioche un Risque : « ${card.name} »` : `${nameOf(ch)} joue « ${card ? card.name : p.card.c} »` }),
           el('span', { class: 'pd-pa', text: left !== null ? `${left} / ${max} PA` : 'PA non renseignés' })),
         el('div', { class: 'pd-b' }, cw, el('div', { class: 'pd-effs' },
-          el('div', { class: 'hint', style: 'margin:0', text: can ? 'Clique sur l’effet que tu résous :' : `En attente du choix de ${nameOf(ch)}…` }), ...effs,
+          el('div', { class: 'hint', style: 'margin:0', text: can ? `Clique sur l’effet que tu résous${effs.length > 1 ? ' (ou touche 1 à ' + Math.min(9, effs.length) + ')' : ' (ou touche 1)'} — Échap : annuler` : `En attente du choix de ${nameOf(ch)}…` }), ...effs,
           el('button', { type: 'button', class: 'pd-cancel', disabled: !can, text: `Annuler (la carte revient ${p.from === 'play' ? 'en jeu' : p.from === 'special' ? 'dans les actions spéciales' : 'en main'})`, onclick: () => cancel(ch) }))));
     }));
     box.hidden = !list.length;
@@ -520,12 +521,14 @@ const PC = (() => {
   const back = (n, title) => el('div', { class: 'cback', title: title || '' }, el('span', { text: n === undefined ? '' : String(n) }));
   function mini(ch, z, c, opts = {}){
     const card = cards[c.c];
-    const w = el('div', { class: 'pcard', draggable: 'true', 'data-u': c.u, title: card ? card.name + ' — double-clic : agrandir ; clic droit : actions' : c.c });
+    const w = el('div', { class: 'pcard', draggable: 'true', 'data-u': c.u, title: card ? card.name + ' — double-clic ou Espace : agrandir ; clic droit : actions ; touches J D B E S G (voir « ? »)' : c.c });
     w.innerHTML = card ? jdrCardHTML(card, { width: (opts.w || 96) + 'px' }) : `<div class="cmiss">${jdrEsc(c.c)}</div>`;
     w.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-pcard', JSON.stringify({ ch, z, u: c.u })); e.dataTransfer.effectAllowed = 'move'; w.classList.add('dragging'); });
     w.addEventListener('dragend', () => w.classList.remove('dragging'));
     w.addEventListener('dblclick', () => card && jdrZoomCard(card));
     w.addEventListener('contextmenu', e => { e.preventDefault(); cardMenu(ch, z, c, e.clientX, e.clientY); });
+    w.addEventListener('pointerenter', () => { hoverCard = { ch, z, u: c.u, node: w }; });   // raccourcis clavier : carte sous la souris
+    w.addEventListener('pointerleave', () => { if(hoverCard && hoverCard.node === w) hoverCard = null; });
     return w;
   }
   function dropTarget(node, ch, z, pos){
@@ -552,19 +555,19 @@ const PC = (() => {
     sel.addEventListener('change', () => { cur = sel.value || null; try{ localStorage.setItem('jdr-tray-char-' + CAMP, cur || ''); }catch(e){} render(); });
     // Bandeau, dans l'ordre : Main de [personnage] · Prendre le tour · Convertir du mana (si magie) · Piocher une carte · Fin de tour · ⋯
     const head = el('div', { class: 'trh' },
-      el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: open ? 'Replier la main' : 'Déplier la main', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
+      el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: (open ? 'Replier la main' : 'Déplier la main') + ' — touche H', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
       el('b', { text: 'Main de' }), sel);
     if(isGM){ const pb = el('button', { type: 'button', class: 'trpnj', text: '📜 PNJ', title: 'Ouvrir la fiche d’un PNJ' }); pb.addEventListener('click', e => { const r = pb.getBoundingClientRect(); pnjMenu(r.left, r.top - 6); }); head.append(pb); }
     if(cur){
       const ctl = isGM || ownsChar(cur);             // prendre / finir le tour, convertir : le joueur du personnage ou le MJ
       const locked = isLocked(cur), ex = excessOf(cur);
-      if(ctl) head.append(el('button', { type: 'button', class: 'primary', text: '▶ Prendre le tour', title: 'Pioche autant de cartes que l’Opportunisme et remet tous les PA', disabled: blockedForMe(cur),
+      if(ctl) head.append(el('button', { type: 'button', class: 'primary', text: '▶ Prendre le tour', title: 'Pioche autant de cartes que l’Opportunisme et remet tous les PA — touche T', disabled: blockedForMe(cur),
         onclick: () => typeof TO !== 'undefined' && TO.takeTurn(cur) }));
-      if(ctl && hasMagic(cur)) head.append(el('button', { type: 'button', text: '✦ Convertir du mana', title: 'Bannir un sort de la main pour gagner 2 × son coût en mana', disabled: blockedForMe(cur), onclick: () => openConvert(cur) }));
-      head.append(el('button', { type: 'button', text: 'Piocher une carte', disabled: blockedForMe(cur), onclick: () => draw(cur, 1) }));
+      if(ctl && hasMagic(cur)) head.append(el('button', { type: 'button', text: '✦ Convertir du mana', title: 'Bannir un sort de la main pour gagner 2 × son coût en mana — touche N', disabled: blockedForMe(cur), onclick: () => openConvert(cur) }));
+      head.append(el('button', { type: 'button', text: 'Piocher une carte', title: 'Piocher une carte — touche C', disabled: blockedForMe(cur), onclick: () => draw(cur, 1) }));
       if(ctl) head.append(el('button', { type: 'button', class: locked ? 'danger' : '', text: locked ? `Fin de tour : défausser ${ex}` : 'Fin de tour',
-        title: 'Défausser jusqu’à garder autant de cartes que l’Anticipation, puis terminer le tour', onclick: () => typeof TO !== 'undefined' && TO.endTurn(cur) }));
-      if(ctl) head.append(el('button', { type: 'button', class: 'trrisk', text: '⚠ Prendre un risque', title: 'Mélanger des Risques du deck des Risques dans son deck', disabled: blockedForMe(cur), onclick: () => askRisk(cur) }));
+        title: 'Défausser jusqu’à garder autant de cartes que l’Anticipation, puis terminer le tour — touche F', onclick: () => typeof TO !== 'undefined' && TO.endTurn(cur) }));
+      if(ctl) head.append(el('button', { type: 'button', class: 'trrisk', text: '⚠ Prendre un risque', title: 'Mélanger des Risques du deck des Risques dans son deck — touche R', disabled: blockedForMe(cur), onclick: () => askRisk(cur) }));
       const more = el('button', { type: 'button', text: '⋯', title: 'Autres actions', 'aria-label': 'Autres actions' });
       more.addEventListener('click', e => menu(e.clientX, e.clientY, [
         ['Mélanger la pioche', () => shuffleDraw(cur)],
@@ -575,7 +578,8 @@ const PC = (() => {
         ['⚠ Risques… (ajouter, fatigue, retirer)', () => openRisks(cur)],
         '-',
         ['Fouiller la pioche', () => openPile(cur, 'draw')], ['Voir la défausse', () => openPile(cur, 'discard')],
-        ['Voir les cartes bannies', () => openPile(cur, 'banished')], ['Voir les cartes en jeu', () => openPile(cur, 'play')], ['Voir les actions spéciales', () => openPile(cur, 'special')]]));
+        ['Voir les cartes bannies', () => openPile(cur, 'banished')], ['Voir les cartes en jeu', () => openPile(cur, 'play')], ['Voir les actions spéciales', () => openPile(cur, 'special')],
+        '-', ['⌨ Raccourcis clavier (touche ?)', openKeys]]));
       head.append(more);
     }
     const body = el('div', { class: 'trb' });
@@ -707,6 +711,67 @@ const PC = (() => {
     if(ok) await checkEndLock(ch);
     return !!ok;
   }
+
+  /* ---------- Raccourcis clavier ----------
+     Touches déjà prises par le plateau (plateau.html) : V sélection · M mesure · P ping · Échap · Suppr · + / − zoom.
+     Bandeau (personnage choisi dans « Main de ») : T prendre le tour · F fin de tour · C piocher · N convertir du mana ·
+       R prendre un risque · H replier / déplier la main · ? liste des raccourcis.
+     Carte sous la souris (main, piles, fenêtres) : J ou Entrée jouer · D défausser · B bannir · E mettre en jeu ·
+       S mettre de côté (action spéciale) · G prendre en main · Espace agrandir.
+     Carte en attente d'effet : 1 à 9 choisir l'effet · Échap annuler (la carte revient). */
+  let hoverCard = null;
+  const KEYS = [
+    ['Le tour', [['T', 'Prendre le tour'], ['F', 'Fin de tour'], ['C', 'Piocher une carte'], ['N', 'Convertir du mana (classes magiques)'], ['R', 'Prendre un risque'], ['H', 'Replier / déplier la main']]],
+    ['Carte sous la souris', [['J ou Entrée', 'Jouer la carte'], ['D', 'Défausser'], ['B', 'Bannir'], ['E', 'Mettre en jeu (reste posée)'], ['S', 'Mettre de côté (action spéciale)'], ['G', 'Prendre en main'], ['Espace', 'Agrandir']]],
+    ['Carte jouée, en attente', [['1 à 9', 'Choisir l’effet (dans l’ordre affiché)'], ['Échap', 'Annuler : la carte revient']]],
+    ['Plateau', [['V', 'Outil sélection'], ['M', 'Mesurer une distance'], ['P', 'Ping (signaler un endroit)'], ['+ / −', 'Zoomer / dézoomer'], ['Suppr', 'Supprimer l’objet sélectionné (MJ)'], ['?', 'Afficher cette liste']]]
+  ];
+  function openKeys(){
+    const w = makeWin('__keys', 'Raccourcis clavier'); w.tabs.hidden = true; w.foot.hidden = true;
+    w.body.replaceChildren(el('p', { class: 'hint', style: 'margin:0', text: 'Les touches ne marchent pas pendant que tu écris (discussion, champs).' }),
+      ...KEYS.map(([t, list]) => el('div', { class: 'kb-g' }, el('div', { class: 'au-sub', text: t }),
+        ...list.map(([k, d]) => el('div', { class: 'kb-r' }, el('kbd', { text: k }), el('span', { text: d }))))));
+  }
+  // carte en attente que je peux décider : d'abord celle du personnage du bandeau, sinon une que j'ai jouée
+  function myPending(){
+    const list = [...states.values()].filter(st => st.data.pending && canDecide(st.character_id, st.data.pending));
+    return list.find(st => st.character_id === cur) || list.find(st => st.data.pending.by === me.id) || null;
+  }
+  document.addEventListener('keydown', e => {
+    if(e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    if(e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if(document.querySelector('dialog[open]')) return;   // une fenêtre de confirmation est ouverte
+    const k = e.key.toLowerCase();
+    if(e.key === '?'){ e.preventDefault(); openKeys(); return; }
+    // 1. carte en attente : choisir l'effet / annuler
+    const pd = myPending();
+    if(pd && /^[1-9]$/.test(k)){ const card = cards[pd.data.pending.card.c]; const eff = effectsOf(card)[Number(k) - 1]; if(eff){ e.preventDefault(); resolve(pd.character_id, eff.key); } return; }
+    if(pd && k === 'escape' && pd.data.pending.by === me.id){ cancel(pd.character_id); return; }   // seulement une carte que j'ai jouée moi-même (le MJ n'annule pas celle d'un joueur par Échap)
+    // 2. carte sous la souris
+    const h = hoverCard && hoverCard.node.isConnected ? hoverCard : null;
+    if(h){
+      const st = states.get(h.ch); const c = st && st.data[h.z] && st.data[h.z].find(x => x.u === h.u);
+      if(c){
+        const go = tz => { if(tz !== h.z) move({ ch: h.ch, z: h.z, u: h.u }, { ch: h.ch, z: tz }); };
+        const act = { j: 'play', enter: 'play', d: 'discard', b: 'banished', e: 'play-zone', s: 'special', g: 'hand', ' ': 'zoom' }[k];
+        if(act){ e.preventDefault(); hoverCard = null;
+          if(act === 'zoom'){ hoverCard = h; if(cards[c.c]) jdrZoomCard(cards[c.c]); }
+          else if(act === 'play'){ if(['hand', 'play', 'special'].includes(h.z)) play(h.ch, h.u, h.z); else toast('Cette carte ne se joue pas depuis ' + ZONES[h.z].toLowerCase() + ' : prends-la d’abord en main (G).'); }
+          else go(act === 'play-zone' ? 'play' : act);
+          return; }
+      }
+    }
+    // 3. bandeau
+    if(!cur) return;
+    const ctl = isGM || ownsChar(cur), blocked = blockedForMe(cur);
+    const need = (ok, why) => { if(!ok){ toast(why); return false; } return true; };
+    if(k === 't'){ if(need(ctl, 'Seul le joueur de ce personnage (ou le MJ) prend son tour.') && need(!blocked, 'Fin de tour en attente : défausse d’abord.') && typeof TO !== 'undefined') TO.takeTurn(cur); }
+    else if(k === 'f'){ if(need(ctl, 'Seul le joueur de ce personnage (ou le MJ) finit son tour.') && typeof TO !== 'undefined') TO.endTurn(cur); }
+    else if(k === 'c'){ draw(cur, 1); }
+    else if(k === 'n'){ if(need(ctl && hasMagic(cur), 'Ce personnage n’a pas accès à la magie.') && need(!blocked, 'Fin de tour en attente : défausse d’abord.')) openConvert(cur); }
+    else if(k === 'r'){ if(need(ctl, 'Seul le joueur de ce personnage (ou le MJ) prend un risque.') && need(!blocked, 'Fin de tour en attente : défausse d’abord.')) askRisk(cur); }
+    else if(k === 'h'){ open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(err){} render(); }
+  });
   const stateOf = ch => states.get(ch) || null;
   return { load, render, onChange, reveal, dropOnBoard, openPile, draw, discardMany, stateOf, mini, nameOf, resetPA, openRisks, states,
     isLocked, blockedForMe, setEndLock, excessOf, modsOf, modSum, setMods, clearMods, get cards(){ return cards; } };
