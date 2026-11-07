@@ -454,7 +454,7 @@ const PC = (() => {
         el('div', { class: 'pd-h' }, el('b', { text: card && card.type === 'Risque' ? `⚠ ${nameOf(ch)} pioche un Risque : « ${card.name} »` : `${nameOf(ch)} joue « ${card ? card.name : p.card.c} »` }),
           el('span', { class: 'pd-pa', text: left !== null ? `${left} / ${max} PA` : 'PA non renseignés' })),
         el('div', { class: 'pd-b' }, cw, el('div', { class: 'pd-effs' },
-          el('div', { class: 'hint', style: 'margin:0', text: can ? `Clique sur l’effet que tu résous${effs.length > 1 ? ' (ou touche 1 à ' + Math.min(9, effs.length) + ')' : ' (ou touche 1)'} — Échap : annuler` : `En attente du choix de ${nameOf(ch)}…` }), ...effs,
+          el('div', { class: 'hint', style: 'margin:0', text: can ? `Clique sur l’effet que tu résous${effs.length > 1 ? ' (ou Maj + 1 à ' + Math.min(9, effs.length) + ')' : ' (ou Maj + 1)'} — Maj + Échap : annuler` : `En attente du choix de ${nameOf(ch)}…` }), ...effs,
           el('button', { type: 'button', class: 'pd-cancel', disabled: !can, text: `Annuler (la carte revient ${p.from === 'play' ? 'en jeu' : p.from === 'special' ? 'dans les actions spéciales' : 'en main'})`, onclick: () => cancel(ch) }))));
     }));
     box.hidden = !list.length;
@@ -521,7 +521,7 @@ const PC = (() => {
   const back = (n, title) => el('div', { class: 'cback', title: title || '' }, el('span', { text: n === undefined ? '' : String(n) }));
   function mini(ch, z, c, opts = {}){
     const card = cards[c.c];
-    const w = el('div', { class: 'pcard', draggable: 'true', 'data-u': c.u, title: card ? card.name + ' — double-clic ou Espace : agrandir ; clic droit : actions ; touches J D B E S G (voir « ? »)' : c.c });
+    const w = el('div', { class: 'pcard', draggable: 'true', 'data-u': c.u, title: card ? card.name + ' — double-clic ou Maj + Espace : agrandir ; clic droit : actions ; Maj + J D B E S G (voir « ? »)' : c.c });
     w.innerHTML = card ? jdrCardHTML(card, { width: (opts.w || 96) + 'px' }) : `<div class="cmiss">${jdrEsc(c.c)}</div>`;
     w.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-pcard', JSON.stringify({ ch, z, u: c.u })); e.dataTransfer.effectAllowed = 'move'; w.classList.add('dragging'); });
     w.addEventListener('dragend', () => w.classList.remove('dragging'));
@@ -555,19 +555,19 @@ const PC = (() => {
     sel.addEventListener('change', () => { cur = sel.value || null; try{ localStorage.setItem('jdr-tray-char-' + CAMP, cur || ''); }catch(e){} render(); });
     // Bandeau, dans l'ordre : Main de [personnage] · Prendre le tour · Convertir du mana (si magie) · Piocher une carte · Fin de tour · ⋯
     const head = el('div', { class: 'trh' },
-      el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: (open ? 'Replier la main' : 'Déplier la main') + ' — touche H', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
+      el('button', { type: 'button', class: 'trtog', text: open ? '▾' : '▴', title: (open ? 'Replier la main' : 'Déplier la main') + ' — Maj + H', 'aria-label': open ? 'Replier la main' : 'Déplier la main', onclick: () => { open = !open; try{ localStorage.setItem('jdr-tray-open', open ? '1' : '0'); }catch(e){} render(); } }),
       el('b', { text: 'Main de' }), sel);
     if(isGM){ const pb = el('button', { type: 'button', class: 'trpnj', text: '📜 PNJ', title: 'Ouvrir la fiche d’un PNJ' }); pb.addEventListener('click', e => { const r = pb.getBoundingClientRect(); pnjMenu(r.left, r.top - 6); }); head.append(pb); }
     if(cur){
       const ctl = isGM || ownsChar(cur);             // prendre / finir le tour, convertir : le joueur du personnage ou le MJ
       const locked = isLocked(cur), ex = excessOf(cur);
-      if(ctl) head.append(el('button', { type: 'button', class: 'primary', text: '▶ Prendre le tour', title: 'Pioche autant de cartes que l’Opportunisme et remet tous les PA — touche T', disabled: blockedForMe(cur),
+      if(ctl) head.append(el('button', { type: 'button', class: 'primary', text: '▶ Prendre le tour', title: 'Pioche autant de cartes que l’Opportunisme et remet tous les PA — Maj + T', disabled: blockedForMe(cur),
         onclick: () => typeof TO !== 'undefined' && TO.takeTurn(cur) }));
-      if(ctl && hasMagic(cur)) head.append(el('button', { type: 'button', text: '✦ Convertir du mana', title: 'Bannir un sort de la main pour gagner 2 × son coût en mana — touche N', disabled: blockedForMe(cur), onclick: () => openConvert(cur) }));
-      head.append(el('button', { type: 'button', text: 'Piocher une carte', title: 'Piocher une carte — touche C', disabled: blockedForMe(cur), onclick: () => draw(cur, 1) }));
+      if(ctl && hasMagic(cur)) head.append(el('button', { type: 'button', text: '✦ Convertir du mana', title: 'Bannir un sort de la main pour gagner 2 × son coût en mana — Maj + N', disabled: blockedForMe(cur), onclick: () => openConvert(cur) }));
+      head.append(el('button', { type: 'button', text: 'Piocher une carte', title: 'Piocher une carte — Maj + C', disabled: blockedForMe(cur), onclick: () => draw(cur, 1) }));
       if(ctl) head.append(el('button', { type: 'button', class: locked ? 'danger' : '', text: locked ? `Fin de tour : défausser ${ex}` : 'Fin de tour',
-        title: 'Défausser jusqu’à garder autant de cartes que l’Anticipation, puis terminer le tour — touche F', onclick: () => typeof TO !== 'undefined' && TO.endTurn(cur) }));
-      if(ctl) head.append(el('button', { type: 'button', class: 'trrisk', text: '⚠ Prendre un risque', title: 'Mélanger des Risques du deck des Risques dans son deck — touche R', disabled: blockedForMe(cur), onclick: () => askRisk(cur) }));
+        title: 'Défausser jusqu’à garder autant de cartes que l’Anticipation, puis terminer le tour — Maj + F', onclick: () => typeof TO !== 'undefined' && TO.endTurn(cur) }));
+      if(ctl) head.append(el('button', { type: 'button', class: 'trrisk', text: '⚠ Prendre un risque', title: 'Mélanger des Risques du deck des Risques dans son deck — Maj + R', disabled: blockedForMe(cur), onclick: () => askRisk(cur) }));
       const more = el('button', { type: 'button', text: '⋯', title: 'Autres actions', 'aria-label': 'Autres actions' });
       more.addEventListener('click', e => menu(e.clientX, e.clientY, [
         ['Mélanger la pioche', () => shuffleDraw(cur)],
@@ -714,16 +714,19 @@ const PC = (() => {
 
   /* ---------- Raccourcis clavier ----------
      Touches déjà prises par le plateau (plateau.html) : V sélection · M mesure · P ping · Échap · Suppr · + / − zoom.
-     Bandeau (personnage choisi dans « Main de ») : T prendre le tour · F fin de tour · C piocher · N convertir du mana ·
-       R prendre un risque · H replier / déplier la main · ? liste des raccourcis.
-     Carte sous la souris (main, piles, fenêtres) : J ou Entrée jouer · D défausser · B bannir · E mettre en jeu ·
-       S mettre de côté (action spéciale) · G prendre en main · Espace agrandir.
-     Carte en attente d'effet : 1 à 9 choisir l'effet · Échap annuler (la carte revient). */
+     Toutes les touches ci-dessous demandent Maj (Shift) en plus, pour éviter les fausses manœuvres.
+     Lettres : lues avec e.key (la lettre écrite sur la touche, AZERTY comme QWERTY).
+     Chiffres : lus avec e.code (Digit1… / Numpad1…), car en AZERTY Maj+& donne déjà « 1 ».
+     Bandeau (personnage choisi dans « Main de ») : Maj+T prendre le tour · Maj+F fin de tour · Maj+C piocher · Maj+N convertir du mana ·
+       Maj+R prendre un risque · Maj+H replier / déplier la main · ? liste des raccourcis.
+     Carte sous la souris (main, piles, fenêtres) : Maj+J ou Maj+Entrée jouer · Maj+D défausser · Maj+B bannir · Maj+E mettre en jeu ·
+       Maj+S mettre de côté (action spéciale) · Maj+G prendre en main · Maj+Espace agrandir.
+     Carte en attente d'effet : Maj+1 à 9 choisir l'effet · Maj+Échap annuler (la carte revient). */
   let hoverCard = null;
   const KEYS = [
-    ['Le tour', [['T', 'Prendre le tour'], ['F', 'Fin de tour'], ['C', 'Piocher une carte'], ['N', 'Convertir du mana (classes magiques)'], ['R', 'Prendre un risque'], ['H', 'Replier / déplier la main']]],
-    ['Carte sous la souris', [['J ou Entrée', 'Jouer la carte'], ['D', 'Défausser'], ['B', 'Bannir'], ['E', 'Mettre en jeu (reste posée)'], ['S', 'Mettre de côté (action spéciale)'], ['G', 'Prendre en main'], ['Espace', 'Agrandir']]],
-    ['Carte jouée, en attente', [['1 à 9', 'Choisir l’effet (dans l’ordre affiché)'], ['Échap', 'Annuler : la carte revient']]],
+    ['Le tour (avec Maj)', [['Maj + T', 'Prendre le tour'], ['Maj + F', 'Fin de tour'], ['Maj + C', 'Piocher une carte'], ['Maj + N', 'Convertir du mana (classes magiques)'], ['Maj + R', 'Prendre un risque'], ['Maj + H', 'Replier / déplier la main']]],
+    ['Carte sous la souris (avec Maj)', [['Maj + J / Entrée', 'Jouer la carte'], ['Maj + D', 'Défausser'], ['Maj + B', 'Bannir'], ['Maj + E', 'Mettre en jeu (reste posée)'], ['Maj + S', 'Mettre de côté (action spéciale)'], ['Maj + G', 'Prendre en main'], ['Maj + Espace', 'Agrandir']]],
+    ['Carte jouée, en attente (avec Maj)', [['Maj + 1 à 9', 'Choisir l’effet (dans l’ordre affiché)'], ['Maj + Échap', 'Annuler : la carte revient']]],
     ['Plateau', [['V', 'Outil sélection'], ['M', 'Mesurer une distance'], ['P', 'Ping (signaler un endroit)'], ['+ / −', 'Zoomer / dézoomer'], ['Suppr', 'Supprimer l’objet sélectionné (MJ)'], ['?', 'Afficher cette liste']]]
   ];
   function openKeys(){
@@ -741,11 +744,13 @@ const PC = (() => {
     if(e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
     if(e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
     if(document.querySelector('dialog[open]')) return;   // une fenêtre de confirmation est ouverte
-    const k = e.key.toLowerCase();
     if(e.key === '?'){ e.preventDefault(); openKeys(); return; }
+    if(!e.shiftKey) return;   // sans Maj : aucun raccourci de carte ou de tour (pas de fausse manœuvre)
+    const k = e.code === 'Space' ? ' ' : e.key.toLowerCase();
+    const digit = (e.code.match(/^(?:Digit|Numpad)([1-9])$/) || [])[1];   // chiffre physique, quelle que soit la disposition du clavier
     // 1. carte en attente : choisir l'effet / annuler
     const pd = myPending();
-    if(pd && /^[1-9]$/.test(k)){ const card = cards[pd.data.pending.card.c]; const eff = effectsOf(card)[Number(k) - 1]; if(eff){ e.preventDefault(); resolve(pd.character_id, eff.key); } return; }
+    if(pd && digit){ const card = cards[pd.data.pending.card.c]; const eff = effectsOf(card)[Number(digit) - 1]; if(eff){ e.preventDefault(); resolve(pd.character_id, eff.key); } return; }
     if(pd && k === 'escape' && pd.data.pending.by === me.id){ cancel(pd.character_id); return; }   // seulement une carte que j'ai jouée moi-même (le MJ n'annule pas celle d'un joueur par Échap)
     // 2. carte sous la souris
     const h = hoverCard && hoverCard.node.isConnected ? hoverCard : null;
